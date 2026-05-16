@@ -245,7 +245,7 @@ function HistoryScreen({ offers, goBack }) {
                     </h2>
 
                     <p className="mt-1 text-sm text-zinc-400">
-                      {offer.category} · {offer.area} m² · {offer.peopleCount || 1} {(offer.peopleCount || 1) === 1 ? "person" : "personer"}
+                      {offer.category} · {formatArea(offer.area)} · {offer.peopleCount || 1} {(offer.peopleCount || 1) === 1 ? "person" : "personer"}
                     </p>
 
                   </div>
@@ -305,6 +305,31 @@ function HistoryScreen({ offers, goBack }) {
 
                 </div>
 
+                {offer.extraCosts?.length > 0 && (
+                  <div>
+
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+                      Extra kostnader
+                    </h3>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+
+                      {offer.extraCosts.map((cost) => (
+
+                        <span
+                          key={`${offer.id}-${cost.id}`}
+                          className="rounded-full border border-orange-400/20 bg-orange-500/10 px-3 py-2 text-xs font-bold text-orange-200"
+                        >
+                          {cost.name || "Extra kostnad"} · {formatPrice(cost.priceValue)}
+                        </span>
+
+                      ))}
+
+                    </div>
+
+                  </div>
+                )}
+
                 <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-white/10 text-center">
 
                   <HistoryPrice label="MIN" value={offer.prices?.min || 0} />
@@ -349,6 +374,83 @@ function HistoryPrice({ label, value, highlight = false }) {
   );
 }
 
+function calculateWeeklyAvailableHours(availability) {
+  const weekdayHours = Math.max(0, Number(availability.weekdayEveningHours) || 0);
+  const weekdayCount = Math.max(0, Number(availability.weekdayEveningsPerWeek) || 0);
+  const weekendHours = Math.max(0, Number(availability.weekendDayHours) || 0);
+  const weekendCount = Math.max(0, Number(availability.weekendDaysPerWeek) || 0);
+
+  return (weekdayHours * weekdayCount) + (weekendHours * weekendCount);
+}
+
+function formatHours(hours) {
+  const roundedHours = Math.round(hours * 10) / 10;
+
+  return `${roundedHours.toLocaleString("sv-SE")} h`;
+}
+
+function formatArea(area) {
+  const roundedArea = Math.round((Number(area) || 0) * 10) / 10;
+
+  return `${roundedArea.toLocaleString("sv-SE")} m²`;
+}
+
+function formatEstimatedCalendarTime(totalWorkHours, weeklyAvailableHours) {
+  if (totalWorkHours <= 0 || weeklyAvailableHours <= 0) {
+    return "Ej angivet";
+  }
+
+  const weeks = totalWorkHours / weeklyAvailableHours;
+
+  if (weeks >= 1) {
+    const roundedWeeks = Math.max(1, Math.round(weeks * 10) / 10);
+
+    return `ca ${roundedWeeks.toLocaleString("sv-SE")} ${roundedWeeks === 1 ? "vecka" : "veckor"}`;
+  }
+
+  const calendarDaysPerWeek = 7;
+  const days = Math.max(1, Math.floor(weeks * calendarDaysPerWeek + 0.4));
+
+  return `ca ${days} ${days === 1 ? "dag" : "dagar"}`;
+}
+
+function parseLocalDate(dateValue) {
+  if (!dateValue) {
+    return null;
+  }
+
+  const [year, month, day] = dateValue.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function formatLongDate(date) {
+  return date.toLocaleDateString("sv-SE", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function calculateEstimatedEndDate(startDate, totalWorkHours, weeklyAvailableHours) {
+  const parsedStartDate = parseLocalDate(startDate);
+
+  if (!parsedStartDate || totalWorkHours <= 0 || weeklyAvailableHours <= 0) {
+    return "";
+  }
+
+  const calendarDays = Math.max(1, Math.ceil((totalWorkHours / weeklyAvailableHours) * 7));
+  const endDate = new Date(parsedStartDate);
+
+  endDate.setDate(endDate.getDate() + calendarDays);
+
+  return `ca ${formatLongDate(endDate)}`;
+}
+
 const defaultCalculatorOptions = [
   {
     id: "stairs",
@@ -386,19 +488,45 @@ const fixedCostOptions = [
   },
 ];
 
+const altanPergolaDefaultPrices = {
+  deckingOnlyPerSquareMeter: 180,
+  repairPerSquareMeter: 220,
+  newFramePerSquareMeter: 280,
+  simpleRailingsPerSquareMeter: 100,
+  premiumRailingsPerSquareMeter: 180,
+  simpleStairsFixed: 2000,
+};
+
+const demolitionDefaultHourlyRate = 200;
+
+function isDemolitionOption(option) {
+  return String(option.title || "").toLowerCase().includes("rivning");
+}
+
+function normalizeCalculatorOption(option) {
+  if (!isDemolitionOption(option)) {
+    return option;
+  }
+
+  return {
+    ...option,
+    pricingControl: "hourly",
+    defaultHourlyRate: option.defaultHourlyRate ?? demolitionDefaultHourlyRate,
+    hourlyRateLabel: option.hourlyRateLabel || "Timpris rivning",
+    costType: option.costType || "work",
+  };
+}
+
 const calculatorConfigs = {
   default: {
-    workTime: "3-5 dagar",
     basePrice: (area) => area * 600,
     options: defaultCalculatorOptions,
   },
   "Målning & Tapeter": {
-    workTime: "2-4 dagar",
     basePrice: (area) => area * 180,
     options: defaultCalculatorOptions,
   },
   Golv: {
-    workTime: "1-3 dagar",
     basePrice: (area) => area * 250,
     options: [
       {
@@ -429,7 +557,6 @@ const calculatorConfigs = {
     ],
   },
   "Altan & Pergola": {
-    workTime: "4-7 dagar",
     basePrice: () => 0,
     usesCustomFixedCosts: true,
     sections: [
@@ -442,20 +569,25 @@ const calculatorConfigs = {
             defaultActive: true,
             excludes: ["newFrame"],
             pricingControl: "work",
-            defaultFastPrice: (area) => area * 450,
+            defaultFastPrice: (area) => area * altanPergolaDefaultPrices.deckingOnlyPerSquareMeter,
           },
           {
             id: "deckRepair",
             title: "Reparation",
             pricingControl: "work",
-            defaultFastPrice: (area) => area * 600,
+            defaultFastPrice: (area) => area * altanPergolaDefaultPrices.repairPerSquareMeter,
           },
           {
             id: "newFrame",
             title: "Ny stomme",
             excludes: ["deckingOnly"],
             pricingControl: "work",
-            defaultFastPrice: (area) => area * 900,
+            defaultFastPrice: (area) => area * altanPergolaDefaultPrices.newFramePerSquareMeter,
+          },
+          {
+            id: "oldDeckDemolition",
+            title: "Rivning av gammal altan / trall",
+            costType: "work",
           },
         ],
       },
@@ -472,12 +604,14 @@ const calculatorConfigs = {
           {
             id: "simpleRailings",
             title: "Enkla räcken",
-            price: ({ area, active }) => (active ? area * 250 : 0),
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * altanPergolaDefaultPrices.simpleRailingsPerSquareMeter,
           },
           {
             id: "premiumRailings",
             title: "Premium räcken",
-            price: ({ area, active }) => (active ? area * 450 : 0),
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * altanPergolaDefaultPrices.premiumRailingsPerSquareMeter,
           },
         ],
       },
@@ -491,8 +625,9 @@ const calculatorConfigs = {
           },
           {
             id: "deckStairs",
-            title: "Trappa till altan",
-            price: ({ active }) => (active ? 5000 : 0),
+            title: "Enkel trappa",
+            pricingControl: "work",
+            defaultFastPrice: () => altanPergolaDefaultPrices.simpleStairsFixed,
           },
           {
             id: "groundPrep",
@@ -512,7 +647,14 @@ const calculatorConfigs = {
           {
             id: "ledLighting",
             title: "LED-belysning",
-            price: ({ area, active }) => (active ? area * 160 : 0),
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "miscCarpentry",
+            title: "Övrigt / diverse snickeriarbete",
+            pricingControl: "hourly",
+            costType: "work",
           },
         ],
       },
@@ -566,6 +708,11 @@ const calculatorConfigs = {
 function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
   const [area, setArea] = useState(25);
+  const [areaMode, setAreaMode] = useState("manual");
+  const [deckDimensions, setDeckDimensions] = useState({
+    length: "",
+    width: "",
+  });
   const [selectedOptions, setSelectedOptions] = useState({});
   const [customer, setCustomer] = useState({
     name: "",
@@ -578,7 +725,15 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
     hourlyRate: 250,
   });
   const [peopleCount, setPeopleCount] = useState(1);
+  const [availability, setAvailability] = useState({
+    weekdayEveningHours: 4,
+    weekdayEveningsPerWeek: 5,
+    weekendDayHours: 8,
+    weekendDaysPerWeek: 2,
+  });
+  const [startDate, setStartDate] = useState("");
   const [fixedCosts, setFixedCosts] = useState({});
+  const [extraCosts, setExtraCosts] = useState([]);
   const [optionPricing, setOptionPricing] = useState({});
   const [discount, setDiscount] = useState({
     active: false,
@@ -586,11 +741,15 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
   });
 
   const calculatorConfig = calculatorConfigs[category] || calculatorConfigs.default;
-  const calculatorSections = calculatorConfig.sections || [
+  const usesDimensionArea = category === "Altan & Pergola";
+  const calculatorSections = (calculatorConfig.sections || [
     {
       options: calculatorConfig.options,
     },
-  ];
+  ]).map((section) => ({
+    ...section,
+    options: section.options.map(normalizeCalculatorOption),
+  }));
   const calculatorOptions = calculatorSections.flatMap((section) => {
     return section.options.map((option) => ({
       ...option,
@@ -604,14 +763,27 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
     return selectedOptions[option.id] ?? option.defaultActive ?? false;
   };
 
+  const updateDeckDimension = (field, value) => {
+    const nextDimensions = {
+      ...deckDimensions,
+      [field]: value,
+    };
+    const length = Math.max(0, Number(nextDimensions.length) || 0);
+    const width = Math.max(0, Number(nextDimensions.width) || 0);
+
+    setDeckDimensions(nextDimensions);
+    setArea(Math.round(length * width * 10) / 10);
+  };
+
   const getOptionPricing = (option) => {
     const pricing = optionPricing[option.id] || {};
 
     return {
       mode: pricing.mode || (option.pricingControl === "hourly" ? "hourly" : "fast"),
       fastPrice: pricing.fastPrice ?? option.defaultFastPrice?.(area) ?? 0,
+      estimatedHours: pricing.estimatedHours ?? 0,
       hours: pricing.hours ?? 0,
-      hourlyRate: pricing.hourlyRate ?? 250,
+      hourlyRate: pricing.hourlyRate ?? option.defaultHourlyRate ?? 250,
     };
   };
 
@@ -623,6 +795,28 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
         ...values,
       },
     }));
+  };
+
+  const addExtraCost = () => {
+    setExtraCosts((currentCosts) => [
+      ...currentCosts,
+      {
+        id: crypto.randomUUID(),
+        name: "",
+        description: "",
+        price: 0,
+      },
+    ]);
+  };
+
+  const updateExtraCost = (costId, values) => {
+    setExtraCosts((currentCosts) => currentCosts.map((cost) => (
+      cost.id === costId ? { ...cost, ...values } : cost
+    )));
+  };
+
+  const removeExtraCost = (costId) => {
+    setExtraCosts((currentCosts) => currentCosts.filter((cost) => cost.id !== costId));
   };
 
   const calculateOptionPrice = (option, active) => {
@@ -645,6 +839,20 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
     }
 
     return Math.max(0, Number(pricing.fastPrice) || 0);
+  };
+
+  const calculateOptionHours = (option, active) => {
+    if (!active || !option.pricingControl) {
+      return 0;
+    }
+
+    const pricing = getOptionPricing(option);
+
+    if (pricing.mode === "hourly" || option.pricingControl === "hourly") {
+      return Math.max(0, Number(pricing.hours) || 0) * normalizedPeopleCount;
+    }
+
+    return Math.max(0, Number(pricing.estimatedHours) || 0);
   };
 
   const toggleOption = (option) => {
@@ -689,7 +897,6 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
   };
 
   let workPrice = calculatorConfig.basePrice(area);
-  let workTime = calculatorConfig.workTime;
   let customFixedCostsTotal = 0;
 
   calculatorOptions.forEach((option) => {
@@ -704,8 +911,17 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
   const normalizedPeopleCount = Math.max(1, Number(peopleCount) || 1);
   const extraWorkCost = Math.max(0, Number(extraWork.hours) || 0) * Math.max(0, Number(extraWork.hourlyRate) || 0) * normalizedPeopleCount;
+  const extraWorkHours = Math.max(0, Number(extraWork.hours) || 0) * normalizedPeopleCount;
 
   workPrice += extraWorkCost;
+
+  const optionWorkHours = calculatorOptions.reduce((totalHours, option) => {
+    return totalHours + calculateOptionHours(option, getOptionActive(option));
+  }, 0);
+  const totalWorkHours = optionWorkHours + extraWorkHours;
+  const weeklyAvailableHours = calculateWeeklyAvailableHours(availability);
+  const estimatedCalendarTime = formatEstimatedCalendarTime(totalWorkHours, weeklyAvailableHours);
+  const estimatedEndDate = calculateEstimatedEndDate(startDate, totalWorkHours, weeklyAvailableHours);
 
   const selectedFixedCostDetails = (calculatorConfig.usesCustomFixedCosts ? [] : fixedCostOptions)
     .filter((option) => fixedCosts[option.id])
@@ -716,9 +932,22 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       priceValue: option.price,
     }));
 
+  const extraCostDetails = extraCosts
+    .map((cost) => ({
+      ...cost,
+      name: cost.name.trim(),
+      description: cost.description.trim(),
+      priceValue: Math.max(0, Number(cost.price) || 0),
+    }))
+    .filter((cost) => cost.name || cost.description || cost.priceValue > 0);
+
+  const extraCostsTotal = extraCostDetails.reduce((total, cost) => {
+    return total + cost.priceValue;
+  }, 0);
+
   const fixedCostsTotal = selectedFixedCostDetails.reduce((total, option) => {
     return total + option.priceValue;
-  }, customFixedCostsTotal);
+  }, customFixedCostsTotal + extraCostsTotal);
 
   const discountPercent = discount.active ? Math.max(0, Math.min(100, Number(discount.percent) || 0)) : 0;
   const discountAmount = Math.round(workPrice * (discountPercent / 100));
@@ -731,6 +960,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
     .map((option) => ({
       ...option,
       priceValue: calculateOptionPrice(option, true),
+      hoursValue: calculateOptionHours(option, true),
       costType: option.costType || "work",
     })),
     ...(extraWorkCost > 0 ? [{
@@ -738,6 +968,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       title: `Extra arbete (${extraWork.hours} timmar)`,
       sectionTitle: "Extra arbete",
       priceValue: extraWorkCost,
+      hoursValue: extraWorkHours,
     }] : []),
     ...selectedFixedCostDetails,
   ];
@@ -749,20 +980,27 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
   const exportPdf = () => {
     const pdfBlob = createOfferPdfBlob({
       area,
+      areaMode: usesDimensionArea ? areaMode : "manual",
+      deckDimensions,
       category,
       customer,
       minPrice,
       normalPrice,
       premiumPrice,
       selectedOptionDetails,
+      extraCostDetails,
+      extraCostsTotal,
       fixedCostsTotal,
       workPrice,
       peopleCount: normalizedPeopleCount,
+      totalWorkHours,
+      estimatedCalendarTime,
+      startDate,
+      estimatedEndDate,
       discountActive: discount.active,
       discountAmount,
       discountPercent,
       discountedWorkPrice,
-      workTime,
     });
     const pdfUrl = URL.createObjectURL(pdfBlob);
     const downloadLink = document.createElement("a");
@@ -785,12 +1023,28 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       customer,
       category,
       area,
+      areaMode: usesDimensionArea ? areaMode : "manual",
+      deckDimensions: usesDimensionArea ? deckDimensions : null,
       peopleCount: normalizedPeopleCount,
+      schedule: {
+        startDate,
+        availability,
+        totalWorkHours,
+        estimatedCalendarTime,
+        estimatedEndDate,
+        weeklyAvailableHours,
+      },
       extraWork: {
         hours: Math.max(0, Number(extraWork.hours) || 0),
         hourlyRate: Math.max(0, Number(extraWork.hourlyRate) || 0),
         cost: extraWorkCost,
       },
+      extraCosts: extraCostDetails.map((cost) => ({
+        id: cost.id,
+        name: cost.name,
+        description: cost.description,
+        priceValue: cost.priceValue,
+      })),
       discount: {
         active: discount.active,
         percent: discountPercent,
@@ -801,11 +1055,13 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
         title: option.title,
         sectionTitle: option.sectionTitle || "",
         priceValue: option.priceValue,
+        hoursValue: option.hoursValue || 0,
       })),
       prices: {
         work: Math.round(workPrice),
         workAfterDiscount: Math.round(discountedWorkPrice),
         fixed: fixedCostsTotal,
+        extraCosts: extraCostsTotal,
         min: minPrice,
         normal: normalPrice,
         premium: premiumPrice,
@@ -845,16 +1101,79 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
         {/* AREA */}
         <div>
 
-          <label className="text-zinc-400 text-sm">
-            Storlek m²
-          </label>
+          {usesDimensionArea && (
+            <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-zinc-800 bg-black p-1">
+              {[
+                ["manual", "Ange m² manuellt"],
+                ["dimensions", "Beräkna från mått"],
+              ].map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setAreaMode(mode)}
+                  className={`min-h-12 touch-manipulation rounded-xl px-3 text-sm font-black transition ${areaMode === mode ? "bg-orange-500 text-black" : "text-zinc-400"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
-          <input
-            type="number"
-            value={area}
-            onChange={(e) => setArea(Number(e.target.value))}
-            className="mt-3 w-full bg-black border border-zinc-800 rounded-2xl p-4 text-3xl font-bold outline-none"
-          />
+          {areaMode === "dimensions" && usesDimensionArea ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="text-sm text-zinc-400">
+                Längd (m)
+
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={deckDimensions.length}
+                  onChange={(event) => updateDeckDimension("length", event.target.value)}
+                  className="mt-3 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-2xl font-bold text-white outline-none transition focus:border-orange-400"
+                />
+
+              </label>
+
+              <label className="text-sm text-zinc-400">
+                Bredd (m)
+
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={deckDimensions.width}
+                  onChange={(event) => updateDeckDimension("width", event.target.value)}
+                  className="mt-3 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-2xl font-bold text-white outline-none transition focus:border-orange-400"
+                />
+
+              </label>
+
+              <div className="rounded-2xl border border-orange-400/20 bg-black p-4 sm:col-span-2">
+                <p className="text-xs font-bold uppercase text-zinc-500">
+                  Storlek m²
+                </p>
+
+                <p className="mt-2 text-3xl font-black text-orange-400">
+                  {formatArea(area)}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <label className="text-sm text-zinc-400">
+              Storlek m²
+
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={area}
+                onChange={(e) => setArea(Number(e.target.value))}
+                className="mt-3 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-3xl font-bold text-white outline-none transition focus:border-orange-400"
+              />
+
+            </label>
+          )}
 
         </div>
 
@@ -982,6 +1301,103 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
         </div>
 
+        {/* AVAILABILITY */}
+        <div className="mt-8 border-t border-zinc-800 pt-8">
+
+          <div className="flex items-end justify-between gap-4">
+
+            <div>
+
+              <h2 className="text-sm font-bold uppercase text-zinc-500">
+                Tillgänglig arbetstid
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-400">
+                Används för att räkna kalendertid kvällar och helger.
+              </p>
+
+            </div>
+
+            <p className="text-right text-sm font-black text-orange-400">
+              {weeklyAvailableHours} h/vecka
+            </p>
+
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+
+            <label className="block text-sm text-zinc-400 sm:col-span-2">
+              Startdatum
+
+              <input
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-xl font-black text-white outline-none transition focus:border-orange-400"
+              />
+
+            </label>
+
+            <AvailabilityInput
+              label="Timmar per vardagskväll"
+              value={availability.weekdayEveningHours}
+              onChange={(value) => setAvailability({
+                ...availability,
+                weekdayEveningHours: value,
+              })}
+            />
+
+            <AvailabilityInput
+              label="Antal vardagskvällar per vecka"
+              value={availability.weekdayEveningsPerWeek}
+              onChange={(value) => setAvailability({
+                ...availability,
+                weekdayEveningsPerWeek: value,
+              })}
+            />
+
+            <AvailabilityInput
+              label="Timmar per helgdag"
+              value={availability.weekendDayHours}
+              onChange={(value) => setAvailability({
+                ...availability,
+                weekendDayHours: value,
+              })}
+            />
+
+            <AvailabilityInput
+              label="Antal helgdagar per vecka"
+              value={availability.weekendDaysPerWeek}
+              onChange={(value) => setAvailability({
+                ...availability,
+                weekendDaysPerWeek: value,
+              })}
+            />
+
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-orange-400/20 bg-black p-4">
+            <p className="text-xs font-bold uppercase text-zinc-500">
+              Uppskattad tid
+            </p>
+
+            <p className="mt-2 text-xl font-black text-orange-400">
+              {estimatedCalendarTime}
+            </p>
+
+            <p className="mt-1 text-sm text-zinc-400">
+              Total arbetstid: {formatHours(totalWorkHours)}
+            </p>
+
+            {startDate && estimatedEndDate && (
+              <p className="mt-3 text-sm font-bold text-white">
+                Beräknat slutdatum: {estimatedEndDate}
+              </p>
+            )}
+          </div>
+
+        </div>
+
         {/* EXTRA WORK */}
         <div className="mt-8 border-t border-zinc-800 pt-8">
 
@@ -1086,6 +1502,89 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
         </div>
         )}
+
+        {/* EXTRA COSTS */}
+        <div className="mt-8 border-t border-zinc-800 pt-8">
+
+          <div className="flex items-end justify-between gap-4">
+
+            <div>
+
+              <h2 className="text-sm font-bold uppercase text-zinc-500">
+                Extra kostnader
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-400">
+                Egna kostnader utan rabatt och utan arbetstid.
+              </p>
+
+            </div>
+
+            <p className="text-right text-sm font-black text-orange-400">
+              {formatPrice(extraCostsTotal)}
+            </p>
+
+          </div>
+
+          <div className="mt-4 flex flex-col gap-4">
+
+            {extraCosts.map((cost, index) => (
+
+              <div
+                key={cost.id}
+                className="rounded-2xl border border-white/10 bg-black/60 p-4"
+              >
+
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+                    Kostnad {index + 1}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => removeExtraCost(cost.id)}
+                    className="min-h-10 touch-manipulation rounded-xl border border-red-400/30 px-3 text-sm font-bold text-red-300 transition hover:bg-red-500/10"
+                  >
+                    Ta bort kostnad
+                  </button>
+                </div>
+
+                <div className="grid gap-4">
+                  <CustomerField
+                    label="Namn"
+                    value={cost.name}
+                    onChange={(value) => updateExtraCost(cost.id, { name: value })}
+                  />
+
+                  <CustomerField
+                    label="Beskrivning"
+                    value={cost.description}
+                    onChange={(value) => updateExtraCost(cost.id, { description: value })}
+                    multiline
+                  />
+
+                  <PricingInput
+                    label="Pris"
+                    value={cost.price}
+                    onChange={(value) => updateExtraCost(cost.id, { price: value })}
+                  />
+                </div>
+
+              </div>
+
+            ))}
+
+            <button
+              type="button"
+              onClick={addExtraCost}
+              className="min-h-12 touch-manipulation rounded-2xl border border-orange-400/40 bg-orange-500/10 px-4 text-sm font-black text-orange-300 transition hover:bg-orange-500/20"
+            >
+              Lägg till kostnad
+            </button>
+
+          </div>
+
+        </div>
 
         {/* DISCOUNT */}
         <div className="mt-8 border-t border-zinc-800 pt-8">
@@ -1197,6 +1696,18 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
                 </p>
               </div>
 
+              {extraCostsTotal > 0 && (
+                <div className="rounded-2xl border border-orange-400/20 bg-black p-4">
+                  <p className="text-xs font-bold uppercase text-zinc-500">
+                    Extra kostnader
+                  </p>
+
+                  <p className="mt-2 text-xl font-black text-orange-400">
+                    {formatPrice(extraCostsTotal)}
+                  </p>
+                </div>
+              )}
+
               <div className="rounded-2xl border border-orange-400 bg-orange-500 p-4 text-black">
                 <p className="text-xs font-bold uppercase text-black/60">
                   Totalt
@@ -1212,17 +1723,6 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
             <div className="flex justify-between">
 
               <span className="text-zinc-400">
-                Arbetstid
-              </span>
-
-              <span>
-{workTime}              </span>
-
-            </div>
-
-            <div className="mt-3 flex justify-between">
-
-              <span className="text-zinc-400">
                 Antal personer
               </span>
 
@@ -1231,6 +1731,44 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
               </span>
 
             </div>
+
+            <div className="mt-3 flex justify-between">
+
+              <span className="text-zinc-400">
+                Total arbetstid
+              </span>
+
+              <span>
+                {formatHours(totalWorkHours)}
+              </span>
+
+            </div>
+
+            <div className="mt-3 flex justify-between">
+
+              <span className="text-zinc-400">
+                Uppskattad tid
+              </span>
+
+              <span className="text-right">
+                {estimatedCalendarTime}
+              </span>
+
+            </div>
+
+            {startDate && estimatedEndDate && (
+              <div className="mt-3 flex justify-between gap-4">
+
+                <span className="text-zinc-400">
+                  Beräknat slutdatum
+                </span>
+
+                <span className="text-right">
+                  {estimatedEndDate}
+                </span>
+
+              </div>
+            )}
 
           </div>
 
@@ -1255,7 +1793,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                {area} m² · {workTime} · {normalizedPeopleCount} {normalizedPeopleCount === 1 ? "person" : "personer"}
+                {formatArea(area)} · {normalizedPeopleCount} {normalizedPeopleCount === 1 ? "person" : "personer"}
               </p>
 
             </div>
@@ -1271,6 +1809,49 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
               </p>
 
             </div>
+
+            {extraCostDetails.length > 0 && (
+              <div className="mt-6">
+
+                <h3 className="text-sm font-bold uppercase text-zinc-500">
+                  Extra kostnader
+                </h3>
+
+                <div className="mt-4 flex flex-col gap-3">
+
+                  {extraCostDetails.map((cost) => (
+
+                    <div
+                      key={cost.id}
+                      className="flex items-start justify-between gap-4 rounded-2xl border border-orange-400/20 bg-white/[0.03] px-4 py-3"
+                    >
+
+                      <div>
+
+                        <p className="font-bold">
+                          {cost.name || "Extra kostnad"}
+                        </p>
+
+                        {cost.description && (
+                          <p className="text-xs text-zinc-500">
+                            {cost.description}
+                          </p>
+                        )}
+
+                      </div>
+
+                      <span className="shrink-0 text-sm font-bold text-orange-300">
+                        +{formatPrice(cost.priceValue)}
+                      </span>
+
+                    </div>
+
+                  ))}
+
+                </div>
+
+              </div>
+            )}
 
           </div>
 
@@ -1335,6 +1916,23 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
             </div>
 
           </div>
+
+        </div>
+
+        <div className="grid gap-3 border-t border-white/10 p-6 sm:grid-cols-2">
+
+          <SummaryRow label="Storlek m²" value={formatArea(area)} />
+          {usesDimensionArea && areaMode === "dimensions" && (
+            <SummaryRow
+              label="Mått"
+              value={`${deckDimensions.length || 0} m × ${deckDimensions.width || 0} m`}
+            />
+          )}
+          <SummaryRow label="Total arbetstid" value={formatHours(totalWorkHours)} />
+          <SummaryRow label="Uppskattad tid" value={estimatedCalendarTime} />
+          {startDate && estimatedEndDate && (
+            <SummaryRow label="Beräknat slutdatum" value={estimatedEndDate} />
+          )}
 
         </div>
 
@@ -1496,19 +2094,25 @@ function OptionPricingFields({ option, pricing, onChange }) {
           />
 
           <PricingInput
-            label="Timpris"
+            label={option.hourlyRateLabel || "Timpris"}
             value={pricing.hourlyRate}
             onChange={(value) => onChange({ hourlyRate: value })}
           />
 
         </div>
       ) : (
-        <div className={canChooseMode ? "mt-4" : ""}>
+        <div className={`grid gap-3 ${canChooseMode ? "mt-4" : ""} sm:grid-cols-2`}>
 
           <PricingInput
             label="Fast pris"
             value={pricing.fastPrice}
             onChange={(value) => onChange({ fastPrice: value })}
+          />
+
+          <PricingInput
+            label="Uppskattade timmar"
+            value={pricing.estimatedHours}
+            onChange={(value) => onChange({ estimatedHours: value })}
           />
 
         </div>
@@ -1529,6 +2133,23 @@ function PricingInput({ label, value, onChange }) {
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
         className="mt-2 w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-xl font-black text-white outline-none transition focus:border-orange-400"
+      />
+
+    </label>
+  );
+}
+
+function AvailabilityInput({ label, value, onChange }) {
+  return (
+    <label className="block text-sm text-zinc-400">
+      {label}
+
+      <input
+        type="number"
+        min="0"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="mt-2 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-xl font-black text-white outline-none transition focus:border-orange-400"
       />
 
     </label>
@@ -1569,20 +2190,27 @@ function SummaryPrice({ label, value, highlight = false }) {
 
 function createOfferPdfBlob({
   area,
+  areaMode,
+  deckDimensions,
   category,
   customer,
   minPrice,
   normalPrice,
   premiumPrice,
   selectedOptionDetails,
+  extraCostDetails,
+  extraCostsTotal,
   fixedCostsTotal,
   workPrice,
   peopleCount,
+  totalWorkHours,
+  estimatedCalendarTime,
+  startDate,
+  estimatedEndDate,
   discountActive,
   discountAmount,
   discountPercent,
   discountedWorkPrice,
-  workTime,
 }) {
   const customerRows = [
     ["Namn", customer.name || "Inte angivet"],
@@ -1593,6 +2221,7 @@ function createOfferPdfBlob({
   const optionRows = selectedOptionDetails.length > 0
     ? selectedOptionDetails
     : [{ title: "Inga valda alternativ", sectionTitle: "", priceValue: 0 }];
+  const extraCostRows = extraCostDetails || [];
   const content = [];
 
   const rect = (x, y, width, height, color) => {
@@ -1619,7 +2248,7 @@ function createOfferPdfBlob({
   text(new Date().toLocaleDateString("sv-SE"), 432, 775, 10, "0.72 0.72 0.76");
 
   text(category, 48, 724, 24, "1 1 1", "F2");
-  text(`${area} m² · ${workTime} · ${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`, 48, 704, 11, "0.65 0.65 0.7");
+  text(`${formatArea(area)} · ${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`, 48, 704, 11, "0.65 0.65 0.7");
   text("Normalpris", 390, 724, 10, "0.65 0.65 0.7");
   text(money(normalPrice), 390, 701, 22, "0.98 0.57 0.24", "F2");
 
@@ -1636,31 +2265,42 @@ function createOfferPdfBlob({
 
   const projectRows = [
     ["Kategori", category],
-    ["Storlek", `${area} m²`],
+    ["Storlek", formatArea(area)],
+    ...(areaMode === "dimensions" && deckDimensions ? [
+      ["Mått", `${deckDimensions.length || 0} m × ${deckDimensions.width || 0} m`],
+    ] : []),
     ["Antal personer", `${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`],
-    ["Arbetstid", workTime],
+    ["Total arbetstid", formatHours(totalWorkHours)],
+    ["Uppskattad tid", estimatedCalendarTime],
+    ...(startDate && estimatedEndDate ? [
+      ["Startdatum", formatLongDate(parseLocalDate(startDate))],
+      ["Beräknat slutdatum", estimatedEndDate],
+    ] : []),
     ["Arbete före rabatt", money(workPrice)],
     ...(discountActive ? [["Rabatt", `-${money(discountAmount)} (${discountPercent}%)`]] : []),
     ["Arbete efter rabatt", money(discountedWorkPrice)],
+    ...(extraCostsTotal > 0 ? [["Extra kostnader", money(extraCostsTotal)]] : []),
     ["Fasta kostnader", money(fixedCostsTotal)],
     ["Totalt", money(normalPrice)],
   ];
 
   projectRows.forEach(([label, value], index) => {
-    const y = 620 - index * 15;
-    text(label, 328, y, 9, "0.62 0.62 0.66");
-    text(value, 408, y, 10, "1 1 1", "F2");
+    const y = 620 - index * 10;
+    text(label, 328, y, 7, "0.62 0.62 0.66");
+    text(value, 408, y, 8, "1 1 1", "F2");
   });
 
-  text("ANTECKNINGAR", 48, 516, 9, "0.98 0.57 0.24", "F2");
-  rect(48, 456, 499, 45, "0.08 0.08 0.08");
+  text("ANTECKNINGAR", 48, 492, 9, "0.98 0.57 0.24", "F2");
+  rect(48, 432, 499, 45, "0.08 0.08 0.08");
   wrapPdfText(customer.notes || "Inga anteckningar", 92, 3).forEach((lineText, index) => {
-    text(lineText, 64, 482 - index * 14, 10, "0.9 0.9 0.92");
+    text(lineText, 64, 458 - index * 14, 10, "0.9 0.9 0.92");
   });
 
-  text("VALDA ALTERNATIV", 48, 424, 9, "0.98 0.57 0.24", "F2");
-  optionRows.slice(0, 8).forEach((option, index) => {
-    const y = 392 - index * 31;
+  text("VALDA ALTERNATIV", 48, 400, 9, "0.98 0.57 0.24", "F2");
+  const visibleOptionRows = optionRows.slice(0, extraCostRows.length > 0 ? 5 : 8);
+
+  visibleOptionRows.forEach((option, index) => {
+    const y = 368 - index * 31;
     rect(48, y - 8, 499, 24, index % 2 === 0 ? "0.08 0.08 0.08" : "0.1 0.1 0.1");
     text(option.title, 64, y, 10, "1 1 1", "F2");
     if (option.sectionTitle) {
@@ -1668,6 +2308,21 @@ function createOfferPdfBlob({
     }
     text(option.priceValue > 0 ? `+${money(option.priceValue)}` : "Ingår", 420, y, 9, "0.98 0.72 0.45", "F2");
   });
+
+  if (extraCostRows.length > 0) {
+    const extraCostsTitleY = 368 - visibleOptionRows.length * 31 - 18;
+
+    text("EXTRA KOSTNADER", 48, extraCostsTitleY, 9, "0.98 0.57 0.24", "F2");
+    extraCostRows.slice(0, 4).forEach((cost, index) => {
+      const y = extraCostsTitleY - 32 - index * 26;
+      rect(48, y - 8, 499, 20, index % 2 === 0 ? "0.08 0.08 0.08" : "0.1 0.1 0.1");
+      text(cost.name || "Extra kostnad", 64, y, 9, "1 1 1", "F2");
+      if (cost.description) {
+        text(cost.description, 64, y - 10, 7, "0.48 0.48 0.52");
+      }
+      text(`+${money(cost.priceValue)}`, 420, y, 9, "0.98 0.72 0.45", "F2");
+    });
+  }
 
   rect(48, 76, 166, 70, "0.08 0.08 0.08");
   rect(214, 76, 166, 70, "0.98 0.45 0.08");
