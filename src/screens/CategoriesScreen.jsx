@@ -15,13 +15,14 @@ export default function CategoriesScreen({ goBack, openCategory }) {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
+    <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
 
       <div className="flex items-center gap-4">
 
         <button
+          type="button"
           onClick={goBack}
-          className="bg-zinc-900 p-3 rounded-2xl border border-zinc-800"
+          className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900 p-3"
         >
           <ArrowLeft size={22} />
         </button>
@@ -45,9 +46,10 @@ export default function CategoriesScreen({ goBack, openCategory }) {
         {categories.map((category) => (
 
           <button
+            type="button"
             key={category}
             onClick={() => openCategory(category)}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex items-center justify-between text-left"
+            className="relative z-10 flex min-h-20 w-full touch-manipulation items-center justify-between rounded-3xl border border-zinc-800 bg-zinc-900 p-5 text-left"
           >
 
             <div>
@@ -56,13 +58,13 @@ export default function CategoriesScreen({ goBack, openCategory }) {
                 {category}
               </h2>
 
-              <p className="text-zinc-400 mt-1 text-sm">
+              <p className="mt-1 text-sm text-zinc-400">
                 Professionell tjänst
               </p>
 
             </div>
 
-            <ChevronRight className="text-orange-400" />
+            <ChevronRight className="shrink-0 text-orange-400" />
 
           </button>
 

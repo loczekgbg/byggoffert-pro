@@ -1,8 +1,9 @@
 export default function Card({ icon, title, text, onClick }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="bg-zinc-900/95 border border-zinc-800 rounded-3xl p-5 backdrop-blur-xl text-left"
+      className="relative z-10 min-h-36 w-full touch-manipulation rounded-3xl border border-zinc-800 bg-zinc-900/95 p-5 text-left backdrop-blur-xl"
     >
 
       <div className="text-orange-400">
