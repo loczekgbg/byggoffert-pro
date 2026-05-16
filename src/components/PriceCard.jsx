@@ -1,3 +1,5 @@
+import { formatPrice } from "../utils/formatPrice";
+
 export default function PriceCard({ label, value, color }) {
   return (
     <div className="bg-black border border-zinc-800 rounded-3xl p-5">
@@ -9,7 +11,7 @@ export default function PriceCard({ label, value, color }) {
         </span>
 
         <span className={`text-4xl font-black ${color}`}>
-          {value.toLocaleString()} SEK
+          {formatPrice(value)}
         </span>
 
       </div>
