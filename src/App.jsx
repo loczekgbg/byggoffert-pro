@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 import {
   Calculator,
@@ -7,9 +7,13 @@ import {
   Hammer,
   Settings,
   Menu,
-  ChevronRight,
   ArrowLeft,
 } from "lucide-react";
+
+import Card from "./components/Card";
+import Option from "./components/Option";
+import PriceCard from "./components/PriceCard";
+import CategoriesScreen from "./screens/CategoriesScreen";
 
 export default function App() {
 
@@ -90,7 +94,7 @@ export default function App() {
             onClick={() => setScreen("categories")}
             icon={<Calculator size={34} />}
             title="Ny offert"
-            text="Skapa ny kostnadsförslag"
+            text="Skapa nytt kostnadsförslag"
           />
 
           <Card
@@ -136,80 +140,6 @@ export default function App() {
   );
 }
 
-function CategoriesScreen({ goBack, openCategory }) {
-
-  const categories = [
-    "Målning & Tapeter",
-    "Väggar & Tak",
-    "Golv",
-    "Fönster & Dörrar",
-    "Kök & Garderob",
-    "Altan & Pergola",
-    "Rivning",
-    "Konstruktion",
-    "Övrigt arbete",
-  ];
-
-  return (
-    <div className="min-h-screen bg-black text-white p-6">
-
-      <div className="flex items-center gap-4">
-
-        <button
-          onClick={goBack}
-          className="bg-zinc-900 p-3 rounded-2xl border border-zinc-800"
-        >
-          <ArrowLeft size={22} />
-        </button>
-
-        <div>
-
-          <h1 className="text-3xl font-black">
-            Ny offert
-          </h1>
-
-          <p className="text-orange-400">
-            Välj kategori
-          </p>
-
-        </div>
-
-      </div>
-
-      <div className="mt-10 flex flex-col gap-4">
-
-        {categories.map((category) => (
-
-          <button
-            key={category}
-          onClick={() => openCategory(category)}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex items-center justify-between text-left"
-          >
-
-            <div>
-
-              <h2 className="text-xl font-bold">
-                {category}
-              </h2>
-
-              <p className="text-zinc-400 mt-1 text-sm">
-                Professionell tjänst
-              </p>
-
-            </div>
-
-            <ChevronRight className="text-orange-400" />
-
-          </button>
-
-        ))}
-
-      </div>
-
-    </div>
-  );
-}
-
 function CategoryCalculator({ category, goBack }) {
 
   const [area, setArea] = useState(25);
@@ -221,6 +151,17 @@ function CategoryCalculator({ category, goBack }) {
   const [trailer, setTrailer] = useState(false);
 
   let normalPrice = area * 600;
+  let workTime = "3-5 dagar";
+
+  if (category === "Golv") {
+    normalPrice = area * 250;
+    workTime = "1-3 dagar";
+  }
+
+  if (category === "Målning & Tapeter") {
+    normalPrice = area * 180;
+    workTime = "2-4 dagar";
+  }
 
   if (stairs) {
     normalPrice += 4000;
@@ -245,17 +186,8 @@ function CategoryCalculator({ category, goBack }) {
   const minPrice = Math.round(normalPrice * 0.85);
 
   const premiumPrice = Math.round(normalPrice * 1.3);
-let workTime = "3-5 dagar";
 
-if (category === "Golv") {
-  normalPrice = area * 250;
-  workTime = "1-3 dagar";
-}
 
-if (category === "Målning & Tapeter") {
-  normalPrice = area * 180;
-  workTime = "2-4 dagar";
-}
   return (
     <div className="min-h-screen bg-black text-white p-6">
 
@@ -395,72 +327,3 @@ if (category === "Målning & Tapeter") {
   );
 }
 
-function Card({ icon, title, text, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className="bg-zinc-900/95 border border-zinc-800 rounded-3xl p-5 backdrop-blur-xl text-left"
-    >
-
-      <div className="text-orange-400">
-        {icon}
-      </div>
-
-      <h2 className="text-2xl font-bold mt-6">
-        {title}
-      </h2>
-
-      <p className="text-zinc-400 mt-2 text-sm">
-        {text}
-      </p>
-
-    </button>
-  );
-}
-
-function Option({ title, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-2xl p-4 border text-left transition ${
-        active
-          ? "bg-orange-500 text-black border-orange-400"
-          : "bg-black border-zinc-800 text-white"
-      }`}
-    >
-
-      <div className="flex justify-between items-center">
-
-        <span className="font-bold">
-          {title}
-        </span>
-
-        <span>
-          {active ? "✓" : ""}
-        </span>
-
-      </div>
-
-    </button>
-  );
-}
-
-function PriceCard({ label, value, color }) {
-  return (
-    <div className="bg-black border border-zinc-800 rounded-3xl p-5">
-
-      <div className="flex justify-between items-center">
-
-        <span className="text-zinc-500 font-bold">
-          {label}
-        </span>
-
-        <span className={`text-4xl font-black ${color}`}>
-          {value.toLocaleString()} SEK
-        </span>
-
-      </div>
-
-    </div>
-  );
-}
