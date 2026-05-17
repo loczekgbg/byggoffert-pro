@@ -14,6 +14,7 @@ import Card from "./components/Card";
 import Option from "./components/Option";
 import PriceCard from "./components/PriceCard";
 import CategoriesScreen from "./screens/CategoriesScreen";
+import marcinByggLogo from "./assets/marcin-bygg-logo.png";
 import { formatPrice } from "./utils/formatPrice";
 
 export default function App() {
@@ -93,13 +94,11 @@ export default function App() {
 
           <div className="mt-12">
 
-            <h1 className="text-6xl font-black tracking-tight text-white">
-              SNICKARE
-            </h1>
-
-            <p className="text-orange-400 text-2xl italic mt-2">
-              Med kvalitet i varje detalj
-            </p>
+            <img
+              src={marcinByggLogo}
+              alt="Marcin Bygg"
+              className="h-40 w-40 rounded-[2rem] object-contain shadow-2xl shadow-orange-500/20 sm:h-44 sm:w-44"
+            />
 
             <p className="text-zinc-300 mt-8 max-w-xs leading-relaxed">
               Professionell snickarservice för hem och företag.
@@ -199,6 +198,12 @@ function HistoryScreen({ offers, goBack }) {
 
         </div>
 
+        <img
+          src={marcinByggLogo}
+          alt="Marcin Bygg"
+          className="ml-auto h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+        />
+
       </div>
 
       {offers.length === 0 ? (
@@ -245,7 +250,7 @@ function HistoryScreen({ offers, goBack }) {
                     </h2>
 
                     <p className="mt-1 text-sm text-zinc-400">
-                      {offer.displayCategory || offer.category} · {formatArea(offer.area)} · {offer.peopleCount || 1} {(offer.peopleCount || 1) === 1 ? "person" : "personer"}
+                      {offer.displayCategory || offer.category} · {offer.area !== null && offer.area !== undefined ? `${formatArea(offer.area)} · ` : ""}{offer.peopleCount || 1} {(offer.peopleCount || 1) === 1 ? "person" : "personer"}
                     </p>
 
                   </div>
@@ -531,6 +536,20 @@ const interiorWallsCeilingsDefaultPrices = {
   ceilingInsulationPerSquareMeter: 140,
 };
 
+const floorDefaultPrices = {
+  laminatePerSquareMeter: 200,
+  woodFloorPerSquareMeter: 260,
+  parquetPerSquareMeter: 300,
+  herringbonePerSquareMeter: 620,
+  underlayPerSquareMeter: 55,
+  chipboardPerSquareMeter: 180,
+  levelingPerSquareMeter: 120,
+  selfLevelingCompoundPerSquareMeter: 160,
+  difficultSkirtingFixed: 1800,
+  thresholdsFixed: 1200,
+  doorPipeAdaptationFixed: 1600,
+};
+
 const demolitionDefaultHourlyRate = 200;
 
 function isDemolitionOption(option) {
@@ -616,6 +635,36 @@ function getInteriorWallsCeilingsDisplayCategory(options, isOptionActive) {
   return "Innerväggar & Innertak";
 }
 
+function getFloorDisplayCategory(options, isOptionActive) {
+  const floorOptionIds = ["laminateFloor", "woodFloor", "parquetFloor", "herringboneFloor"];
+  const hasFloor = options.some((option) => {
+    return floorOptionIds.includes(option.id) && isOptionActive(option);
+  });
+  const hasHerringbone = options.some((option) => {
+    return option.id === "herringboneFloor" && isOptionActive(option);
+  });
+  const hasParquet = options.some((option) => {
+    return option.id === "parquetFloor" && isOptionActive(option);
+  });
+  const hasSkirting = options.some((option) => {
+    return ["floorSkirting", "thresholds", "doorPipeAdaptation"].includes(option.id) && isOptionActive(option);
+  });
+
+  if (!hasFloor && hasSkirting) {
+    return "Lister";
+  }
+
+  let displayName = "Golv & Lister";
+
+  if (hasHerringbone) {
+    displayName = "Fiskbensparkett";
+  } else if (hasParquet) {
+    displayName = "Parkettläggning";
+  }
+
+  return hasSkirting ? `${displayName} & lister` : displayName;
+}
+
 function getBaseCategory(category) {
   if (category === "Målning & Tapetsering") {
     return "Målning & Tapeter";
@@ -623,6 +672,10 @@ function getBaseCategory(category) {
 
   if (["Väggar & Tak", "Innerväggar & Innertak"].includes(category)) {
     return "Innerväggar & Innertak";
+  }
+
+  if (["Golv", "Golv & Lister"].includes(category)) {
+    return "Golv & Lister";
   }
 
   return category;
@@ -637,6 +690,10 @@ function getDisplayCategory(category, options, isOptionActive) {
 
   if (baseCategory === "Innerväggar & Innertak") {
     return getInteriorWallsCeilingsDisplayCategory(options, isOptionActive);
+  }
+
+  if (baseCategory === "Golv & Lister") {
+    return getFloorDisplayCategory(options, isOptionActive);
   }
 
   if (baseCategory !== "Altan & Pergola") {
@@ -666,24 +723,28 @@ const calculatorConfigs = {
             id: "paintingSpackling",
             title: "Spackling",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.spacklingPerSquareMeter,
           },
           {
             id: "paintingSanding",
             title: "Slipning",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.sandingPerSquareMeter,
           },
           {
             id: "paintingPrimer",
             title: "Grundmålning",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.primerPerSquareMeter,
           },
           {
             id: "paintingMasking",
             title: "Maskering",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.maskingPerSquareMeter,
           },
           {
@@ -700,12 +761,14 @@ const calculatorConfigs = {
             title: "Väggmålning",
             defaultActive: true,
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.wallPaintingPerSquareMeter,
           },
           {
             id: "ceilingPainting",
             title: "Takmålning",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.ceilingPaintingPerSquareMeter,
           },
           {
@@ -755,18 +818,21 @@ const calculatorConfigs = {
             id: "standardWallpaper",
             title: "Standard tapet",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.standardWallpaperPerSquareMeter,
           },
           {
             id: "patternWallpaper",
             title: "Mönsterpassning",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.patternWallpaperPerSquareMeter,
           },
           {
             id: "difficultWallpaper",
             title: "Svår tapet",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.difficultWallpaperPerSquareMeter,
           },
         ],
@@ -789,6 +855,7 @@ const calculatorConfigs = {
             id: "darkColor",
             title: "Mörk färg",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.darkColorPerSquareMeter,
             defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 20)),
           },
@@ -796,6 +863,7 @@ const calculatorConfigs = {
             id: "multipleColors",
             title: "Flera färger",
             pricingControl: "work",
+            areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.multipleColorsPerSquareMeter,
             defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 15)),
           },
@@ -990,33 +1058,144 @@ const calculatorConfigs = {
       },
     ],
   },
-  Golv: {
-    basePrice: (area) => area * 250,
-    options: [
+  "Golv & Lister": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
       {
-        id: "removeOldFloor",
-        title: "Rivning av gammalt golv",
-        price: ({ area, active }) => (active ? area * 120 : 0),
+        title: "Golvläggning",
+        options: [
+          {
+            id: "laminateFloor",
+            title: "Klickgolv / laminat inkl. lätta golvlister",
+            defaultActive: true,
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * floorDefaultPrices.laminatePerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 12)),
+          },
+          {
+            id: "woodFloor",
+            title: "Trägolv",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * floorDefaultPrices.woodFloorPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 10)),
+          },
+          {
+            id: "parquetFloor",
+            title: "Parkett",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * floorDefaultPrices.parquetPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 9)),
+          },
+          {
+            id: "herringboneFloor",
+            title: "Fiskben / avancerat mönster",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * floorDefaultPrices.herringbonePerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 5)),
+          },
+        ],
       },
       {
-        id: "underlay",
-        title: "Underlagsmatta",
-        price: ({ area, active }) => (active ? area * 80 : 0),
+        title: "Förarbete",
+        options: [
+          {
+            id: "removeOldFloor",
+            title: "Rivning av gammalt golv",
+            areaControl: "surface",
+          },
+          {
+            id: "floorUnderlay",
+            title: "Underlag / foam / lumppapp",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * floorDefaultPrices.underlayPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 20)),
+          },
+          {
+            id: "chipboardFloor",
+            title: "Spånskiva",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * floorDefaultPrices.chipboardPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 10)),
+          },
+          {
+            id: "floorLeveling",
+            title: "Nivellering / riktning av golv",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * floorDefaultPrices.levelingPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 12)),
+          },
+          {
+            id: "selfLevelingCompound",
+            title: "Flytspackel",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * floorDefaultPrices.selfLevelingCompoundPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 12)),
+          },
+        ],
       },
       {
-        id: "skirting",
-        title: "Socklar och lister",
-        price: ({ area, active }) => (active ? area * 90 : 0),
+        title: "Lister",
+        options: [
+          {
+            id: "floorSkirting",
+            title: "Svåra golvlister / många kapningar",
+            pricingControl: "work",
+            defaultFastPrice: () => floorDefaultPrices.difficultSkirtingFixed,
+            defaultEstimatedHours: () => 4,
+          },
+          {
+            id: "thresholds",
+            title: "Trösklar",
+            pricingControl: "work",
+            defaultFastPrice: () => floorDefaultPrices.thresholdsFixed,
+            defaultEstimatedHours: () => 2,
+          },
+          {
+            id: "doorPipeAdaptation",
+            title: "Anpassning runt dörrar / rör",
+            pricingControl: "work",
+            defaultFastPrice: () => floorDefaultPrices.doorPipeAdaptationFixed,
+            defaultEstimatedHours: () => 3,
+          },
+        ],
       },
       {
-        id: "thresholds",
-        title: "Trösklar och avslut",
-        price: ({ active }) => (active ? 1200 : 0),
-      },
-      {
-        id: "floorMaterial",
-        title: "Golvmaterial ingår",
-        price: ({ area, active }) => (active ? area * 350 : 0),
+        title: "Extra",
+        options: [
+          {
+            id: "floorMaterialPurchase",
+            title: "Materialinköp",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "floorMaterialHandling",
+            title: "Materialhantering",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "floorWasteRemoval",
+            title: "Bortforsling av avfall",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "floorMiscWork",
+            title: "Övrigt arbete",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+        ],
       },
     ],
   },
@@ -1215,6 +1394,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
   const baseCategory = getBaseCategory(category);
   const calculatorConfig = calculatorConfigs[baseCategory] || calculatorConfigs.default;
   const usesDimensionArea = baseCategory === "Altan & Pergola";
+  const usesGlobalArea = !["Målning & Tapeter", "Innerväggar & Innertak", "Golv & Lister"].includes(baseCategory);
   const calculatorSections = (calculatorConfig.sections || [
     {
       options: calculatorConfig.options,
@@ -1254,7 +1434,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
     return {
       mode: measurement.mode || "manual",
-      area: measurement.area ?? area,
+      area: measurement.area ?? 0,
       length: measurement.length ?? "",
       height: measurement.height ?? "",
     };
@@ -1274,7 +1454,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
     setOptionMeasurements((currentMeasurements) => {
       const nextMeasurement = {
         mode: "manual",
-        area,
+        area: 0,
         length: "",
         height: "",
         ...(currentMeasurements[optionId] || {}),
@@ -1515,11 +1695,13 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
   const premiumPrice = Math.round((discountedWorkPrice * 1.3) + fixedCostsTotal);
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    const logoImage = await loadPdfLogoImage();
     const pdfBlob = createOfferPdfBlob({
       area,
+      showArea: usesGlobalArea,
       areaMode: usesDimensionArea ? areaMode : "manual",
-      deckDimensions,
+      deckDimensions: usesDimensionArea ? deckDimensions : null,
       displayCategory,
       customer,
       minPrice,
@@ -1539,6 +1721,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       discountAmount,
       discountPercent,
       discountedWorkPrice,
+      logoImage,
     });
     const pdfUrl = URL.createObjectURL(pdfBlob);
     const downloadLink = document.createElement("a");
@@ -1561,7 +1744,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       customer,
       category,
       displayCategory,
-      area,
+      area: usesGlobalArea ? area : null,
       areaMode: usesDimensionArea ? areaMode : "manual",
       deckDimensions: usesDimensionArea ? deckDimensions : null,
       peopleCount: normalizedPeopleCount,
@@ -1643,11 +1826,18 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
         </div>
 
+        <img
+          src={marcinByggLogo}
+          alt="Marcin Bygg"
+          className="ml-auto h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+        />
+
       </div>
 
       <div className="mt-10 bg-zinc-900 rounded-3xl border border-zinc-800 p-6">
 
         {/* AREA */}
+        {usesGlobalArea && (
         <div>
 
           {usesDimensionArea && (
@@ -1719,6 +1909,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
           )}
 
         </div>
+        )}
 
         {/* CUSTOMER */}
         <div className="mt-8 border-t border-zinc-800 pt-8">
@@ -2439,7 +2630,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                {formatArea(area)} · {normalizedPeopleCount} {normalizedPeopleCount === 1 ? "person" : "personer"}
+                {usesGlobalArea ? `${formatArea(area)} · ` : ""}{normalizedPeopleCount} {normalizedPeopleCount === 1 ? "person" : "personer"}
               </p>
 
             </div>
@@ -2573,8 +2764,10 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
         <div className="grid gap-3 border-t border-white/10 p-6 sm:grid-cols-2">
 
-          <SummaryRow label="Storlek m²" value={formatArea(area)} />
-          {usesDimensionArea && areaMode === "dimensions" && (
+          {usesGlobalArea && (
+            <SummaryRow label="Storlek m²" value={formatArea(area)} />
+          )}
+          {usesGlobalArea && usesDimensionArea && areaMode === "dimensions" && (
             <SummaryRow
               label="Mått"
               value={`${deckDimensions.length || 0} m × ${deckDimensions.width || 0} m`}
@@ -2978,6 +3171,7 @@ function SummaryPrice({ label, value, highlight = false }) {
 
 function createOfferPdfBlob({
   area,
+  showArea,
   areaMode,
   deckDimensions,
   displayCategory,
@@ -2999,6 +3193,7 @@ function createOfferPdfBlob({
   discountAmount,
   discountPercent,
   discountedWorkPrice,
+  logoImage,
 }) {
   const customerRows = [
     ["Namn", customer.name || "Inte angivet"],
@@ -3024,6 +3219,10 @@ function createOfferPdfBlob({
     content.push(`BT /${font} ${size} Tf ${color} rg ${x} ${y} Td ${toPdfText(value)} Tj ET`);
   };
 
+  const image = (name, x, y, width, height) => {
+    content.push(`q ${width} 0 0 ${height} ${x} ${y} cm /${name} Do Q`);
+  };
+
   const money = (value) => formatPrice(value);
 
   rect(0, 0, 595, 842, "0.02 0.02 0.02");
@@ -3031,12 +3230,14 @@ function createOfferPdfBlob({
   rect(28, 768, 539, 46, "0.15 0.07 0.02");
   line(28, 768, 567, 768, "0.98 0.45 0.08", 1.4);
 
-  text("SNICKARE", 48, 781, 30, "1 1 1", "F2");
+  if (logoImage) {
+    image("Logo", 48, 772, 42, 42);
+  }
   text("PREMIUM OFFERT", 395, 792, 9, "0.98 0.57 0.24", "F2");
   text(new Date().toLocaleDateString("sv-SE"), 432, 775, 10, "0.72 0.72 0.76");
 
   text(displayCategory, 48, 724, 24, "1 1 1", "F2");
-  text(`${formatArea(area)} · ${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`, 48, 704, 11, "0.65 0.65 0.7");
+  text(`${showArea ? `${formatArea(area)} · ` : ""}${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`, 48, 704, 11, "0.65 0.65 0.7");
   text("Normalpris", 390, 724, 10, "0.65 0.65 0.7");
   text(money(normalPrice), 390, 701, 22, "0.98 0.57 0.24", "F2");
 
@@ -3053,8 +3254,8 @@ function createOfferPdfBlob({
 
   const projectRows = [
     ["Kategori", displayCategory],
-    ["Storlek", formatArea(area)],
-    ...(areaMode === "dimensions" && deckDimensions ? [
+    ...(showArea ? [["Storlek", formatArea(area)]] : []),
+    ...(showArea && areaMode === "dimensions" && deckDimensions ? [
       ["Mått", `${deckDimensions.length || 0} m × ${deckDimensions.width || 0} m`],
     ] : []),
     ["Antal personer", `${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`],
@@ -3125,38 +3326,143 @@ function createOfferPdfBlob({
   text("PREMIUM", 434, 120, 9, "0.65 0.65 0.7", "F2");
   text(money(premiumPrice), 410, 96, 15, "1 1 1", "F2");
 
-  text("SNICKARE · Med kvalitet i varje detalj", 190, 48, 9, "0.45 0.45 0.5");
-
-  return buildPdf(content.join("\n"));
+  return buildPdf(content.join("\n"), logoImage);
 }
 
-function buildPdf(contentStream) {
+async function loadPdfLogoImage() {
+  if (loadPdfLogoImage.cache !== undefined) {
+    return loadPdfLogoImage.cache;
+  }
+
+  try {
+    const response = await fetch(marcinByggLogo);
+    const buffer = await response.arrayBuffer();
+
+    loadPdfLogoImage.cache = parsePngForPdf(new Uint8Array(buffer));
+  } catch {
+    loadPdfLogoImage.cache = null;
+  }
+
+  return loadPdfLogoImage.cache;
+}
+
+function parsePngForPdf(bytes) {
+  const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+  if (!pngSignature.every((byte, index) => bytes[index] === byte)) {
+    return null;
+  }
+
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 8;
+  let colorType = 2;
+  const idatChunks = [];
+
+  while (offset < bytes.length) {
+    const length = readPngUint32(bytes, offset);
+    const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+
+    if (type === "IHDR") {
+      width = readPngUint32(bytes, dataStart);
+      height = readPngUint32(bytes, dataStart + 4);
+      bitDepth = bytes[dataStart + 8];
+      colorType = bytes[dataStart + 9];
+    }
+
+    if (type === "IDAT") {
+      idatChunks.push(bytes.slice(dataStart, dataEnd));
+    }
+
+    if (type === "IEND") {
+      break;
+    }
+
+    offset = dataEnd + 4;
+  }
+
+  if (!width || !height || bitDepth !== 8 || colorType !== 2 || idatChunks.length === 0) {
+    return null;
+  }
+
+  const dataLength = idatChunks.reduce((total, chunk) => total + chunk.length, 0);
+  const data = new Uint8Array(dataLength);
+  let dataOffset = 0;
+
+  idatChunks.forEach((chunk) => {
+    data.set(chunk, dataOffset);
+    dataOffset += chunk.length;
+  });
+
+  return {
+    width,
+    height,
+    data,
+  };
+}
+
+function readPngUint32(bytes, offset) {
+  return ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
+}
+
+function buildPdf(contentStream, logoImage) {
   const encoder = new TextEncoder();
   const streamLength = encoder.encode(contentStream).length;
+  const hasLogo = Boolean(logoImage);
+  const logoObjectNumber = 6;
+  const contentObjectNumber = hasLogo ? 7 : 6;
+  const xObjectResources = hasLogo ? ` /XObject << /Logo ${logoObjectNumber} 0 R >>` : "";
   const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
-    `<< /Length ${streamLength} >>\nstream\n${contentStream}\nendstream`,
+    [`<< /Type /Catalog /Pages 2 0 R >>`],
+    [`<< /Type /Pages /Kids [3 0 R] /Count 1 >>`],
+    [`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >>${xObjectResources} >> /Contents ${contentObjectNumber} 0 R >>`],
+    [`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`],
+    [`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`],
   ];
-  let pdf = "%PDF-1.4\n";
+
+  if (hasLogo) {
+    objects.push([
+      `<< /Type /XObject /Subtype /Image /Width ${logoImage.width} /Height ${logoImage.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors 3 /BitsPerComponent 8 /Columns ${logoImage.width} >> /Length ${logoImage.data.length} >>\nstream\n`,
+      logoImage.data,
+      "\nendstream",
+    ]);
+  }
+
+  objects.push([`<< /Length ${streamLength} >>\nstream\n${contentStream}\nendstream`]);
+
+  const pdfParts = ["%PDF-1.4\n"];
   const offsets = [0];
+  let byteOffset = encoder.encode(pdfParts[0]).length;
 
-  objects.forEach((object, index) => {
-    offsets.push(encoder.encode(pdf).length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  objects.forEach((objectParts, index) => {
+    offsets.push(byteOffset);
+    const header = `${index + 1} 0 obj\n`;
+    const footer = "\nendobj\n";
+
+    pdfParts.push(header);
+    byteOffset += encoder.encode(header).length;
+
+    objectParts.forEach((part) => {
+      pdfParts.push(part);
+      byteOffset += part instanceof Uint8Array ? part.length : encoder.encode(part).length;
+    });
+
+    pdfParts.push(footer);
+    byteOffset += encoder.encode(footer).length;
   });
 
-  const xrefOffset = encoder.encode(pdf).length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  const xrefOffset = byteOffset;
+  let xref = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
   offsets.slice(1).forEach((offset) => {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+    xref += `${String(offset).padStart(10, "0")} 00000 n \n`;
   });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  xref += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  pdfParts.push(xref);
 
-  return new Blob([pdf], {
+  return new Blob(pdfParts, {
     type: "application/pdf",
   });
 }

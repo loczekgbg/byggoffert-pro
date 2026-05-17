@@ -1,11 +1,12 @@
 import { ArrowLeft, ChevronRight } from "lucide-react";
+import marcinByggLogo from "../assets/marcin-bygg-logo.png";
 
 export default function CategoriesScreen({ goBack, openCategory }) {
 
   const categories = [
     "Målning & Tapeter",
     "Innerväggar & Innertak",
-    "Golv",
+    "Golv & Lister",
     "Fönster & Dörrar",
     "Kök & Garderob",
     "Altan & Pergola",
@@ -38,6 +39,12 @@ export default function CategoriesScreen({ goBack, openCategory }) {
           </p>
 
         </div>
+
+        <img
+          src={marcinByggLogo}
+          alt="Marcin Bygg"
+          className="ml-auto h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+        />
 
       </div>
 
