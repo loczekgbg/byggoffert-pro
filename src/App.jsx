@@ -245,7 +245,7 @@ function HistoryScreen({ offers, goBack }) {
                     </h2>
 
                     <p className="mt-1 text-sm text-zinc-400">
-                      {offer.category} · {formatArea(offer.area)} · {offer.peopleCount || 1} {(offer.peopleCount || 1) === 1 ? "person" : "personer"}
+                      {offer.displayCategory || offer.category} · {formatArea(offer.area)} · {offer.peopleCount || 1} {(offer.peopleCount || 1) === 1 ? "person" : "personer"}
                     </p>
 
                   </div>
@@ -517,6 +517,24 @@ function normalizeCalculatorOption(option) {
   };
 }
 
+function isPergolaOption(option) {
+  const optionTitle = String(option.title || "").toLowerCase();
+
+  return option.id === "pergola" || option.id === "pergolaRoof" || optionTitle.includes("pergola");
+}
+
+function getDisplayCategory(category, options, isOptionActive) {
+  if (category !== "Altan & Pergola") {
+    return category;
+  }
+
+  const hasActivePergolaOption = options.some((option) => {
+    return isPergolaOption(option) && isOptionActive(option);
+  });
+
+  return hasActivePergolaOption ? "Altan & Pergola" : "Altan";
+}
+
 const calculatorConfigs = {
   default: {
     basePrice: (area) => area * 600,
@@ -724,6 +742,13 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
     hours: 0,
     hourlyRate: 250,
   });
+  const [temporaryExtraStaff, setTemporaryExtraStaff] = useState({
+    active: false,
+    people: 1,
+    hours: 0,
+    internalHourlyRate: 200,
+    customerHourlyRate: 250,
+  });
   const [peopleCount, setPeopleCount] = useState(1);
   const [availability, setAvailability] = useState({
     weekdayEveningHours: 4,
@@ -762,6 +787,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
   const getOptionActive = (option) => {
     return selectedOptions[option.id] ?? option.defaultActive ?? false;
   };
+  const displayCategory = getDisplayCategory(category, calculatorOptions, getOptionActive);
 
   const updateDeckDimension = (field, value) => {
     const nextDimensions = {
@@ -912,13 +938,22 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
   const normalizedPeopleCount = Math.max(1, Number(peopleCount) || 1);
   const extraWorkCost = Math.max(0, Number(extraWork.hours) || 0) * Math.max(0, Number(extraWork.hourlyRate) || 0) * normalizedPeopleCount;
   const extraWorkHours = Math.max(0, Number(extraWork.hours) || 0) * normalizedPeopleCount;
+  const temporaryExtraStaffPeople = Math.max(0, Number(temporaryExtraStaff.people) || 0);
+  const temporaryExtraStaffHours = Math.max(0, Number(temporaryExtraStaff.hours) || 0);
+  const temporaryExtraStaffCustomerRate = Math.max(0, Number(temporaryExtraStaff.customerHourlyRate) || 0);
+  const temporaryExtraStaffInternalRate = Math.max(0, Number(temporaryExtraStaff.internalHourlyRate) || 0);
+  const temporaryExtraStaffWorkHours = temporaryExtraStaff.active ? temporaryExtraStaffPeople * temporaryExtraStaffHours : 0;
+  const temporaryExtraStaffCost = temporaryExtraStaffWorkHours * temporaryExtraStaffCustomerRate;
+  const temporaryExtraStaffInternalCost = temporaryExtraStaff.active ? temporaryExtraStaffPeople * temporaryExtraStaffHours * temporaryExtraStaffInternalRate : 0;
+  const temporaryExtraStaffMargin = temporaryExtraStaffCost - temporaryExtraStaffInternalCost;
 
   workPrice += extraWorkCost;
+  workPrice += temporaryExtraStaffCost;
 
   const optionWorkHours = calculatorOptions.reduce((totalHours, option) => {
     return totalHours + calculateOptionHours(option, getOptionActive(option));
   }, 0);
-  const totalWorkHours = optionWorkHours + extraWorkHours;
+  const totalWorkHours = optionWorkHours + extraWorkHours + temporaryExtraStaffWorkHours;
   const weeklyAvailableHours = calculateWeeklyAvailableHours(availability);
   const estimatedCalendarTime = formatEstimatedCalendarTime(totalWorkHours, weeklyAvailableHours);
   const estimatedEndDate = calculateEstimatedEndDate(startDate, totalWorkHours, weeklyAvailableHours);
@@ -970,6 +1005,13 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       priceValue: extraWorkCost,
       hoursValue: extraWorkHours,
     }] : []),
+    ...(temporaryExtraStaff.active && temporaryExtraStaffCost > 0 ? [{
+      id: "temporaryExtraStaff",
+      title: `Tillfällig extra personal (${temporaryExtraStaffPeople} × ${temporaryExtraStaffHours} timmar)`,
+      sectionTitle: "Extra arbete",
+      priceValue: temporaryExtraStaffCost,
+      hoursValue: temporaryExtraStaffWorkHours,
+    }] : []),
     ...selectedFixedCostDetails,
   ];
 
@@ -982,7 +1024,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       area,
       areaMode: usesDimensionArea ? areaMode : "manual",
       deckDimensions,
-      category,
+      displayCategory,
       customer,
       minPrice,
       normalPrice,
@@ -1022,6 +1064,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       date: new Date().toISOString(),
       customer,
       category,
+      displayCategory,
       area,
       areaMode: usesDimensionArea ? areaMode : "manual",
       deckDimensions: usesDimensionArea ? deckDimensions : null,
@@ -1038,6 +1081,16 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
         hours: Math.max(0, Number(extraWork.hours) || 0),
         hourlyRate: Math.max(0, Number(extraWork.hourlyRate) || 0),
         cost: extraWorkCost,
+      },
+      temporaryExtraStaff: {
+        active: temporaryExtraStaff.active,
+        people: temporaryExtraStaffPeople,
+        hours: temporaryExtraStaffHours,
+        internalHourlyRate: temporaryExtraStaffInternalRate,
+        customerHourlyRate: temporaryExtraStaffCustomerRate,
+        internalCost: temporaryExtraStaffInternalCost,
+        customerPrice: temporaryExtraStaffCost,
+        margin: temporaryExtraStaffMargin,
       },
       extraCosts: extraCostDetails.map((cost) => ({
         id: cost.id,
@@ -1124,13 +1177,11 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
               <label className="text-sm text-zinc-400">
                 Längd (m)
 
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
+                <NumberStepper
                   value={deckDimensions.length}
-                  onChange={(event) => updateDeckDimension("length", event.target.value)}
-                  className="mt-3 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-2xl font-bold text-white outline-none transition focus:border-orange-400"
+                  onChange={(value) => updateDeckDimension("length", value)}
+                  min={0}
+                  step={0.1}
                 />
 
               </label>
@@ -1138,13 +1189,11 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
               <label className="text-sm text-zinc-400">
                 Bredd (m)
 
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
+                <NumberStepper
                   value={deckDimensions.width}
-                  onChange={(event) => updateDeckDimension("width", event.target.value)}
-                  className="mt-3 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-2xl font-bold text-white outline-none transition focus:border-orange-400"
+                  onChange={(value) => updateDeckDimension("width", value)}
+                  min={0}
+                  step={0.1}
                 />
 
               </label>
@@ -1163,13 +1212,11 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
             <label className="text-sm text-zinc-400">
               Storlek m²
 
-              <input
-                type="number"
-                min="0"
-                step="0.1"
+              <NumberStepper
                 value={area}
-                onChange={(e) => setArea(Number(e.target.value))}
-                className="mt-3 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-3xl font-bold text-white outline-none transition focus:border-orange-400"
+                onChange={setArea}
+                min={0}
+                step={0.1}
               />
 
             </label>
@@ -1241,12 +1288,11 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
           <label className="mt-4 block text-sm text-zinc-400">
             Antal personer
 
-            <input
-              type="number"
-              min="1"
+            <NumberStepper
               value={peopleCount}
-              onChange={(event) => setPeopleCount(Math.max(1, Number(event.target.value) || 1))}
-              className="mt-2 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-2xl font-bold text-white outline-none transition focus:border-orange-400"
+              onChange={(value) => setPeopleCount(Math.max(1, Number(value) || 1))}
+              min={1}
+              step={1}
             />
 
           </label>
@@ -1426,15 +1472,14 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
             <label className="block text-sm text-zinc-400">
               Antal timmar
 
-              <input
-                type="number"
-                min="0"
+              <NumberStepper
                 value={extraWork.hours}
-                onChange={(event) => setExtraWork({
+                onChange={(value) => setExtraWork({
                   ...extraWork,
-                  hours: Number(event.target.value),
+                  hours: value,
                 })}
-                className="mt-2 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-2xl font-bold text-white outline-none transition focus:border-orange-400"
+                min={0}
+                step={1}
               />
 
             </label>
@@ -1442,20 +1487,123 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
             <label className="block text-sm text-zinc-400">
               Timpris
 
-              <input
-                type="number"
-                min="0"
+              <NumberStepper
                 value={extraWork.hourlyRate}
-                onChange={(event) => setExtraWork({
+                onChange={(value) => setExtraWork({
                   ...extraWork,
-                  hourlyRate: Number(event.target.value),
+                  hourlyRate: value,
                 })}
-                className="mt-2 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-2xl font-bold text-white outline-none transition focus:border-orange-400"
+                min={0}
+                step={50}
               />
 
             </label>
 
           </div>
+
+        </div>
+
+        {/* TEMPORARY EXTRA STAFF */}
+        <div className="mt-8 border-t border-zinc-800 pt-8">
+
+          <div className="flex items-end justify-between gap-4">
+
+            <div>
+
+              <h2 className="text-sm font-bold uppercase text-zinc-500">
+                Tillfällig extra personal
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-400">
+                Lägg till extra personal för ett begränsat antal timmar.
+              </p>
+
+            </div>
+
+            <p className="text-right text-sm font-black text-orange-400">
+              {formatPrice(temporaryExtraStaffCost)}
+            </p>
+
+          </div>
+
+          <div className="mt-4">
+            <Option
+              title="Lägg till tillfällig extra personal"
+              active={temporaryExtraStaff.active}
+              onClick={() => setTemporaryExtraStaff({
+                ...temporaryExtraStaff,
+                active: !temporaryExtraStaff.active,
+              })}
+            />
+          </div>
+
+          {temporaryExtraStaff.active && (
+            <div className="mt-4 rounded-2xl border border-orange-400/20 bg-black/60 p-4">
+
+              <div className="grid gap-4 sm:grid-cols-2">
+
+                <PricingInput
+                  label="Antal extra personer"
+                  value={temporaryExtraStaff.people}
+                  onChange={(value) => setTemporaryExtraStaff({
+                    ...temporaryExtraStaff,
+                    people: value,
+                  })}
+                />
+
+                <PricingInput
+                  label="Antal timmar"
+                  value={temporaryExtraStaff.hours}
+                  onChange={(value) => setTemporaryExtraStaff({
+                    ...temporaryExtraStaff,
+                    hours: value,
+                  })}
+                />
+
+                <PricingInput
+                  label="Kostnad per person internt"
+                  value={temporaryExtraStaff.internalHourlyRate}
+                  onChange={(value) => setTemporaryExtraStaff({
+                    ...temporaryExtraStaff,
+                    internalHourlyRate: value,
+                  })}
+                />
+
+                <PricingInput
+                  label="Pris till kund per person"
+                  value={temporaryExtraStaff.customerHourlyRate}
+                  onChange={(value) => setTemporaryExtraStaff({
+                    ...temporaryExtraStaff,
+                    customerHourlyRate: value,
+                  })}
+                />
+
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-zinc-950 p-4">
+                  <p className="text-xs font-bold uppercase text-zinc-500">
+                    Intern kostnad
+                  </p>
+
+                  <p className="mt-2 text-xl font-black text-white">
+                    {formatPrice(temporaryExtraStaffInternalCost)}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-orange-400/20 bg-zinc-950 p-4">
+                  <p className="text-xs font-bold uppercase text-zinc-500">
+                    Vinst / marginal
+                  </p>
+
+                  <p className="mt-2 text-xl font-black text-orange-400">
+                    {formatPrice(temporaryExtraStaffMargin)}
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          )}
 
         </div>
 
@@ -1789,7 +1937,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
             <div>
 
               <h2 className="text-3xl font-black">
-                {category}
+                {displayCategory}
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
@@ -2122,17 +2270,91 @@ function OptionPricingFields({ option, pricing, onChange }) {
   );
 }
 
-function PricingInput({ label, value, onChange }) {
+function NumberStepper({ value, onChange, min = 0, step = 1 }) {
+  const numericValue = Number(value) || 0;
+  const normalizedValue = Math.max(min, numericValue);
+  const decimalPlaces = String(step).includes(".") ? String(step).split(".")[1].length : 0;
+
+  const updateValue = (nextValue) => {
+    const parsedValue = Number(nextValue);
+
+    if (nextValue === "") {
+      onChange(min);
+      return;
+    }
+
+    if (Number.isNaN(parsedValue)) {
+      return;
+    }
+
+    onChange(Math.max(min, parsedValue));
+  };
+
+  const stepValue = (direction) => {
+    const nextValue = normalizedValue + (direction * step);
+    const roundedValue = Number(nextValue.toFixed(decimalPlaces));
+
+    onChange(Math.max(min, roundedValue));
+  };
+
+  return (
+    <div className="mt-2 grid grid-cols-[3.25rem_1fr_3.25rem] overflow-hidden rounded-2xl border border-zinc-800 bg-black">
+      <button
+        type="button"
+        onClick={() => stepValue(-1)}
+        className="min-h-14 touch-manipulation border-r border-zinc-800 text-2xl font-black text-orange-300 transition active:bg-orange-500/20 disabled:text-zinc-700"
+        disabled={normalizedValue <= min}
+        aria-label="Minska värde"
+      >
+        -
+      </button>
+
+      <input
+        type="number"
+        min={min}
+        step={step}
+        value={value}
+        onChange={(event) => updateValue(event.target.value)}
+        className="min-h-14 w-full bg-zinc-950 px-3 text-center text-xl font-black text-white outline-none"
+        inputMode="decimal"
+      />
+
+      <button
+        type="button"
+        onClick={() => stepValue(1)}
+        className="min-h-14 touch-manipulation border-l border-zinc-800 text-2xl font-black text-orange-300 transition active:bg-orange-500/20"
+        aria-label="Öka värde"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function getNumericStep(label) {
+  const normalizedLabel = label.toLowerCase();
+
+  if (normalizedLabel.includes("pris") || normalizedLabel.includes("kostnad")) {
+    return 50;
+  }
+
+  if (normalizedLabel.includes("m²") || normalizedLabel.includes("(m)")) {
+    return 0.1;
+  }
+
+  return 1;
+}
+
+function PricingInput({ label, value, onChange, min = 0, step }) {
   return (
     <label className="block text-sm text-zinc-400">
       {label}
 
-      <input
-        type="number"
-        min="0"
+      <NumberStepper
         value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-2 w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-xl font-black text-white outline-none transition focus:border-orange-400"
+        onChange={onChange}
+        min={min}
+        step={step ?? getNumericStep(label)}
       />
 
     </label>
@@ -2144,12 +2366,11 @@ function AvailabilityInput({ label, value, onChange }) {
     <label className="block text-sm text-zinc-400">
       {label}
 
-      <input
-        type="number"
-        min="0"
+      <NumberStepper
         value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-2 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-xl font-black text-white outline-none transition focus:border-orange-400"
+        onChange={onChange}
+        min={0}
+        step={1}
       />
 
     </label>
@@ -2192,7 +2413,7 @@ function createOfferPdfBlob({
   area,
   areaMode,
   deckDimensions,
-  category,
+  displayCategory,
   customer,
   minPrice,
   normalPrice,
@@ -2247,7 +2468,7 @@ function createOfferPdfBlob({
   text("PREMIUM OFFERT", 395, 792, 9, "0.98 0.57 0.24", "F2");
   text(new Date().toLocaleDateString("sv-SE"), 432, 775, 10, "0.72 0.72 0.76");
 
-  text(category, 48, 724, 24, "1 1 1", "F2");
+  text(displayCategory, 48, 724, 24, "1 1 1", "F2");
   text(`${formatArea(area)} · ${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`, 48, 704, 11, "0.65 0.65 0.7");
   text("Normalpris", 390, 724, 10, "0.65 0.65 0.7");
   text(money(normalPrice), 390, 701, 22, "0.98 0.57 0.24", "F2");
@@ -2264,7 +2485,7 @@ function createOfferPdfBlob({
   });
 
   const projectRows = [
-    ["Kategori", category],
+    ["Kategori", displayCategory],
     ["Storlek", formatArea(area)],
     ...(areaMode === "dimensions" && deckDimensions ? [
       ["Mått", `${deckDimensions.length || 0} m × ${deckDimensions.width || 0} m`],
