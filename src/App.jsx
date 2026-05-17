@@ -497,6 +497,40 @@ const altanPergolaDefaultPrices = {
   simpleStairsFixed: 2000,
 };
 
+const paintingDefaultPrices = {
+  spacklingPerSquareMeter: 70,
+  sandingPerSquareMeter: 35,
+  primerPerSquareMeter: 55,
+  maskingPerSquareMeter: 25,
+  wallPaintingPerSquareMeter: 120,
+  ceilingPaintingPerSquareMeter: 140,
+  standardWallpaperPerSquareMeter: 160,
+  patternWallpaperPerSquareMeter: 220,
+  difficultWallpaperPerSquareMeter: 280,
+  facadePaintingPerSquareMeter: 160,
+  facadeWashPerSquareMeter: 35,
+  scrapingPerSquareMeter: 85,
+  facadePrimerPerSquareMeter: 75,
+  furnitureProtectionFixed: 800,
+  darkColorPerSquareMeter: 45,
+  multipleColorsPerSquareMeter: 65,
+  accentWallFixed: 1200,
+  scaffoldingFixed: 4500,
+  liftFixed: 3500,
+};
+
+const interiorWallsCeilingsDefaultPrices = {
+  studWallPerSquareMeter: 260,
+  plasterWallPerSquareMeter: 220,
+  osbPlasterPerSquareMeter: 320,
+  wallInsulationPerSquareMeter: 120,
+  plasterCeilingPerSquareMeter: 260,
+  panelCeilingPerSquareMeter: 300,
+  droppedCeilingPerSquareMeter: 380,
+  spotlightsFixed: 1800,
+  ceilingInsulationPerSquareMeter: 140,
+};
+
 const demolitionDefaultHourlyRate = 200;
 
 function isDemolitionOption(option) {
@@ -523,8 +557,89 @@ function isPergolaOption(option) {
   return option.id === "pergola" || option.id === "pergolaRoof" || optionTitle.includes("pergola");
 }
 
+function getPaintingDisplayCategory(options, isOptionActive) {
+  const activeLabels = [];
+  const hasPainting = options.some((option) => {
+    return ["wallPainting", "ceilingPainting"].includes(option.id) && isOptionActive(option);
+  });
+  const hasWallpaper = options.some((option) => {
+    return ["standardWallpaper", "patternWallpaper", "difficultWallpaper"].includes(option.id) && isOptionActive(option);
+  });
+  const hasTrimPainting = options.some((option) => {
+    return option.id === "trimPainting" && isOptionActive(option);
+  });
+  const hasFacadePainting = options.some((option) => {
+    return option.id === "facadePainting" && isOptionActive(option);
+  });
+
+  if (hasPainting) {
+    activeLabels.push("Målning");
+  }
+
+  if (hasWallpaper) {
+    activeLabels.push("Tapetsering");
+  }
+
+  if (hasTrimPainting) {
+    activeLabels.push("Snickerimålning");
+  }
+
+  if (hasFacadePainting) {
+    activeLabels.push("Fasadmålning");
+  }
+
+  return activeLabels.length > 0 ? activeLabels.join(" & ") : "Målning & Tapetsering";
+}
+
+function getInteriorWallsCeilingsDisplayCategory(options, isOptionActive) {
+  const wallOptionIds = ["studWall", "plasterWall", "osbPlasterWall", "wallInsulation", "wallDemolition"];
+  const ceilingOptionIds = ["plasterCeiling", "panelCeiling", "droppedCeiling", "spotlights", "ceilingInsulation", "ceilingDemolition"];
+  const hasWalls = options.some((option) => {
+    return wallOptionIds.includes(option.id) && isOptionActive(option);
+  });
+  const hasCeilings = options.some((option) => {
+    return ceilingOptionIds.includes(option.id) && isOptionActive(option);
+  });
+
+  if (hasWalls && hasCeilings) {
+    return "Innerväggar & Innertak";
+  }
+
+  if (hasWalls) {
+    return "Innerväggar";
+  }
+
+  if (hasCeilings) {
+    return "Innertak";
+  }
+
+  return "Innerväggar & Innertak";
+}
+
+function getBaseCategory(category) {
+  if (category === "Målning & Tapetsering") {
+    return "Målning & Tapeter";
+  }
+
+  if (["Väggar & Tak", "Innerväggar & Innertak"].includes(category)) {
+    return "Innerväggar & Innertak";
+  }
+
+  return category;
+}
+
 function getDisplayCategory(category, options, isOptionActive) {
-  if (category !== "Altan & Pergola") {
+  const baseCategory = getBaseCategory(category);
+
+  if (baseCategory === "Målning & Tapeter") {
+    return getPaintingDisplayCategory(options, isOptionActive);
+  }
+
+  if (baseCategory === "Innerväggar & Innertak") {
+    return getInteriorWallsCeilingsDisplayCategory(options, isOptionActive);
+  }
+
+  if (baseCategory !== "Altan & Pergola") {
     return category;
   }
 
@@ -541,8 +656,339 @@ const calculatorConfigs = {
     options: defaultCalculatorOptions,
   },
   "Målning & Tapeter": {
-    basePrice: (area) => area * 180,
-    options: defaultCalculatorOptions,
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Förarbete",
+        options: [
+          {
+            id: "paintingSpackling",
+            title: "Spackling",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.spacklingPerSquareMeter,
+          },
+          {
+            id: "paintingSanding",
+            title: "Slipning",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.sandingPerSquareMeter,
+          },
+          {
+            id: "paintingPrimer",
+            title: "Grundmålning",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.primerPerSquareMeter,
+          },
+          {
+            id: "paintingMasking",
+            title: "Maskering",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.maskingPerSquareMeter,
+          },
+          {
+            id: "oldWallpaperRemoval",
+            title: "Rivning av gammal tapet",
+          },
+        ],
+      },
+      {
+        title: "Målning",
+        options: [
+          {
+            id: "wallPainting",
+            title: "Väggmålning",
+            defaultActive: true,
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.wallPaintingPerSquareMeter,
+          },
+          {
+            id: "ceilingPainting",
+            title: "Takmålning",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.ceilingPaintingPerSquareMeter,
+          },
+          {
+            id: "trimPainting",
+            title: "Snickerimålning",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "facadePainting",
+            title: "Fasadmålning",
+            pricingControl: "work",
+            areaControl: "facade",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.facadePaintingPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 12)),
+          },
+          {
+            id: "facadeWash",
+            title: "Tvätt av fasad",
+            pricingControl: "work",
+            areaControl: "facade",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.facadeWashPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 25)),
+          },
+          {
+            id: "facadeScraping",
+            title: "Skrapning",
+            pricingControl: "work",
+            areaControl: "facade",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.scrapingPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 10)),
+          },
+          {
+            id: "facadePrimer",
+            title: "Grundmålning fasad",
+            pricingControl: "work",
+            areaControl: "facade",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.facadePrimerPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 16)),
+          },
+        ],
+      },
+      {
+        title: "Tapetsering",
+        options: [
+          {
+            id: "standardWallpaper",
+            title: "Standard tapet",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.standardWallpaperPerSquareMeter,
+          },
+          {
+            id: "patternWallpaper",
+            title: "Mönsterpassning",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.patternWallpaperPerSquareMeter,
+          },
+          {
+            id: "difficultWallpaper",
+            title: "Svår tapet",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.difficultWallpaperPerSquareMeter,
+          },
+        ],
+      },
+      {
+        title: "Färgtyp & Svårighetsgrad",
+        options: [
+          {
+            id: "whiteLightColor",
+            title: "Vit / ljus färg",
+            defaultActive: true,
+            price: () => 0,
+          },
+          {
+            id: "normalColor",
+            title: "Normal färg",
+            price: () => 0,
+          },
+          {
+            id: "darkColor",
+            title: "Mörk färg",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.darkColorPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 20)),
+          },
+          {
+            id: "multipleColors",
+            title: "Flera färger",
+            pricingControl: "work",
+            defaultFastPrice: (area) => area * paintingDefaultPrices.multipleColorsPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 15)),
+          },
+          {
+            id: "accentWall",
+            title: "Accentvägg",
+            pricingControl: "work",
+            defaultFastPrice: () => paintingDefaultPrices.accentWallFixed,
+            defaultEstimatedHours: () => 2,
+          },
+        ],
+      },
+      {
+        title: "Extra",
+        options: [
+          {
+            id: "furnitureProtection",
+            title: "Möbelskydd",
+            pricingControl: "work",
+            defaultFastPrice: () => paintingDefaultPrices.furnitureProtectionFixed,
+          },
+          {
+            id: "paintingMaterialPurchase",
+            title: "Materialinköp",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "paintingMaterialHandling",
+            title: "Materialhantering",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "paintingWasteRemoval",
+            title: "Bortforsling av avfall",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "paintingMiscWork",
+            title: "Övrigt arbete",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+        ],
+      },
+      {
+        title: "Extra kostnader",
+        options: [
+          {
+            id: "scaffolding",
+            title: "Ställning",
+            pricingControl: "fixed",
+            costType: "fixed",
+            defaultFastPrice: () => paintingDefaultPrices.scaffoldingFixed,
+          },
+          {
+            id: "lift",
+            title: "Lift",
+            pricingControl: "fixed",
+            costType: "fixed",
+            defaultFastPrice: () => paintingDefaultPrices.liftFixed,
+          },
+        ],
+      },
+    ],
+  },
+  "Innerväggar & Innertak": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Väggar",
+        options: [
+          {
+            id: "studWall",
+            title: "Regelvägg",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.studWallPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 8)),
+          },
+          {
+            id: "plasterWall",
+            title: "Gipsvägg",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.plasterWallPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 10)),
+          },
+          {
+            id: "osbPlasterWall",
+            title: "OSB + gips",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.osbPlasterPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 7)),
+          },
+          {
+            id: "wallInsulation",
+            title: "Isolering",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.wallInsulationPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 14)),
+          },
+          {
+            id: "wallDemolition",
+            title: "Rivning av vägg",
+            areaControl: "surface",
+          },
+        ],
+      },
+      {
+        title: "Innertak",
+        options: [
+          {
+            id: "plasterCeiling",
+            title: "Gipstak",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.plasterCeilingPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 8)),
+          },
+          {
+            id: "panelCeiling",
+            title: "Paneltak",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.panelCeilingPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 7)),
+          },
+          {
+            id: "droppedCeiling",
+            title: "Sänkt tak",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.droppedCeilingPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 6)),
+          },
+          {
+            id: "spotlights",
+            title: "Spotlights",
+            pricingControl: "work",
+            defaultFastPrice: () => interiorWallsCeilingsDefaultPrices.spotlightsFixed,
+            defaultEstimatedHours: () => 4,
+          },
+          {
+            id: "ceilingInsulation",
+            title: "Isolering tak",
+            pricingControl: "work",
+            areaControl: "surface",
+            defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.ceilingInsulationPerSquareMeter,
+            defaultEstimatedHours: (area) => Math.max(1, Math.round(area / 12)),
+          },
+          {
+            id: "ceilingDemolition",
+            title: "Rivning av gammalt tak",
+            areaControl: "surface",
+          },
+        ],
+      },
+      {
+        title: "Extra",
+        options: [
+          {
+            id: "interiorMaterialPurchase",
+            title: "Materialinköp",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "interiorMaterialHandling",
+            title: "Materialhantering",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "interiorWasteRemoval",
+            title: "Bortforsling av avfall",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "interiorMiscWork",
+            title: "Övrigt arbete",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+        ],
+      },
+    ],
   },
   Golv: {
     basePrice: (area) => area * 250,
@@ -760,13 +1206,15 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
   const [fixedCosts, setFixedCosts] = useState({});
   const [extraCosts, setExtraCosts] = useState([]);
   const [optionPricing, setOptionPricing] = useState({});
+  const [optionMeasurements, setOptionMeasurements] = useState({});
   const [discount, setDiscount] = useState({
     active: false,
     percent: 0,
   });
 
-  const calculatorConfig = calculatorConfigs[category] || calculatorConfigs.default;
-  const usesDimensionArea = category === "Altan & Pergola";
+  const baseCategory = getBaseCategory(category);
+  const calculatorConfig = calculatorConfigs[baseCategory] || calculatorConfigs.default;
+  const usesDimensionArea = baseCategory === "Altan & Pergola";
   const calculatorSections = (calculatorConfig.sections || [
     {
       options: calculatorConfig.options,
@@ -801,13 +1249,60 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
     setArea(Math.round(length * width * 10) / 10);
   };
 
+  const getOptionMeasurement = (option) => {
+    const measurement = optionMeasurements[option.id] || {};
+
+    return {
+      mode: measurement.mode || "manual",
+      area: measurement.area ?? area,
+      length: measurement.length ?? "",
+      height: measurement.height ?? "",
+    };
+  };
+
+  const getOptionArea = (option) => {
+    if (!option.areaControl) {
+      return area;
+    }
+
+    const measurement = getOptionMeasurement(option);
+
+    return Math.max(0, Number(measurement.area) || 0);
+  };
+
+  const updateOptionMeasurement = (optionId, values) => {
+    setOptionMeasurements((currentMeasurements) => {
+      const nextMeasurement = {
+        mode: "manual",
+        area,
+        length: "",
+        height: "",
+        ...(currentMeasurements[optionId] || {}),
+        ...values,
+      };
+
+      if (nextMeasurement.mode === "dimensions" || values.length !== undefined || values.height !== undefined) {
+        const length = Math.max(0, Number(nextMeasurement.length) || 0);
+        const height = Math.max(0, Number(nextMeasurement.height) || 0);
+
+        nextMeasurement.area = Math.round(length * height * 10) / 10;
+      }
+
+      return {
+        ...currentMeasurements,
+        [optionId]: nextMeasurement,
+      };
+    });
+  };
+
   const getOptionPricing = (option) => {
     const pricing = optionPricing[option.id] || {};
+    const pricingArea = getOptionArea(option);
 
     return {
       mode: pricing.mode || (option.pricingControl === "hourly" ? "hourly" : "fast"),
-      fastPrice: pricing.fastPrice ?? option.defaultFastPrice?.(area) ?? 0,
-      estimatedHours: pricing.estimatedHours ?? 0,
+      fastPrice: pricing.fastPrice ?? option.defaultFastPrice?.(pricingArea) ?? 0,
+      estimatedHours: pricing.estimatedHours ?? option.defaultEstimatedHours?.(pricingArea) ?? 0,
       hours: pricing.hours ?? 0,
       hourlyRate: pricing.hourlyRate ?? option.defaultHourlyRate ?? 250,
     };
@@ -997,6 +1492,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       priceValue: calculateOptionPrice(option, true),
       hoursValue: calculateOptionHours(option, true),
       costType: option.costType || "work",
+      detailText: option.areaControl ? `Yta: ${formatArea(getOptionArea(option))}` : "",
     })),
     ...(extraWorkCost > 0 ? [{
       id: "extraWork",
@@ -1334,6 +1830,8 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
                         option={optionWithSection}
                         pricing={getOptionPricing(optionWithSection)}
                         onChange={(values) => updateOptionPricing(optionWithSection.id, values)}
+                        measurement={getOptionMeasurement(optionWithSection)}
+                        onMeasurementChange={(values) => updateOptionMeasurement(optionWithSection.id, values)}
                       />
                     )}
 
@@ -2051,6 +2549,12 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
                       </p>
                     )}
 
+                    {option.detailText && (
+                      <p className="text-xs text-zinc-500">
+                        {option.detailText}
+                      </p>
+                    )}
+
                   </div>
 
                   <span className="text-sm font-bold text-orange-300">
@@ -2195,12 +2699,75 @@ function CustomerField({ label, value, onChange, multiline = false }) {
   );
 }
 
-function OptionPricingFields({ option, pricing, onChange }) {
+function OptionPricingFields({ option, pricing, onChange, measurement, onMeasurementChange }) {
   const canChooseMode = option.pricingControl === "work";
   const useHourly = pricing.mode === "hourly" || option.pricingControl === "hourly";
+  const areaLabel = option.areaControl === "facade" ? "Fasad m²" : "Yta m²";
+  const secondDimensionLabel = option.areaControl === "facade" ? "Höjd (m)" : "Bredd (m)";
 
   return (
     <div className="rounded-2xl border border-orange-400/20 bg-black/60 p-4">
+
+      {option.areaControl && (
+        <div className="mb-4 rounded-2xl border border-white/10 bg-zinc-950 p-3">
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ["manual", "Ange m² manuellt"],
+              ["dimensions", "Beräkna från mått"],
+            ].map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onMeasurementChange({ mode })}
+                className={`min-h-11 rounded-xl border px-2 text-sm font-bold ${
+                  measurement.mode === mode
+                    ? "border-orange-400 bg-orange-500 text-black"
+                    : "border-zinc-800 bg-black text-white"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {measurement.mode === "dimensions" ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <PricingInput
+                label="Längd (m)"
+                value={measurement.length}
+                onChange={(value) => onMeasurementChange({ length: value, mode: "dimensions" })}
+                step={0.1}
+              />
+
+              <PricingInput
+                label={secondDimensionLabel}
+                value={measurement.height}
+                onChange={(value) => onMeasurementChange({ height: value, mode: "dimensions" })}
+                step={0.1}
+              />
+
+              <div className="rounded-2xl border border-orange-400/20 bg-black p-4 sm:col-span-2">
+                <p className="text-xs font-bold uppercase text-zinc-500">
+                  {areaLabel}
+                </p>
+
+                <p className="mt-2 text-2xl font-black text-orange-400">
+                  {formatArea(measurement.area)}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <PricingInput
+                label={areaLabel}
+                value={measurement.area}
+                onChange={(value) => onMeasurementChange({ area: value, mode: "manual" })}
+                step={0.1}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {canChooseMode && (
         <div className="grid grid-cols-2 gap-2">
@@ -2526,6 +3093,9 @@ function createOfferPdfBlob({
     text(option.title, 64, y, 10, "1 1 1", "F2");
     if (option.sectionTitle) {
       text(option.sectionTitle, 64, y - 11, 7, "0.48 0.48 0.52");
+    }
+    if (option.detailText) {
+      text(option.detailText, 180, y - 11, 7, "0.48 0.48 0.52");
     }
     text(option.priceValue > 0 ? `+${money(option.priceValue)}` : "Ingår", 420, y, 9, "0.98 0.72 0.45", "F2");
   });

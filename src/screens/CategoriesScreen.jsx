@@ -4,7 +4,7 @@ export default function CategoriesScreen({ goBack, openCategory }) {
 
   const categories = [
     "Målning & Tapeter",
-    "Väggar & Tak",
+    "Innerväggar & Innertak",
     "Golv",
     "Fönster & Dörrar",
     "Kök & Garderob",
