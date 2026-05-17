@@ -1,4 +1,8 @@
+import { translateText, useI18n } from "../i18n";
+
 export default function Card({ icon, title, text, onClick }) {
+  const { language } = useI18n();
+
   return (
     <button
       type="button"
@@ -11,11 +15,11 @@ export default function Card({ icon, title, text, onClick }) {
       </div>
 
       <h2 className="text-2xl font-bold mt-6">
-        {title}
+        {translateText(title, language)}
       </h2>
 
       <p className="text-zinc-400 mt-2 text-sm">
-        {text}
+        {translateText(text, language)}
       </p>
 
     </button>

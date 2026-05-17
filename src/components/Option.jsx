@@ -1,4 +1,8 @@
+import { translateText, useI18n } from "../i18n";
+
 export default function Option({ title, active, onClick }) {
+  const { language } = useI18n();
+
   return (
     <button
       type="button"
@@ -9,19 +13,15 @@ export default function Option({ title, active, onClick }) {
           : "bg-black border-zinc-800 text-white"
       }`}
     >
-
-      <div className="flex justify-between items-center">
-
+      <div className="flex items-center justify-between">
         <span className="font-bold">
-          {title}
+          {translateText(title, language)}
         </span>
 
         <span>
           {active ? "✓" : ""}
         </span>
-
       </div>
-
     </button>
   );
 }

@@ -19,9 +19,26 @@ import Option from "./components/Option";
 import PriceCard from "./components/PriceCard";
 import CategoriesScreen from "./screens/CategoriesScreen";
 import marcinByggLogo from "./assets/marcin-bygg-logo.png";
+import { I18nProvider, LanguageToggle, translateText, useI18n } from "./i18n";
 import { formatPrice } from "./utils/formatPrice";
 
 export default function App() {
+  const [language, setLanguageState] = useState(() => localStorage.getItem("marcinByggLanguage") || "sv");
+
+  const setLanguage = (nextLanguage) => {
+    setLanguageState(nextLanguage);
+    localStorage.setItem("marcinByggLanguage", nextLanguage);
+  };
+
+  return (
+    <I18nProvider language={language} setLanguage={setLanguage}>
+      <AppContent />
+    </I18nProvider>
+  );
+}
+
+function AppContent() {
+  const { t } = useI18n();
 
   const [screen, setScreen] = useState("home");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -163,9 +180,13 @@ export default function App() {
               <Menu size={24} />
             </button>
 
-            <button type="button" className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3">
-              <Settings size={22} />
-            </button>
+            <div className="flex items-center gap-2">
+              <LanguageToggle />
+
+              <button type="button" className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3">
+                <Settings size={22} />
+              </button>
+            </div>
 
           </div>
 
@@ -178,7 +199,7 @@ export default function App() {
             />
 
             <p className="text-zinc-300 mt-8 max-w-xs leading-relaxed">
-              Professionell snickarservice för hem och företag.
+              {t("Professionell snickarservice för hem och företag.")}
             </p>
 
           </div>
@@ -197,28 +218,28 @@ export default function App() {
               setScreen("categories");
             }}
             icon={<Calculator size={34} />}
-            title="Ny offert"
-            text="Skapa nytt kostnadsförslag"
+            title={t("Ny offert")}
+            text={t("Skapa nytt kostnadsförslag")}
           />
 
           <Card
             onClick={() => setScreen("history")}
             icon={<Folder size={34} />}
-            title="Historik"
-            text="Sparade offerter"
+            title={t("Historik")}
+            text={t("Sparade offerter")}
           />
 
           <Card
             onClick={() => setScreen("clients")}
             icon={<User size={34} />}
-            title="Kunder"
-            text="Hantera kunder"
+            title={t("Kunder")}
+            text={t("Hantera kunder")}
           />
 
           <Card
             icon={<Hammer size={34} />}
-            title="Material"
-            text="Priser & material"
+            title={t("Material")}
+            text={t("Priser & material")}
           />
 
         </div>
@@ -231,7 +252,7 @@ export default function App() {
         <div className="bg-orange-500 rounded-3xl p-6 text-black">
 
           <p className="font-bold text-sm">
-            KONTAKTA MIG IDAG
+            {t("KONTAKTA MIG IDAG")}
           </p>
 
           <h2 className="text-4xl font-black mt-2">
@@ -326,8 +347,9 @@ async function exportSavedOfferPdf(offer) {
     extraCostsTotal: offer.prices?.extraCosts || 0,
     fixedCostsTotal: offer.prices?.fixed || 0,
     workPrice: offer.prices?.work || 0,
-    peopleCount: offer.peopleCount || 1,
+    peopleCount: offer.peopleCount ?? 2,
     totalWorkHours: offer.schedule?.totalWorkHours || 0,
+    hourlyRateSummary: offer.schedule?.hourlyRateSummary || "Inte angivet",
     estimatedCalendarTime: offer.schedule?.estimatedCalendarTime || "Ej angivet",
     startDate: offer.schedule?.startDate || "",
     estimatedEndDate: offer.schedule?.estimatedEndDate || "",
@@ -354,6 +376,8 @@ async function exportSavedOfferPdf(offer) {
 }
 
 function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
+  const { language, t } = useI18n();
+
   return (
     <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
 
@@ -370,35 +394,39 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
         <div>
 
           <h1 className="text-3xl font-black">
-            Kunder
+            {t("Kunder")}
           </h1>
 
           <p className="text-orange-400">
-            Kundregister
+            {t("Kundregister")}
           </p>
 
         </div>
 
-        <img
-          src={marcinByggLogo}
-          alt="Marcin Bygg"
-          className="ml-auto h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
-        />
+        <div className="ml-auto flex items-center gap-2">
+          <LanguageToggle />
+
+          <img
+            src={marcinByggLogo}
+            alt="Marcin Bygg"
+            className="h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+          />
+        </div>
 
       </div>
 
       {clients.length === 0 ? (
         <div className="mt-10 rounded-3xl border border-orange-400/30 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-8 text-center shadow-2xl shadow-orange-500/10">
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-400">
-            Inga kunder
+            {t("Inga kunder")}
           </p>
 
           <h2 className="mt-3 text-3xl font-black">
-            Kundlistan är tom
+            {t("Kundlistan är tom")}
           </h2>
 
           <p className="mt-3 text-zinc-400">
-            Kunder skapas automatiskt när du sparar en offert.
+            {t("Kunder skapas automatiskt när du sparar en offert.")}
           </p>
         </div>
       ) : (
@@ -416,21 +444,21 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
-                      Senast: {formatOfferDate(client.lastActivity)}
+                      {t("Senast")}: {formatOfferDate(client.lastActivity, language)}
                     </p>
 
                     <h2 className="mt-2 text-2xl font-black">
-                      {client.customer.name || "Inte angivet"}
+                      {translateText(client.customer.name || "Inte angivet", language)}
                     </h2>
 
                     <p className="mt-1 text-sm text-zinc-400">
-                      {client.customer.phone || "Inte angivet"} · {client.customer.address || "Inte angivet"}
+                      {translateText(client.customer.phone || "Inte angivet", language)} · {translateText(client.customer.address || "Inte angivet", language)}
                     </p>
                   </div>
 
                   <div className="text-right">
                     <p className="text-xs uppercase text-zinc-500">
-                      Offerter
+                      {t("Offerter")}
                     </p>
 
                     <p className="text-2xl font-black text-orange-400">
@@ -443,7 +471,7 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
               <div className="grid gap-3 p-5 sm:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <p className="text-xs font-bold uppercase text-zinc-500">
-                    Total offertvärde
+                    {t("Total offertvärde")}
                   </p>
 
                   <p className="mt-2 text-xl font-black text-white">
@@ -465,6 +493,7 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
 }
 
 function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewOffer }) {
+  const { language, t } = useI18n();
   const [offerToDelete, setOfferToDelete] = useState(null);
 
   if (!client) {
@@ -480,7 +509,7 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
 
         <div className="mt-10 rounded-3xl border border-orange-400/30 bg-zinc-950 p-8 text-center">
           <h1 className="text-2xl font-black">
-            Kunden finns inte längre
+            {t("Kunden finns inte längre")}
           </h1>
         </div>
       </div>
@@ -501,11 +530,11 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
 
         <div>
           <h1 className="text-3xl font-black">
-            {client.customer.name}
+            {translateText(client.customer.name, language)}
           </h1>
 
           <p className="text-orange-400">
-            Kundprofil
+            {t("Kundprofil")}
           </p>
         </div>
       </div>
@@ -515,7 +544,7 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
           <SummaryRow label="Telefon" value={client.customer.phone || "Inte angivet"} />
           <SummaryRow label="Adress" value={client.customer.address || "Inte angivet"} />
           <SummaryRow label="Anteckningar" value={client.customer.notes || "Inga anteckningar"} />
-          <SummaryRow label="Sista aktivitet" value={formatOfferDate(client.lastActivity)} />
+          <SummaryRow label="Sista aktivitet" value={formatOfferDate(client.lastActivity, language)} />
           <SummaryRow label="Antal offerter" value={`${client.offers.length}`} />
           <SummaryRow label="Total offertvärde" value={formatPrice(client.totalValue)} />
         </div>
@@ -529,7 +558,7 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
 
       <div className="mt-10">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-400">
-          Arbetshistorik
+          {t("Arbetshistorik")}
         </p>
 
         <div className="mt-4 flex flex-col gap-5">
@@ -542,21 +571,21 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
-                      {formatOfferDate(offer.updatedAt || offer.date)}
+                      {formatOfferDate(offer.updatedAt || offer.date, language)}
                     </p>
 
                     <h2 className="mt-2 text-2xl font-black">
-                      {offer.displayCategory || offer.category}
+                      {translateText(offer.displayCategory || offer.category, language)}
                     </h2>
 
                     <p className="mt-1 text-sm text-zinc-400">
-                      Start: {offer.schedule?.startDate ? formatLongDate(parseLocalDate(offer.schedule.startDate)) : "Inte angivet"}
+                      {t("Start")}: {offer.schedule?.startDate ? formatLongDate(parseLocalDate(offer.schedule.startDate), language) : t("Inte angivet")}
                     </p>
                   </div>
 
                   <div className="text-right">
                     <p className="text-xs uppercase text-zinc-500">
-                      Offertpris
+                      {t("Offertpris")}
                     </p>
 
                     <p className="text-xl font-black text-orange-400">
@@ -568,9 +597,24 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
 
               <div className="grid gap-4 p-5">
                 <div className="grid gap-3 text-sm sm:grid-cols-3">
-                  <SummaryRow label="Datum" value={formatOfferDate(offer.date)} />
+                  <SummaryRow label="Datum" value={formatOfferDate(offer.date, language)} />
                   <SummaryRow label="Uppskattad tid" value={offer.schedule?.estimatedCalendarTime || "Ej angivet"} />
-                  <SummaryRow label="Slutdatum" value={offer.schedule?.estimatedEndDate || "Inte angivet"} />
+                  <SummaryRow
+                    label="Slutdatum"
+                    value={offer.schedule?.startDate
+                      ? calculateEstimatedEndDate(
+                        offer.schedule.startDate,
+                        offer.schedule.totalWorkHours || 0,
+                        offer.schedule.availability || {
+                          weekdayEveningHours: 4,
+                          weekdayEveningsPerWeek: 5,
+                          weekendDayHours: 8,
+                          weekendDaysPerWeek: 2,
+                        },
+                        language,
+                      ) || "Inte angivet"
+                      : "Inte angivet"}
+                  />
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -579,7 +623,7 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
                       key={`${offer.id}-${option.id}`}
                       className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-zinc-200"
                     >
-                      {formatOptionTitle(option.title)}
+                      {translateText(formatOptionTitle(option.title), language)}
                     </span>
                   ))}
                 </div>
@@ -611,15 +655,15 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
         <div className="fixed inset-0 z-[80] flex items-end bg-black/75 p-4 backdrop-blur-sm sm:items-center sm:justify-center">
           <div className="w-full rounded-3xl border border-orange-400/25 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-6 shadow-2xl shadow-orange-500/10 sm:max-w-md">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-400">
-              Bekräfta
+              {t("Bekräfta")}
             </p>
 
             <h2 className="mt-3 text-2xl font-black">
-              Ta bort offert?
+              {t("Ta bort offert?")}
             </h2>
 
             <p className="mt-3 text-sm text-zinc-400">
-              Offerten tas bort från kundens historik och från Historik.
+              {t("Offerten tas bort från kundens historik och från Historik.")}
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -628,7 +672,7 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
                 onClick={() => setOfferToDelete(null)}
                 className="min-h-14 touch-manipulation rounded-2xl border border-white/10 bg-white/[0.04] px-4 font-black text-white"
               >
-                Avbryt
+                {t("Avbryt")}
               </button>
 
               <button
@@ -639,7 +683,7 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
                 }}
                 className="min-h-14 touch-manipulation rounded-2xl bg-red-500 px-4 font-black text-white shadow-lg shadow-red-500/20"
               >
-                Ta bort
+                {t("Ta bort")}
               </button>
             </div>
           </div>
@@ -651,6 +695,7 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
 }
 
 function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
+  const { language, t } = useI18n();
   const [offerToDelete, setOfferToDelete] = useState(null);
 
   return (
@@ -669,20 +714,24 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
         <div>
 
           <h1 className="text-3xl font-black">
-            Historik
+            {t("Historik")}
           </h1>
 
           <p className="text-orange-400">
-            Sparade offerter
+            {t("Sparade offerter")}
           </p>
 
         </div>
 
-        <img
-          src={marcinByggLogo}
-          alt="Marcin Bygg"
-          className="ml-auto h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
-        />
+        <div className="ml-auto flex items-center gap-2">
+          <LanguageToggle />
+
+          <img
+            src={marcinByggLogo}
+            alt="Marcin Bygg"
+            className="h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+          />
+        </div>
 
       </div>
 
@@ -691,15 +740,15 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
         <div className="mt-10 rounded-3xl border border-orange-400/30 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-8 text-center shadow-2xl shadow-orange-500/10">
 
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-400">
-            Inga offerter
+            {t("Inga offerter")}
           </p>
 
           <h2 className="mt-3 text-3xl font-black">
-            Historiken är tom
+            {t("Historiken är tom")}
           </h2>
 
           <p className="mt-3 text-zinc-400">
-            Sparade offerter visas här när du trycker på Spara offert.
+            {t("Sparade offerter visas här när du trycker på Spara offert.")}
           </p>
 
         </div>
@@ -722,15 +771,15 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                   <div>
 
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
-                      {formatOfferDate(offer.date)}
+                      {formatOfferDate(offer.date, language)}
                     </p>
 
                     <h2 className="mt-2 text-2xl font-black">
-                      {offer.customer?.name || "Inte angivet"}
+                      {translateText(offer.customer?.name || "Inte angivet", language)}
                     </h2>
 
                     <p className="mt-1 text-sm text-zinc-400">
-                      {offer.displayCategory || offer.category} · {offer.area !== null && offer.area !== undefined ? `${formatArea(offer.area)} · ` : ""}{offer.peopleCount || 1} {(offer.peopleCount || 1) === 1 ? "person" : "personer"}
+                      {translateText(offer.displayCategory || offer.category, language)} · {offer.area !== null && offer.area !== undefined ? `${formatArea(offer.area)} · ` : ""}{offer.peopleCount ?? 2} {translateText((offer.peopleCount ?? 2) === 1 ? "person" : "personer", language)}
                     </p>
 
                   </div>
@@ -738,7 +787,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                   <div className="text-right">
 
                     <p className="text-xs uppercase text-zinc-500">
-                      Offertpris
+                      {t("Offertpris")}
                     </p>
 
                     <p className="text-xl font-black text-orange-400">
@@ -764,7 +813,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                 <div>
 
                   <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-                    Valda alternativ
+                    {t("Valda alternativ")}
                   </h3>
 
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -775,13 +824,13 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                         key={`${offer.id}-${option.id}`}
                         className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-zinc-200"
                       >
-                        {formatOptionTitle(option.title)}
+                        {translateText(formatOptionTitle(option.title), language)}
                       </span>
 
                     )) : (
 
                       <span className="text-sm text-zinc-500">
-                        Inga valda alternativ
+                        {t("Inga valda alternativ")}
                       </span>
 
                     )}
@@ -794,7 +843,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                   <div>
 
                     <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-                      Extra kostnader
+                      {t("Extra kostnader")}
                     </h3>
 
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -805,7 +854,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                           key={`${offer.id}-${cost.id}`}
                           className="rounded-full border border-orange-400/20 bg-orange-500/10 px-3 py-2 text-xs font-bold text-orange-200"
                         >
-                          {cost.name || "Extra kostnad"} · {formatPrice(cost.priceValue)}
+                          {translateText(cost.name || "Extra kostnad", language)} · {formatPrice(cost.priceValue)}
                         </span>
 
                       ))}
@@ -855,15 +904,15 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
           <div className="w-full rounded-3xl border border-orange-400/25 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-6 shadow-2xl shadow-orange-500/10 sm:max-w-md">
 
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-400">
-              Bekräfta
+              {t("Bekräfta")}
             </p>
 
             <h2 className="mt-3 text-2xl font-black">
-              Ta bort offert?
+              {t("Ta bort offert?")}
             </h2>
 
             <p className="mt-3 text-sm text-zinc-400">
-              Offerten för {offerToDelete.customer?.name || "kunden"} tas bort permanent från historiken.
+              {t("Offerten för {name} tas bort permanent från historiken.").replace("{name}", offerToDelete.customer?.name || t("Kund").toLowerCase())}
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -873,7 +922,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                 onClick={() => setOfferToDelete(null)}
                 className="min-h-14 touch-manipulation rounded-2xl border border-white/10 bg-white/[0.04] px-4 font-black text-white"
               >
-                Avbryt
+                {t("Avbryt")}
               </button>
 
               <button
@@ -884,7 +933,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                 }}
                 className="min-h-14 touch-manipulation rounded-2xl bg-red-500 px-4 font-black text-white shadow-lg shadow-red-500/20"
               >
-                Ta bort
+                {t("Ta bort")}
               </button>
 
             </div>
@@ -899,6 +948,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
 }
 
 function HistoryActionButton({ children, icon, onClick, variant = "default" }) {
+  const { language } = useI18n();
   const className = variant === "danger"
     ? "border-red-500/30 bg-red-500/10 text-red-100 hover:bg-red-500/20"
     : "border-orange-400/25 bg-white/[0.04] text-white hover:bg-orange-500/10";
@@ -910,13 +960,13 @@ function HistoryActionButton({ children, icon, onClick, variant = "default" }) {
       className={`relative z-10 flex min-h-14 touch-manipulation items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${className}`}
     >
       {icon}
-      <span>{children}</span>
+      <span>{translateText(children, language)}</span>
     </button>
   );
 }
 
-function formatOfferDate(date) {
-  return new Date(date).toLocaleDateString("sv-SE", {
+function formatOfferDate(date, language = "sv") {
+  return new Date(date).toLocaleDateString(language === "pl" ? "pl-PL" : "sv-SE", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -924,10 +974,12 @@ function formatOfferDate(date) {
 }
 
 function HistoryPrice({ label, value, highlight = false }) {
+  const { language } = useI18n();
+
   return (
     <div className={`p-4 ${highlight ? "bg-orange-500 text-black" : "bg-black/40 text-white"}`}>
       <p className={`text-[10px] font-black ${highlight ? "text-black/60" : "text-zinc-500"}`}>
-        {label}
+        {translateText(label, language)}
       </p>
 
       <p className="mt-1 text-sm font-black">
@@ -984,11 +1036,11 @@ function formatOptionTitle(title) {
   }
 
   if (normalizedTitle === "trästaket") {
-    return "Platsbyggt trästaket";
+    return "Byggnation av platsbyggt trästaket";
   }
 
   if (normalizedTitle === "betongfundament") {
-    return "Betongplint";
+    return "Montering av betongplint";
   }
 
   if (normalizedTitle === "innerdörr") {
@@ -1051,6 +1103,106 @@ function formatOptionTitle(title) {
     return "Montering av lås / handtag";
   }
 
+  if (normalizedTitle === "fönsterbleck") {
+    return "Montering av fönsterbleck";
+  }
+
+  if (normalizedTitle === "smygar") {
+    return "Montering av smygar";
+  }
+
+  if (normalizedTitle === "foder") {
+    return "Montering av foder";
+  }
+
+  if (normalizedTitle === "drevning / isolering") {
+    return "Drevning / isolering av fönster";
+  }
+
+  if (normalizedTitle === "fogning / silikon") {
+    return "Fogning / silikon runt fönster";
+  }
+
+  const serviceTitleMap = {
+    "trappa": "Montering av trappa",
+    "pergola": "Montering av pergola",
+    "avfallshantering": "Bortforsling av avfall",
+    "spackling": "Spackling av ytor",
+    "slipning": "Slipning av ytor",
+    "grundmålning": "Grundmålning av ytor",
+    "maskering": "Maskering inför arbete",
+    "väggmålning": "Målning av väggar",
+    "takmålning": "Målning av tak",
+    "snickerimålning": "Målning av snickerier",
+    "trappmålning": "Målning av trappa",
+    "fasadmålning": "Målning av fasad",
+    "skrapning": "Skrapning av fasad",
+    "grundmålning fasad": "Grundmålning av fasad",
+    "standard tapet": "Tapetsering med standardtapet",
+    "mönsterpassning": "Tapetsering med mönsterpassning",
+    "svår tapet": "Tapetsering med svår tapet",
+    "accentvägg": "Målning av accentvägg",
+    "dammskydd / avgränsning": "Montering av dammskydd / avgränsning",
+    "håltagning": "Håltagning för ventilation",
+    "kolfilterfläkt": "Montering av kolfilterfläkt",
+    "justering / tätning": "Justering / tätning av ventilation",
+    "möbelskydd": "Skydd av möbler",
+    "ställning": "Hyra av ställning",
+    "lift": "Hyra av lift",
+    "silikon / tätning": "Silikon / tätning runt spishäll",
+    "pax / platsbyggd garderob": "Montering av PAX / platsbyggd garderob",
+    "anpassning": "Anpassning av garderob",
+    "passbitar / täcksidor": "Montering av passbitar / täcksidor",
+    "silikon / fogning": "Silikon / fogning i kök eller garderob",
+    "socklar": "Montering av socklar",
+    "passbitar": "Montering av passbitar",
+    "belysning": "Montering av belysning",
+    "led-list under skåp": "Montering av LED-list under skåp",
+    "anpassning / kabeldragning": "Anpassning / kabeldragning för bänkbelysning",
+    "transformator / driver": "Montering av transformator / driver",
+    "regelvägg": "Byggnation av regelvägg",
+    "gipsvägg": "Montering av gipsvägg",
+    "osb + gips": "Montering av OSB + gips",
+    "isolering": "Montering av isolering i vägg",
+    "gipstak": "Montering av gipstak",
+    "paneltak": "Montering av paneltak",
+    "sänkt tak": "Montering av sänkt tak",
+    "spotlights": "Montering av spotlights",
+    "isolering tak": "Montering av isolering i tak",
+    "klickgolv / laminat inkl. lätta golvlister": "Läggning av klickgolv / laminat inkl. montering av lätta golvlister",
+    "trägolv": "Läggning av trägolv",
+    "parkett": "Läggning av parkett",
+    "fiskben / avancerat mönster": "Läggning av fiskben / avancerat mönster",
+    "underlag / foam / lumppapp": "Montering av underlag / foam / lumppapp",
+    "spånskiva": "Montering av spånskiva",
+    "flytspackel": "Flytspackling av golv",
+    "svåra golvlister / många kapningar": "Montering av svåra golvlister / många kapningar",
+    "trösklar": "Montering av trösklar",
+    "endast trallbyte": "Byte av trall",
+    "reparation": "Reparation av altan",
+    "ny stomme": "Byggnation av ny stomme",
+    "enkla räcken": "Montering av enkla räcken",
+    "premium räcken": "Montering av premiumräcken",
+    "pergolatak": "Montering av pergolatak",
+    "enkel trappa": "Montering av enkel trappa",
+    "markförberedelse": "Markförberedelse för altan",
+    "olja och träskydd": "Olja och träskyddsbehandling",
+    "komplicerad altan": "Byggnation av komplicerad altan",
+    "led-belysning": "Montering av LED-belysning",
+    "platsbyggt trästaket": "Byggnation av platsbyggt trästaket",
+    "färdiga staketsektioner": "Montering av färdiga staketsektioner",
+    "insynsskydd": "Montering av insynsskydd",
+    "spjälstaket": "Montering av spjälstaket",
+    "staket med grind": "Montering av staket med grind",
+    "målning / olja": "Målning / olja av staket",
+    "stolpar i mark": "Montering av stolpar i mark",
+    "betongplint": "Montering av betongplint",
+  };
+
+  if (serviceTitleMap[normalizedTitle]) {
+    return serviceTitleMap[normalizedTitle];
+  }
+
   return title;
 }
 
@@ -1074,8 +1226,30 @@ function isElRelatedOption(option) {
   const id = String(option.id || "").toLowerCase();
 
   return option.elNotice
+    || id.includes("appliance")
     || id.includes("cooktop")
-    || title.includes("spishäll");
+    || id.includes("benchlighting")
+    || id.includes("dishwasher")
+    || id.includes("fridge")
+    || id.includes("freezer")
+    || id.includes("oven")
+    || id.includes("microwave")
+    || id.includes("fan")
+    || id.includes("ventilation")
+    || title.includes("spishäll")
+    || title.includes("vitvara")
+    || title.includes("diskmaskin")
+    || title.includes("kyl")
+    || title.includes("frys")
+    || title.includes("ugn")
+    || title.includes("mikro")
+    || title.includes("fläkt")
+    || title.includes("bänkbelysning")
+    || title.includes("belysning")
+    || title.includes("led-list")
+    || title.includes("kabeldragning")
+    || title.includes("transformator")
+    || title.includes("driver");
 }
 
 function formatEstimatedCalendarTime(totalWorkHours, weeklyAvailableHours) {
@@ -1125,15 +1299,15 @@ function parseLocalDate(dateValue) {
   return new Date(year, month - 1, day);
 }
 
-function formatLongDate(date) {
-  return date.toLocaleDateString("sv-SE", {
+function formatLongDate(date, language = "sv") {
+  return date.toLocaleDateString(language === "pl" ? "pl-PL" : "sv-SE", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 }
 
-function calculateEstimatedEndDate(startDate, totalWorkHours, availability) {
+function calculateEstimatedEndDate(startDate, totalWorkHours, availability, language = "sv") {
   const parsedStartDate = parseLocalDate(startDate);
 
   if (!parsedStartDate || totalWorkHours <= 0) {
@@ -1178,7 +1352,7 @@ function calculateEstimatedEndDate(startDate, totalWorkHours, availability) {
       remainingHours -= availableHours;
 
       if (remainingHours <= 0) {
-        return `ca ${formatLongDate(currentDate)}`;
+        return `ca ${formatLongDate(currentDate, language)}`;
       }
     }
 
@@ -1246,12 +1420,12 @@ function calculateScheduledCalendarDays(startDate, totalWorkHours, availability)
 const defaultCalculatorOptions = [
   {
     id: "stairs",
-    title: "Trappa",
+    title: "Montering av trappa",
     price: ({ active }) => (active ? 4000 : 0),
   },
   {
     id: "pergola",
-    title: "Pergola",
+    title: "Montering av pergola",
     price: ({ active }) => (active ? 12000 : 0),
   },
   {
@@ -1262,7 +1436,7 @@ const defaultCalculatorOptions = [
   },
   {
     id: "waste",
-    title: "Avfallshantering",
+    title: "Bortforsling av avfall",
     price: ({ active }) => (active ? 2500 : 0),
   },
 ];
@@ -1409,6 +1583,10 @@ const kitchenWardrobeDefaultPrices = {
   plinthPerUnit: 350,
   fillerPiecePerUnit: 450,
   lightingPerUnit: 750,
+  benchLightingInstallationFixed: 1200,
+  ledStripPerMeter: 450,
+  benchLightingCableAdaptationFixed: 900,
+  transformerDriverPerUnit: 650,
   finishFixed: 1200,
   floorProtectionFixed: 900,
   furnitureProtectionFixed: 700,
@@ -1423,8 +1601,8 @@ const kitchenWardrobeDefaultPrices = {
   ventilationSealingFixed: 700,
 };
 
-const vvsNoticeText = "VVS ingår ej. Anslutning av vatten och avlopp utförs av behörig VVS-installatör.";
-const elNoticeText = "Elinstallation ingår ej. Elektrisk anslutning utförs endast om färdigt eluttag och stickkontakt finns. Ny installation, dragning av el och behörig elinstallation ingår ej.";
+const safetyNoticeTitle = "VVS & ELINSTALLATION INGÅR EJ";
+const safetyNoticeText = "Anslutning av vatten, avlopp och fast elinstallation utförs av behörig installatör. Elektrisk anslutning utförs endast om färdigt eluttag och stickkontakt finns.";
 
 const demolitionDefaultHourlyRate = 200;
 
@@ -1653,6 +1831,17 @@ function getKitchenWardrobeDisplayCategory(options, isOptionActive) {
     "builtInOvenMicrowaveInstallation",
     "cooktopInstallation",
     "applianceFrontAdjustment",
+    "kitchenFanInstallation",
+    "ventilationConnection",
+    "ventilationPipeAdaptation",
+    "ventilationHoleCutting",
+    "carbonFilterFan",
+    "ventilationAdjustmentSealing",
+    "kitchenWardrobeLighting",
+    "benchLightingInstallation",
+    "benchLightingLedStrip",
+    "benchLightingCableAdaptation",
+    "benchLightingTransformerDriver",
     "oldKitchenDemolition",
     "kitchenWallOpeningAdaptation",
     "kitchenAdjustment",
@@ -1796,28 +1985,28 @@ const calculatorConfigs = {
         options: [
           {
             id: "paintingSpackling",
-            title: "Spackling",
+            title: "Spackling av ytor",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.spacklingPerSquareMeter,
           },
           {
             id: "paintingSanding",
-            title: "Slipning",
+            title: "Slipning av ytor",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.sandingPerSquareMeter,
           },
           {
             id: "paintingPrimer",
-            title: "Grundmålning",
+            title: "Grundmålning av ytor",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.primerPerSquareMeter,
           },
           {
             id: "paintingMasking",
-            title: "Maskering",
+            title: "Maskering inför målning",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.maskingPerSquareMeter,
@@ -1833,7 +2022,7 @@ const calculatorConfigs = {
         options: [
           {
             id: "wallPainting",
-            title: "Väggmålning",
+            title: "Målning av väggar",
             defaultActive: true,
             pricingControl: "work",
             areaControl: "surface",
@@ -1841,20 +2030,20 @@ const calculatorConfigs = {
           },
           {
             id: "ceilingPainting",
-            title: "Takmålning",
+            title: "Målning av tak",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.ceilingPaintingPerSquareMeter,
           },
           {
             id: "trimPainting",
-            title: "Snickerimålning",
+            title: "Målning av snickerier",
             pricingControl: "hourly",
             costType: "work",
           },
           {
             id: "stairPainting",
-            title: "Trappmålning",
+            title: "Målning av trappa",
             pricingControl: "steps",
             costType: "work",
             defaultStepPrice: () => paintingDefaultPrices.stairPaintingStandardPerStep,
@@ -1865,7 +2054,7 @@ const calculatorConfigs = {
           },
           {
             id: "facadePainting",
-            title: "Fasadmålning",
+            title: "Målning av fasad",
             pricingControl: "work",
             areaControl: "facade",
             defaultFastPrice: (area) => area * paintingDefaultPrices.facadePaintingPerSquareMeter,
@@ -1881,7 +2070,7 @@ const calculatorConfigs = {
           },
           {
             id: "facadeScraping",
-            title: "Skrapning",
+            title: "Skrapning av fasad",
             pricingControl: "work",
             areaControl: "facade",
             defaultFastPrice: (area) => area * paintingDefaultPrices.scrapingPerSquareMeter,
@@ -1889,7 +2078,7 @@ const calculatorConfigs = {
           },
           {
             id: "facadePrimer",
-            title: "Grundmålning fasad",
+            title: "Grundmålning av fasad",
             pricingControl: "work",
             areaControl: "facade",
             defaultFastPrice: (area) => area * paintingDefaultPrices.facadePrimerPerSquareMeter,
@@ -1902,21 +2091,21 @@ const calculatorConfigs = {
         options: [
           {
             id: "standardWallpaper",
-            title: "Standard tapet",
+            title: "Tapetsering med standardtapet",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.standardWallpaperPerSquareMeter,
           },
           {
             id: "patternWallpaper",
-            title: "Mönsterpassning",
+            title: "Tapetsering med mönsterpassning",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.patternWallpaperPerSquareMeter,
           },
           {
             id: "difficultWallpaper",
-            title: "Svår tapet",
+            title: "Tapetsering med svår tapet",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.difficultWallpaperPerSquareMeter,
@@ -1955,7 +2144,7 @@ const calculatorConfigs = {
           },
           {
             id: "accentWall",
-            title: "Accentvägg",
+            title: "Målning av accentvägg",
             pricingControl: "work",
             defaultFastPrice: () => paintingDefaultPrices.accentWallFixed,
             defaultEstimatedHours: () => 2,
@@ -1983,7 +2172,7 @@ const calculatorConfigs = {
           },
           {
             id: "kitchenWardrobeMasking",
-            title: "Maskering",
+            title: "Maskering inför arbete",
             pricingControl: "work",
             defaultFastPrice: () => kitchenWardrobeDefaultPrices.maskingFixed,
             defaultHourlyRate: 250,
@@ -1991,7 +2180,7 @@ const calculatorConfigs = {
           },
           {
             id: "kitchenWardrobeDustProtection",
-            title: "Dammskydd / avgränsning",
+            title: "Montering av dammskydd / avgränsning",
             pricingControl: "work",
             defaultFastPrice: () => kitchenWardrobeDefaultPrices.dustProtectionFixed,
             defaultHourlyRate: 250,
@@ -2008,64 +2197,11 @@ const calculatorConfigs = {
         ],
       },
       {
-        title: "Ventilation & Fläkt",
-        options: [
-          {
-            id: "kitchenFanInstallation",
-            title: "Montering av köksfläkt",
-            pricingControl: "work",
-            quantityControl: true,
-            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.kitchenFanInstallationPerUnit,
-            defaultHourlyRate: 250,
-          },
-          {
-            id: "ventilationConnection",
-            title: "Anslutning till ventilation",
-            pricingControl: "work",
-            quantityControl: true,
-            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.ventilationConnectionPerUnit,
-            defaultHourlyRate: 250,
-          },
-          {
-            id: "ventilationPipeAdaptation",
-            title: "Anpassning av ventilationsrör",
-            pricingControl: "work",
-            defaultFastPrice: () => kitchenWardrobeDefaultPrices.ventilationPipeAdaptationFixed,
-            defaultHourlyRate: 250,
-            defaultEstimatedHours: () => 3,
-          },
-          {
-            id: "ventilationHoleCutting",
-            title: "Håltagning",
-            pricingControl: "work",
-            defaultFastPrice: () => kitchenWardrobeDefaultPrices.holeCuttingFixed,
-            defaultHourlyRate: 250,
-            defaultEstimatedHours: () => 4,
-          },
-          {
-            id: "carbonFilterFan",
-            title: "Kolfilterfläkt",
-            pricingControl: "work",
-            quantityControl: true,
-            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.carbonFilterFanPerUnit,
-            defaultHourlyRate: 250,
-          },
-          {
-            id: "ventilationAdjustmentSealing",
-            title: "Justering / tätning",
-            pricingControl: "work",
-            defaultFastPrice: () => kitchenWardrobeDefaultPrices.ventilationSealingFixed,
-            defaultHourlyRate: 250,
-            defaultEstimatedHours: () => 2,
-          },
-        ],
-      },
-      {
         title: "Extra",
         options: [
           {
             id: "furnitureProtection",
-            title: "Möbelskydd",
+            title: "Skydd av möbler",
             pricingControl: "work",
             defaultFastPrice: () => paintingDefaultPrices.furnitureProtectionFixed,
           },
@@ -2100,14 +2236,14 @@ const calculatorConfigs = {
         options: [
           {
             id: "scaffolding",
-            title: "Ställning",
+            title: "Hyra av ställning",
             pricingControl: "fixed",
             costType: "fixed",
             defaultFastPrice: () => paintingDefaultPrices.scaffoldingFixed,
           },
           {
             id: "lift",
-            title: "Lift",
+            title: "Hyra av lift",
             pricingControl: "fixed",
             costType: "fixed",
             defaultFastPrice: () => paintingDefaultPrices.liftFixed,
@@ -2173,7 +2309,7 @@ const calculatorConfigs = {
           },
           {
             id: "windowAdjustment",
-            title: "Justering",
+            title: "Justering av fönster",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => windowsDoorsDefaultPrices.windowAdjustmentPerUnit,
@@ -2187,7 +2323,7 @@ const calculatorConfigs = {
           },
           {
             id: "openingAdaptationWindows",
-            title: "Anpassning av öppning",
+            title: "Anpassning av öppning för fönster",
             pricingControl: "work",
             defaultHourlyRate: 250,
           },
@@ -2246,7 +2382,7 @@ const calculatorConfigs = {
           },
           {
             id: "doorFrameReplacement",
-            title: "Karmbyte",
+            title: "Byte av dörrkarm",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => windowsDoorsDefaultPrices.frameReplacementPerUnit,
@@ -2262,7 +2398,7 @@ const calculatorConfigs = {
           },
           {
             id: "doorAdjustment",
-            title: "Justering",
+            title: "Justering av dörr",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => windowsDoorsDefaultPrices.doorAdjustmentPerUnit,
@@ -2276,7 +2412,7 @@ const calculatorConfigs = {
           },
           {
             id: "openingAdaptationDoors",
-            title: "Anpassning av öppning",
+            title: "Anpassning av öppning för dörr",
             pricingControl: "work",
             defaultHourlyRate: 250,
           },
@@ -2287,7 +2423,7 @@ const calculatorConfigs = {
         options: [
           {
             id: "windowSillFlashing",
-            title: "Fönsterbleck",
+            title: "Montering av fönsterbleck",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => windowsDoorsDefaultPrices.windowSillFlashingPerUnit,
@@ -2295,7 +2431,7 @@ const calculatorConfigs = {
           },
           {
             id: "windowReveals",
-            title: "Smygar",
+            title: "Montering av smygar",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => windowsDoorsDefaultPrices.windowRevealsPerUnit,
@@ -2303,7 +2439,7 @@ const calculatorConfigs = {
           },
           {
             id: "windowCasing",
-            title: "Foder",
+            title: "Montering av foder",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => windowsDoorsDefaultPrices.windowCasingPerUnit,
@@ -2311,7 +2447,7 @@ const calculatorConfigs = {
           },
           {
             id: "windowDraftingInsulation",
-            title: "Drevning / isolering",
+            title: "Drevning / isolering av fönster",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => windowsDoorsDefaultPrices.windowDraftingInsulationPerUnit,
@@ -2319,7 +2455,7 @@ const calculatorConfigs = {
           },
           {
             id: "windowCaulkingSilicone",
-            title: "Fogning / silikon",
+            title: "Fogning / silikon runt fönster",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => windowsDoorsDefaultPrices.windowCaulkingSiliconePerUnit,
@@ -2467,7 +2603,7 @@ const calculatorConfigs = {
           },
           {
             id: "cooktopSiliconeSealing",
-            title: "Silikon / tätning",
+            title: "Silikon / tätning runt spishäll",
             pricingControl: "work",
             defaultFastPrice: () => kitchenWardrobeDefaultPrices.cooktopSealingFixed,
             defaultHourlyRate: 250,
@@ -2507,7 +2643,7 @@ const calculatorConfigs = {
           },
           {
             id: "kitchenWallOpeningAdaptation",
-            title: "Anpassning av vägg / öppning",
+            title: "Anpassning av vägg / öppning i kök",
             pricingControl: "work",
             defaultFastPrice: () => kitchenWardrobeDefaultPrices.wallOpeningAdaptationFixed,
             defaultHourlyRate: 250,
@@ -2515,7 +2651,7 @@ const calculatorConfigs = {
           },
           {
             id: "kitchenAdjustment",
-            title: "Justering",
+            title: "Justering av kök",
             pricingControl: "work",
             defaultFastPrice: () => kitchenWardrobeDefaultPrices.kitchenAdjustmentFixed,
             defaultHourlyRate: 250,
@@ -2579,6 +2715,59 @@ const calculatorConfigs = {
         ],
       },
       {
+        title: "Fläkt / Ventilation",
+        options: [
+          {
+            id: "kitchenFanInstallation",
+            title: "Montering av köksfläkt",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.kitchenFanInstallationPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "ventilationConnection",
+            title: "Anslutning till ventilation",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.ventilationConnectionPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "ventilationPipeAdaptation",
+            title: "Anpassning av ventilationsrör",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.ventilationPipeAdaptationFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 3,
+          },
+          {
+            id: "ventilationHoleCutting",
+            title: "Håltagning för ventilation",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.holeCuttingFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 4,
+          },
+          {
+            id: "carbonFilterFan",
+            title: "Montering av kolfilterfläkt",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.carbonFilterFanPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "ventilationAdjustmentSealing",
+            title: "Justering / tätning av ventilation",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.ventilationSealingFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 2,
+          },
+        ],
+      },
+      {
         title: "Garderob",
         options: [
           {
@@ -2609,7 +2798,7 @@ const calculatorConfigs = {
           },
           {
             id: "paxBuiltInWardrobe",
-            title: "PAX / platsbyggd garderob",
+            title: "Montering av PAX / platsbyggd garderob",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => kitchenWardrobeDefaultPrices.paxBuiltInWardrobePerUnit,
@@ -2625,7 +2814,7 @@ const calculatorConfigs = {
           },
           {
             id: "wardrobeAdaptation",
-            title: "Anpassning",
+            title: "Anpassning av garderob",
             pricingControl: "work",
             defaultFastPrice: () => kitchenWardrobeDefaultPrices.wardrobeAdaptationFixed,
             defaultHourlyRate: 250,
@@ -2641,7 +2830,7 @@ const calculatorConfigs = {
           },
           {
             id: "wardrobeCoverPanels",
-            title: "Passbitar / täcksidor",
+            title: "Montering av passbitar / täcksidor",
             pricingControl: "work",
             defaultFastPrice: () => kitchenWardrobeDefaultPrices.wardrobeCoverPanelsFixed,
             defaultHourlyRate: 250,
@@ -2659,7 +2848,7 @@ const calculatorConfigs = {
         options: [
           {
             id: "kitchenWardrobeSilicone",
-            title: "Silikon / fogning",
+            title: "Silikon / fogning i kök eller garderob",
             pricingControl: "work",
             defaultFastPrice: () => kitchenWardrobeDefaultPrices.siliconeCaulkingFixed,
             defaultHourlyRate: 250,
@@ -2667,7 +2856,7 @@ const calculatorConfigs = {
           },
           {
             id: "kitchenWardrobePlinths",
-            title: "Socklar",
+            title: "Montering av socklar",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => kitchenWardrobeDefaultPrices.plinthPerUnit,
@@ -2675,7 +2864,7 @@ const calculatorConfigs = {
           },
           {
             id: "kitchenWardrobeFillers",
-            title: "Passbitar",
+            title: "Montering av passbitar",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => kitchenWardrobeDefaultPrices.fillerPiecePerUnit,
@@ -2683,11 +2872,47 @@ const calculatorConfigs = {
           },
           {
             id: "kitchenWardrobeLighting",
-            title: "Belysning",
+            title: "Montering av belysning",
             pricingControl: "work",
             quantityControl: true,
             defaultUnitPrice: () => kitchenWardrobeDefaultPrices.lightingPerUnit,
             defaultHourlyRate: 250,
+          },
+          {
+            id: "benchLightingInstallation",
+            title: "Montering av bänkbelysning",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.benchLightingInstallationFixed,
+            defaultHourlyRate: 250,
+            elNotice: true,
+          },
+          {
+            id: "benchLightingLedStrip",
+            title: "Montering av LED-list under skåp",
+            pricingControl: "work",
+            lengthControl: true,
+            defaultMeterPrice: () => kitchenWardrobeDefaultPrices.ledStripPerMeter,
+            defaultHourlyRate: 250,
+            elNotice: true,
+          },
+          {
+            id: "benchLightingCableAdaptation",
+            title: "Anpassning / kabeldragning för bänkbelysning",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.benchLightingCableAdaptationFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 2,
+            elNotice: true,
+          },
+          {
+            id: "benchLightingTransformerDriver",
+            title: "Montering av transformator / driver",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.transformerDriverPerUnit,
+            defaultHourlyRate: 250,
+            elNotice: true,
           },
           {
             id: "kitchenWardrobeFinish",
@@ -2739,7 +2964,7 @@ const calculatorConfigs = {
         options: [
           {
             id: "studWall",
-            title: "Regelvägg",
+            title: "Byggnation av regelvägg",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.studWallPerSquareMeter,
@@ -2747,7 +2972,7 @@ const calculatorConfigs = {
           },
           {
             id: "plasterWall",
-            title: "Gipsvägg",
+            title: "Montering av gipsvägg",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.plasterWallPerSquareMeter,
@@ -2755,7 +2980,7 @@ const calculatorConfigs = {
           },
           {
             id: "osbPlasterWall",
-            title: "OSB + gips",
+            title: "Montering av OSB + gips",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.osbPlasterPerSquareMeter,
@@ -2763,7 +2988,7 @@ const calculatorConfigs = {
           },
           {
             id: "wallInsulation",
-            title: "Isolering",
+            title: "Montering av isolering i vägg",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.wallInsulationPerSquareMeter,
@@ -2781,7 +3006,7 @@ const calculatorConfigs = {
         options: [
           {
             id: "plasterCeiling",
-            title: "Gipstak",
+            title: "Montering av gipstak",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.plasterCeilingPerSquareMeter,
@@ -2789,7 +3014,7 @@ const calculatorConfigs = {
           },
           {
             id: "panelCeiling",
-            title: "Paneltak",
+            title: "Montering av paneltak",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.panelCeilingPerSquareMeter,
@@ -2797,7 +3022,7 @@ const calculatorConfigs = {
           },
           {
             id: "droppedCeiling",
-            title: "Sänkt tak",
+            title: "Montering av sänkt tak",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.droppedCeilingPerSquareMeter,
@@ -2805,14 +3030,14 @@ const calculatorConfigs = {
           },
           {
             id: "spotlights",
-            title: "Spotlights",
+            title: "Montering av spotlights",
             pricingControl: "work",
             defaultFastPrice: () => interiorWallsCeilingsDefaultPrices.spotlightsFixed,
             defaultEstimatedHours: () => 4,
           },
           {
             id: "ceilingInsulation",
-            title: "Isolering tak",
+            title: "Montering av isolering i tak",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * interiorWallsCeilingsDefaultPrices.ceilingInsulationPerSquareMeter,
@@ -2865,7 +3090,7 @@ const calculatorConfigs = {
         options: [
           {
             id: "laminateFloor",
-            title: "Klickgolv / laminat inkl. lätta golvlister",
+            title: "Läggning av klickgolv / laminat inkl. montering av lätta golvlister",
             defaultActive: true,
             pricingControl: "work",
             areaControl: "surface",
@@ -2874,7 +3099,7 @@ const calculatorConfigs = {
           },
           {
             id: "woodFloor",
-            title: "Trägolv",
+            title: "Läggning av trägolv",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * floorDefaultPrices.woodFloorPerSquareMeter,
@@ -2882,7 +3107,7 @@ const calculatorConfigs = {
           },
           {
             id: "parquetFloor",
-            title: "Parkett",
+            title: "Läggning av parkett",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * floorDefaultPrices.parquetPerSquareMeter,
@@ -2890,7 +3115,7 @@ const calculatorConfigs = {
           },
           {
             id: "herringboneFloor",
-            title: "Fiskben / avancerat mönster",
+            title: "Läggning av fiskben / avancerat mönster",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * floorDefaultPrices.herringbonePerSquareMeter,
@@ -2908,7 +3133,7 @@ const calculatorConfigs = {
           },
           {
             id: "floorUnderlay",
-            title: "Underlag / foam / lumppapp",
+            title: "Montering av underlag / foam / lumppapp",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * floorDefaultPrices.underlayPerSquareMeter,
@@ -2916,7 +3141,7 @@ const calculatorConfigs = {
           },
           {
             id: "chipboardFloor",
-            title: "Spånskiva",
+            title: "Montering av spånskiva",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * floorDefaultPrices.chipboardPerSquareMeter,
@@ -2932,7 +3157,7 @@ const calculatorConfigs = {
           },
           {
             id: "selfLevelingCompound",
-            title: "Flytspackel",
+            title: "Flytspackling av golv",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * floorDefaultPrices.selfLevelingCompoundPerSquareMeter,
@@ -2945,14 +3170,14 @@ const calculatorConfigs = {
         options: [
           {
             id: "floorSkirting",
-            title: "Svåra golvlister / många kapningar",
+            title: "Montering av svåra golvlister / många kapningar",
             pricingControl: "work",
             defaultFastPrice: () => floorDefaultPrices.difficultSkirtingFixed,
             defaultEstimatedHours: () => 4,
           },
           {
             id: "thresholds",
-            title: "Trösklar",
+            title: "Montering av trösklar",
             pricingControl: "work",
             defaultFastPrice: () => floorDefaultPrices.thresholdsFixed,
             defaultEstimatedHours: () => 2,
@@ -3006,7 +3231,7 @@ const calculatorConfigs = {
         options: [
           {
             id: "deckingOnly",
-            title: "Endast trallbyte",
+            title: "Byte av trall",
             defaultActive: true,
             excludes: ["newFrame"],
             pricingControl: "work",
@@ -3014,13 +3239,13 @@ const calculatorConfigs = {
           },
           {
             id: "deckRepair",
-            title: "Reparation",
+            title: "Reparation av altan",
             pricingControl: "work",
             defaultFastPrice: (area) => area * altanPergolaDefaultPrices.repairPerSquareMeter,
           },
           {
             id: "newFrame",
-            title: "Ny stomme",
+            title: "Byggnation av ny stomme",
             excludes: ["deckingOnly"],
             pricingControl: "work",
             defaultFastPrice: (area) => area * altanPergolaDefaultPrices.newFramePerSquareMeter,
@@ -3044,13 +3269,13 @@ const calculatorConfigs = {
           },
           {
             id: "simpleRailings",
-            title: "Enkla räcken",
+            title: "Montering av enkla räcken",
             pricingControl: "work",
             defaultFastPrice: (area) => area * altanPergolaDefaultPrices.simpleRailingsPerSquareMeter,
           },
           {
             id: "premiumRailings",
-            title: "Premium räcken",
+            title: "Montering av premiumräcken",
             pricingControl: "work",
             defaultFastPrice: (area) => area * altanPergolaDefaultPrices.premiumRailingsPerSquareMeter,
           },
@@ -3061,33 +3286,33 @@ const calculatorConfigs = {
         options: [
           {
             id: "pergolaRoof",
-            title: "Pergolatak",
+            title: "Montering av pergolatak",
             price: ({ area, active }) => (active ? area * 350 : 0),
           },
           {
             id: "deckStairs",
-            title: "Enkel trappa",
+            title: "Montering av enkel trappa",
             pricingControl: "work",
             defaultFastPrice: () => altanPergolaDefaultPrices.simpleStairsFixed,
           },
           {
             id: "groundPrep",
-            title: "Markförberedelse",
+            title: "Markförberedelse för altan",
             price: ({ area, active }) => (active ? area * 180 : 0),
           },
           {
             id: "woodTreatment",
-            title: "Olja och träskydd",
+            title: "Olja och träskyddsbehandling",
             price: ({ area, active }) => (active ? area * 90 : 0),
           },
           {
             id: "complexDeck",
-            title: "Komplicerad altan",
+            title: "Byggnation av komplicerad altan",
             price: ({ area, active }) => (active ? area * 300 : 0),
           },
           {
             id: "ledLighting",
-            title: "LED-belysning",
+            title: "Montering av LED-belysning",
             pricingControl: "hourly",
             costType: "work",
           },
@@ -3104,7 +3329,7 @@ const calculatorConfigs = {
         options: [
           {
             id: "woodFence",
-            title: "Platsbyggt trästaket",
+            title: "Byggnation av platsbyggt trästaket",
             pricingControl: "work",
             lengthControl: true,
             defaultMeterPrice: () => altanPergolaDefaultPrices.woodFencePerMeter,
@@ -3112,7 +3337,7 @@ const calculatorConfigs = {
           },
           {
             id: "prefabFenceSections",
-            title: "Färdiga staketsektioner",
+            title: "Montering av färdiga staketsektioner",
             pricingControl: "work",
             lengthControl: true,
             defaultMeterPrice: () => altanPergolaDefaultPrices.prefabFenceSectionsPerMeter,
@@ -3120,7 +3345,7 @@ const calculatorConfigs = {
           },
           {
             id: "privacyScreen",
-            title: "Insynsskydd",
+            title: "Montering av insynsskydd",
             pricingControl: "work",
             lengthControl: true,
             defaultMeterPrice: () => altanPergolaDefaultPrices.privacyScreenPerMeter,
@@ -3128,7 +3353,7 @@ const calculatorConfigs = {
           },
           {
             id: "picketFence",
-            title: "Spjälstaket",
+            title: "Montering av spjälstaket",
             pricingControl: "work",
             lengthControl: true,
             defaultMeterPrice: () => altanPergolaDefaultPrices.picketFencePerMeter,
@@ -3136,7 +3361,7 @@ const calculatorConfigs = {
           },
           {
             id: "fenceWithGate",
-            title: "Staket med grind",
+            title: "Montering av staket med grind",
             pricingControl: "work",
             lengthControl: true,
             defaultMeterPrice: () => altanPergolaDefaultPrices.fenceWithGatePerMeter,
@@ -3150,7 +3375,7 @@ const calculatorConfigs = {
           },
           {
             id: "fencePaintingOil",
-            title: "Målning / olja",
+            title: "Målning / olja av staket",
             pricingControl: "work",
             lengthControl: true,
             defaultMeterPrice: () => altanPergolaDefaultPrices.fencePaintingOilPerMeter,
@@ -3158,7 +3383,7 @@ const calculatorConfigs = {
           },
           {
             id: "groundPosts",
-            title: "Stolpar i mark",
+            title: "Montering av stolpar i mark",
             pricingControl: "work",
             lengthControl: true,
             defaultMeterPrice: () => altanPergolaDefaultPrices.groundPostsPerMeter,
@@ -3166,7 +3391,7 @@ const calculatorConfigs = {
           },
           {
             id: "concreteFoundations",
-            title: "Betongplint",
+            title: "Montering av betongplint",
             pricingControl: "work",
             lengthControl: true,
             defaultMeterPrice: () => altanPergolaDefaultPrices.concreteFoundationPerMeter,
@@ -3263,7 +3488,7 @@ function buildInitialCalculatorState(offer, initialCustomer) {
       internalHourlyRate: offer?.temporaryExtraStaff?.internalHourlyRate ?? 200,
       customerHourlyRate: offer?.temporaryExtraStaff?.customerHourlyRate ?? 250,
     },
-    peopleCount: formState.peopleCount ?? offer?.peopleCount ?? 1,
+    peopleCount: formState.peopleCount ?? offer?.peopleCount ?? 2,
     availability: formState.availability ?? offer?.schedule?.availability ?? {
       weekdayEveningHours: 4,
       weekdayEveningsPerWeek: 5,
@@ -3289,6 +3514,7 @@ function buildInitialCalculatorState(offer, initialCustomer) {
 }
 
 function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, onSaveOffer }) {
+  const { language, t } = useI18n();
   const initialState = buildInitialCalculatorState(initialOffer, initialCustomer);
 
   const [area, setArea] = useState(initialState.area);
@@ -3499,7 +3725,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
     }
 
     if (pricing.mode === "hourly" || option.pricingControl === "hourly") {
-      return Math.max(0, Number(pricing.hours) || 0) * normalizedPeopleCount;
+      return Math.max(0, Number(pricing.hours) || 0);
     }
 
     return Math.max(0, Number(pricing.estimatedHours) || 0);
@@ -3561,13 +3787,13 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
   const normalizedPeopleCount = Math.max(1, Number(peopleCount) || 1);
   const extraWorkCost = Math.max(0, Number(extraWork.hours) || 0) * Math.max(0, Number(extraWork.hourlyRate) || 0) * normalizedPeopleCount;
-  const extraWorkHours = Math.max(0, Number(extraWork.hours) || 0) * normalizedPeopleCount;
+  const extraWorkHours = Math.max(0, Number(extraWork.hours) || 0);
   const temporaryExtraStaffPeople = Math.max(0, Number(temporaryExtraStaff.people) || 0);
   const temporaryExtraStaffHours = Math.max(0, Number(temporaryExtraStaff.hours) || 0);
   const temporaryExtraStaffCustomerRate = Math.max(0, Number(temporaryExtraStaff.customerHourlyRate) || 0);
   const temporaryExtraStaffInternalRate = Math.max(0, Number(temporaryExtraStaff.internalHourlyRate) || 0);
-  const temporaryExtraStaffWorkHours = temporaryExtraStaff.active ? temporaryExtraStaffPeople * temporaryExtraStaffHours : 0;
-  const temporaryExtraStaffCost = temporaryExtraStaffWorkHours * temporaryExtraStaffCustomerRate;
+  const temporaryExtraStaffWorkHours = temporaryExtraStaff.active ? temporaryExtraStaffHours : 0;
+  const temporaryExtraStaffCost = temporaryExtraStaff.active ? temporaryExtraStaffPeople * temporaryExtraStaffHours * temporaryExtraStaffCustomerRate : 0;
   const temporaryExtraStaffInternalCost = temporaryExtraStaff.active ? temporaryExtraStaffPeople * temporaryExtraStaffHours * temporaryExtraStaffInternalRate : 0;
   const temporaryExtraStaffMargin = temporaryExtraStaffCost - temporaryExtraStaffInternalCost;
 
@@ -3578,15 +3804,35 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
     return totalHours + calculateOptionHours(option, getOptionActive(option));
   }, 0);
   const totalWorkHours = optionWorkHours + extraWorkHours + temporaryExtraStaffWorkHours;
+  const activeHourlyRates = [
+    ...calculatorOptions
+      .filter((option) => getOptionActive(option))
+      .map((option) => {
+        const pricing = getOptionPricing(option);
+
+        return (pricing.mode === "hourly" || option.pricingControl === "hourly")
+          ? Math.max(0, Number(pricing.hourlyRate) || 0)
+          : 0;
+      }),
+    extraWorkHours > 0 ? Math.max(0, Number(extraWork.hourlyRate) || 0) : 0,
+    temporaryExtraStaffCost > 0 ? temporaryExtraStaffCustomerRate : 0,
+  ].filter((rate) => rate > 0);
+  const uniqueHourlyRates = [...new Set(activeHourlyRates)];
+  const hourlyRateSummary = uniqueHourlyRates.length === 0
+    ? "Inte angivet"
+    : uniqueHourlyRates.length === 1
+      ? `${formatPrice(uniqueHourlyRates[0])}/h`
+      : `${formatPrice(Math.min(...uniqueHourlyRates))}/h - ${formatPrice(Math.max(...uniqueHourlyRates))}/h`;
   const weeklyAvailableHours = calculateWeeklyAvailableHours(availability);
   const scheduledCalendarDays = calculateScheduledCalendarDays(startDate, totalWorkHours, availability);
   const estimatedCalendarTime = scheduledCalendarDays > 0
     ? formatEstimatedCalendarDays(scheduledCalendarDays)
     : formatEstimatedCalendarTime(totalWorkHours, weeklyAvailableHours);
   const estimatedEndDate = calculateEstimatedEndDate(startDate, totalWorkHours, availability);
+  const estimatedEndDateDisplay = calculateEstimatedEndDate(startDate, totalWorkHours, availability, language);
 
   const selectedFixedCostDetails = (calculatorConfig.usesCustomFixedCosts ? [] : fixedCostOptions)
-    .filter((option) => fixedCosts[option.id])
+    .filter((option) => fixedCosts[option.id] && option.price > 0)
     .map((option) => ({
       id: option.id,
       title: option.title,
@@ -3607,9 +3853,11 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
     return total + cost.priceValue;
   }, 0);
 
-  const fixedCostsTotal = selectedFixedCostDetails.reduce((total, option) => {
+  const fixedCostsDisplayTotal = selectedFixedCostDetails.reduce((total, option) => {
     return total + option.priceValue;
-  }, customFixedCostsTotal + extraCostsTotal);
+  }, customFixedCostsTotal);
+  const fixedCostsTotal = fixedCostsDisplayTotal + extraCostsTotal;
+  const hasFixedCosts = fixedCostsDisplayTotal > 0;
 
   const discountPercent = discount.active ? Math.max(0, Math.min(100, Number(discount.percent) || 0)) : 0;
   const discountAmount = Math.round(workPrice * (discountPercent / 100));
@@ -3629,18 +3877,21 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       elNotice: option.elNotice || false,
       detailText: option.pricingControl === "steps"
         ? `Antal steg: ${getOptionPricing(option).steps}`
-        : option.lengthControl
-          ? `Längd: ${formatLength(getOptionMeasurement(option).length)}`
-          : option.quantityControl
-            ? `Antal stycken: ${getOptionPricing(option).quantity}`
-            : option.areaControl ? `Yta: ${formatArea(getOptionArea(option))}` : "",
+        : (getOptionPricing(option).mode === "hourly" || option.pricingControl === "hourly")
+          ? `Tid på plats: ${formatHours(getOptionPricing(option).hours)} · Timpris per person: ${formatPrice(getOptionPricing(option).hourlyRate)}/h`
+          : option.lengthControl
+            ? `Längd: ${formatLength(getOptionMeasurement(option).length)}`
+            : option.quantityControl
+              ? `Antal stycken: ${getOptionPricing(option).quantity}`
+              : option.areaControl ? `Yta: ${formatArea(getOptionArea(option))}` : "",
     })),
     ...(extraWorkCost > 0 ? [{
       id: "extraWork",
-      title: `Extra arbete (${extraWork.hours} timmar)`,
+      title: `Extra arbete (${formatHours(extraWork.hours)})`,
       sectionTitle: "Extra arbete",
       priceValue: extraWorkCost,
       hoursValue: extraWorkHours,
+      detailText: `Tid på plats: ${formatHours(extraWorkHours)} · Timpris per person: ${formatPrice(extraWork.hourlyRate)}/h`,
     }] : []),
     ...(temporaryExtraStaff.active && temporaryExtraStaffCost > 0 ? [{
       id: "temporaryExtraStaff",
@@ -3648,11 +3899,13 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       sectionTitle: "Extra arbete",
       priceValue: temporaryExtraStaffCost,
       hoursValue: temporaryExtraStaffWorkHours,
+      detailText: `Tid på plats: ${formatHours(temporaryExtraStaffWorkHours)} · Pris till kund per person: ${formatPrice(temporaryExtraStaffCustomerRate)}/h`,
     }] : []),
     ...selectedFixedCostDetails,
   ];
   const vvsNoticeActive = selectedOptionDetails.some((option) => option.vvsNotice);
   const elNoticeActive = selectedOptionDetails.some(isElRelatedOption);
+  const safetyNoticeActive = vvsNoticeActive || elNoticeActive;
 
   const minPrice = Math.round((discountedWorkPrice * 0.85) + fixedCostsTotal);
 
@@ -3681,6 +3934,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       workPrice,
       peopleCount: normalizedPeopleCount,
       totalWorkHours,
+      hourlyRateSummary,
       estimatedCalendarTime,
       startDate,
       estimatedEndDate,
@@ -3722,6 +3976,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
         startDate,
         availability,
         totalWorkHours,
+        hourlyRateSummary,
         estimatedCalendarTime,
         estimatedEndDate,
         weeklyAvailableHours,
@@ -3758,6 +4013,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
         sectionTitle: option.sectionTitle || "",
         priceValue: option.priceValue,
         hoursValue: option.hoursValue || 0,
+        detailText: option.detailText || "",
         vvsNotice: option.vvsNotice || false,
         elNotice: option.elNotice || false,
       })),
@@ -3812,13 +4068,17 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
         <div>
 
           <h1 className="text-3xl font-black">
-            {category}
+            {translateText(category, language)}
           </h1>
 
           <p className="text-orange-400">
-            Kostnadsberäkning
+            {t("Kostnadsberäkning")}
           </p>
 
+        </div>
+
+        <div className="ml-auto">
+          <LanguageToggle />
         </div>
 
         <img
@@ -3847,7 +4107,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
                   onClick={() => setAreaMode(mode)}
                   className={`min-h-12 touch-manipulation rounded-xl px-3 text-sm font-black transition ${areaMode === mode ? "bg-orange-500 text-black" : "text-zinc-400"}`}
                 >
-                  {label}
+                  {t(label)}
                 </button>
               ))}
             </div>
@@ -3856,7 +4116,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           {areaMode === "dimensions" && usesDimensionArea ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="text-sm text-zinc-400">
-                Längd (m)
+                {t("Längd (m)")}
 
                 <NumberStepper
                   value={deckDimensions.length}
@@ -3868,7 +4128,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               </label>
 
               <label className="text-sm text-zinc-400">
-                Bredd (m)
+                {t("Bredd (m)")}
 
                 <NumberStepper
                   value={deckDimensions.width}
@@ -3881,7 +4141,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
               <div className="rounded-2xl border border-orange-400/20 bg-black p-4 sm:col-span-2">
                 <p className="text-xs font-bold uppercase text-zinc-500">
-                  Storlek m²
+                  {t("Storlek m²")}
                 </p>
 
                 <p className="mt-2 text-3xl font-black text-orange-400">
@@ -3891,7 +4151,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             </div>
           ) : (
             <label className="text-sm text-zinc-400">
-              Storlek m²
+              {t("Storlek m²")}
 
               <NumberStepper
                 value={area}
@@ -3910,7 +4170,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
         <div className="mt-8 border-t border-zinc-800 pt-8">
 
           <h2 className="text-sm font-bold uppercase text-zinc-500">
-            Kunduppgifter
+            {t("Kunduppgifter")}
           </h2>
 
           <div className="mt-4 grid gap-4">
@@ -3952,23 +4212,23 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div>
 
               <h2 className="text-sm font-bold uppercase text-zinc-500">
-                Bemanning
+                {t("Bemanning")}
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                Timpris multipliceras med antal personer.
+                {t("Timpris per person multipliceras med antal personer.")}
               </p>
 
             </div>
 
             <p className="text-right text-sm font-black text-orange-400">
-              {normalizedPeopleCount} {normalizedPeopleCount === 1 ? "person" : "personer"}
+              {normalizedPeopleCount} {translateText(normalizedPeopleCount === 1 ? "person" : "personer", language)}
             </p>
 
           </div>
 
           <label className="mt-4 block text-sm text-zinc-400">
-            Antal personer
+            {t("Antal personer")}
 
             <NumberStepper
               value={peopleCount}
@@ -3990,7 +4250,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
               {section.title && (
                 <h2 className="text-sm font-bold uppercase text-zinc-500">
-                  {section.title}
+                  {t(section.title)}
                 </h2>
               )}
 
@@ -4031,26 +4291,14 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
         </div>
 
-        {vvsNoticeActive && (
+        {safetyNoticeActive && (
           <div className="mt-6 rounded-3xl border border-orange-400/30 bg-orange-500/10 p-5">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
-              VVS ingår ej
+              {t(safetyNoticeTitle)}
             </p>
 
             <p className="mt-2 text-sm leading-relaxed text-zinc-200">
-              {vvsNoticeText}
-            </p>
-          </div>
-        )}
-
-        {elNoticeActive && (
-          <div className="mt-6 rounded-3xl border border-yellow-400/30 bg-yellow-500/10 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">
-              Elinstallation ingår ej
-            </p>
-
-            <p className="mt-2 text-sm leading-relaxed text-zinc-200">
-              {elNoticeText}
+              {t(safetyNoticeText)}
             </p>
           </div>
         )}
@@ -4063,17 +4311,17 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div>
 
               <h2 className="text-sm font-bold uppercase text-zinc-500">
-                Tillgänglig arbetstid
+                {t("Tillgänglig arbetstid")}
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                Används för att räkna kalendertid kvällar och helger.
+                {t("Används för att räkna kalendertid kvällar och helger.")}
               </p>
 
             </div>
 
             <p className="text-right text-sm font-black text-orange-400">
-              {weeklyAvailableHours} h/vecka
+              {weeklyAvailableHours} {t("h/vecka")}
             </p>
 
           </div>
@@ -4081,7 +4329,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
 
             <label className="block text-sm text-zinc-400 sm:col-span-2">
-              Startdatum
+              {t("Startdatum")}
 
               <input
                 type="date"
@@ -4132,20 +4380,20 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
           <div className="mt-4 rounded-2xl border border-orange-400/20 bg-black p-4">
             <p className="text-xs font-bold uppercase text-zinc-500">
-              Uppskattad tid
+              {t("Uppskattad tid")}
             </p>
 
             <p className="mt-2 text-xl font-black text-orange-400">
-              {estimatedCalendarTime}
+              {translateText(estimatedCalendarTime, language)}
             </p>
 
             <p className="mt-1 text-sm text-zinc-400">
-              Total arbetstid: {formatHours(totalWorkHours)}
+              {t("Tid på plats")}: {formatHours(totalWorkHours)}
             </p>
 
             {startDate && estimatedEndDate && (
               <p className="mt-3 text-sm font-bold text-white">
-                Beräknat slutdatum: {estimatedEndDate}
+                {t("Beräknat slutdatum")}: {translateText(estimatedEndDateDisplay, language)}
               </p>
             )}
           </div>
@@ -4160,11 +4408,11 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div>
 
               <h2 className="text-sm font-bold uppercase text-zinc-500">
-                Extra arbete
+                {t("Extra arbete")}
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                Lägg till extra timmar utanför standardofferten.
+                {t("Lägg till extra timmar utanför standardofferten.")}
               </p>
 
             </div>
@@ -4178,7 +4426,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
 
             <label className="block text-sm text-zinc-400">
-              Antal timmar
+              {t("Tid på plats")}
 
               <NumberStepper
                 value={extraWork.hours}
@@ -4193,7 +4441,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             </label>
 
             <label className="block text-sm text-zinc-400">
-              Timpris
+              {t("Timpris per person")}
 
               <NumberStepper
                 value={extraWork.hourlyRate}
@@ -4219,11 +4467,11 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div>
 
               <h2 className="text-sm font-bold uppercase text-zinc-500">
-                Tillfällig extra personal
+                {t("Tillfällig extra personal")}
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                Lägg till extra personal för ett begränsat antal timmar.
+                {t("Lägg till extra personal för ett begränsat antal timmar.")}
               </p>
 
             </div>
@@ -4260,7 +4508,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
                 />
 
                 <PricingInput
-                  label="Antal timmar"
+                  label="Tid på plats"
                   value={temporaryExtraStaff.hours}
                   onChange={(value) => setTemporaryExtraStaff({
                     ...temporaryExtraStaff,
@@ -4291,7 +4539,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-zinc-950 p-4">
                   <p className="text-xs font-bold uppercase text-zinc-500">
-                    Intern kostnad
+                    {t("Intern kostnad")}
                   </p>
 
                   <p className="mt-2 text-xl font-black text-white">
@@ -4301,7 +4549,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
                 <div className="rounded-2xl border border-orange-400/20 bg-zinc-950 p-4">
                   <p className="text-xs font-bold uppercase text-zinc-500">
-                    Vinst / marginal
+                    {t("Vinst / marginal")}
                   </p>
 
                   <p className="mt-2 text-xl font-black text-orange-400">
@@ -4323,17 +4571,17 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div>
 
               <h2 className="text-sm font-bold uppercase text-zinc-500">
-                Fasta kostnader
+                {t("Fasta kostnader")}
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                Dessa kostnader påverkas inte av rabatt.
+                {t("Dessa kostnader påverkas inte av rabatt.")}
               </p>
 
             </div>
 
             <p className="text-right text-sm font-black text-orange-400">
-              {formatPrice(fixedCostsTotal)}
+              {formatPrice(fixedCostsDisplayTotal)}
             </p>
 
           </div>
@@ -4367,11 +4615,11 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div>
 
               <h2 className="text-sm font-bold uppercase text-zinc-500">
-                Extra kostnader
+                {t("Extra kostnader")}
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                Egna kostnader utan rabatt och utan arbetstid.
+                {t("Egna kostnader utan rabatt och utan arbetstid.")}
               </p>
 
             </div>
@@ -4393,7 +4641,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-                    Kostnad {index + 1}
+                    {t("Kostnad")} {index + 1}
                   </p>
 
                   <button
@@ -4401,7 +4649,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
                     onClick={() => removeExtraCost(cost.id)}
                     className="min-h-10 touch-manipulation rounded-xl border border-red-400/30 px-3 text-sm font-bold text-red-300 transition hover:bg-red-500/10"
                   >
-                    Ta bort kostnad
+                    {t("Ta bort kostnad")}
                   </button>
                 </div>
 
@@ -4435,7 +4683,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               onClick={addExtraCost}
               className="min-h-12 touch-manipulation rounded-2xl border border-orange-400/40 bg-orange-500/10 px-4 text-sm font-black text-orange-300 transition hover:bg-orange-500/20"
             >
-              Lägg till kostnad
+              {t("Lägg till kostnad")}
             </button>
 
           </div>
@@ -4468,7 +4716,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
               <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-zinc-950 p-4">
                 <span className="text-sm text-zinc-400">
-                  Rabatt på arbete
+                  {t("Rabatt på arbete")}
                 </span>
 
                 <span className="font-black text-orange-400">
@@ -4513,11 +4761,11 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               <div>
 
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
-                  Pris till offert
+                  {t("Pris till offert")}
                 </p>
 
                 <p className="mt-1 text-sm text-zinc-400">
-                  Välj vilket pris som ska användas i PDF och sparad offert.
+                  {t("Välj vilket pris som ska användas i PDF och sparad offert.")}
                 </p>
 
               </div>
@@ -4545,7 +4793,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
                       : "text-zinc-300 hover:bg-white/10"
                   }`}
                 >
-                  {variant.label}
+                  {t(variant.label)}
                 </button>
               ))}
 
@@ -4558,8 +4806,8 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div className="mb-6 grid gap-3">
 
               <div className="rounded-2xl border border-white/10 bg-black p-4">
-                <p className="text-xs font-bold uppercase text-zinc-500">
-                  Arbete före rabatt
+                  <p className="text-xs font-bold uppercase text-zinc-500">
+                    {t("Arbete före rabatt")}
                 </p>
 
                 <p className="mt-2 text-xl font-black text-white">
@@ -4570,7 +4818,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               {discount.active && (
                 <div className="rounded-2xl border border-orange-400/20 bg-black p-4">
                   <p className="text-xs font-bold uppercase text-zinc-500">
-                    Rabatt
+                    {t("Rabatt")}
                   </p>
 
                   <p className="mt-2 text-xl font-black text-orange-400">
@@ -4581,7 +4829,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
               <div className="rounded-2xl border border-white/10 bg-black p-4">
                 <p className="text-xs font-bold uppercase text-zinc-500">
-                  Arbete efter rabatt
+                  {t("Arbete efter rabatt")}
                 </p>
 
                 <p className="mt-2 text-xl font-black text-white">
@@ -4589,20 +4837,22 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black p-4">
-                <p className="text-xs font-bold uppercase text-zinc-500">
-                  Fasta kostnader
-                </p>
+              {hasFixedCosts && (
+                <div className="rounded-2xl border border-white/10 bg-black p-4">
+                  <p className="text-xs font-bold uppercase text-zinc-500">
+                    {t("Fasta kostnader")}
+                  </p>
 
-                <p className="mt-2 text-xl font-black text-orange-400">
-                  {formatPrice(fixedCostsTotal)}
-                </p>
-              </div>
+                  <p className="mt-2 text-xl font-black text-orange-400">
+                    {formatPrice(fixedCostsDisplayTotal)}
+                  </p>
+                </div>
+              )}
 
               {extraCostsTotal > 0 && (
                 <div className="rounded-2xl border border-orange-400/20 bg-black p-4">
                   <p className="text-xs font-bold uppercase text-zinc-500">
-                    Extra kostnader
+                    {t("Extra kostnader")}
                   </p>
 
                   <p className="mt-2 text-xl font-black text-orange-400">
@@ -4613,7 +4863,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
               <div className="rounded-2xl border border-orange-400 bg-orange-500 p-4 text-black">
                 <p className="text-xs font-bold uppercase text-black/60">
-                  Offertpris
+                  {t("Offertpris")}
                 </p>
 
                 <p className="mt-2 text-2xl font-black">
@@ -4626,11 +4876,11 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div className="flex justify-between">
 
               <span className="text-zinc-400">
-                Antal personer
+                {t("Antal personer")}
               </span>
 
               <span>
-                {normalizedPeopleCount} {normalizedPeopleCount === 1 ? "person" : "personer"}
+                {normalizedPeopleCount} {translateText(normalizedPeopleCount === 1 ? "person" : "personer", language)}
               </span>
 
             </div>
@@ -4638,7 +4888,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div className="mt-3 flex justify-between">
 
               <span className="text-zinc-400">
-                Total arbetstid
+                {t("Tid på plats")}
               </span>
 
               <span>
@@ -4647,14 +4897,38 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
             </div>
 
-            <div className="mt-3 flex justify-between">
+            <div className="mt-3 flex justify-between gap-4">
 
               <span className="text-zinc-400">
-                Uppskattad tid
+                {t("Timpris per person")}
               </span>
 
               <span className="text-right">
-                {estimatedCalendarTime}
+                {translateText(hourlyRateSummary, language)}
+              </span>
+
+            </div>
+
+            <div className="mt-3 flex justify-between gap-4">
+
+              <span className="text-zinc-400">
+                {t("Arbetskostnad")}
+              </span>
+
+              <span className="text-right">
+                {formatPrice(workPrice)}
+              </span>
+
+            </div>
+
+            <div className="mt-3 flex justify-between">
+
+              <span className="text-zinc-400">
+                {t("Uppskattad tid")}
+              </span>
+
+              <span className="text-right">
+                {translateText(estimatedCalendarTime, language)}
               </span>
 
             </div>
@@ -4663,11 +4937,11 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               <div className="mt-3 flex justify-between gap-4">
 
                 <span className="text-zinc-400">
-                  Startdatum
+                  {t("Startdatum")}
                 </span>
 
                 <span className="text-right">
-                  {formatLongDate(parseLocalDate(startDate))}
+                  {formatLongDate(parseLocalDate(startDate), language)}
                 </span>
 
               </div>
@@ -4677,11 +4951,11 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               <div className="mt-3 flex justify-between gap-4">
 
                 <span className="text-zinc-400">
-                  Beräknat slutdatum
+                  {t("Beräknat slutdatum")}
                 </span>
 
                 <span className="text-right">
-                  {estimatedEndDate}
+                  {translateText(estimatedEndDateDisplay, language)}
                 </span>
 
               </div>
@@ -4698,7 +4972,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
         <div className="border-b border-white/10 bg-white/[0.03] p-6">
 
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-400">
-            Offertöversikt
+            {t("Offertöversikt")}
           </p>
 
           <div className="mt-3 flex items-end justify-between gap-4">
@@ -4706,11 +4980,11 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div>
 
               <h2 className="text-3xl font-black">
-                {displayCategory}
+                {translateText(displayCategory, language)}
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                {usesGlobalArea ? `${formatArea(area)} · ` : ""}{normalizedPeopleCount} {normalizedPeopleCount === 1 ? "person" : "personer"}
+                {usesGlobalArea ? `${formatArea(area)} · ` : ""}{normalizedPeopleCount} {translateText(normalizedPeopleCount === 1 ? "person" : "personer", language)}
               </p>
 
             </div>
@@ -4718,7 +4992,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             <div className="text-right">
 
               <p className="text-xs uppercase text-zinc-500">
-                Offertpris
+                {t("Offertpris")}
               </p>
 
               <p className="text-3xl font-black text-orange-400">
@@ -4731,7 +5005,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               <div className="mt-6">
 
                 <h3 className="text-sm font-bold uppercase text-zinc-500">
-                  Extra kostnader
+                  {t("Extra kostnader")}
                 </h3>
 
                 <div className="mt-4 flex flex-col gap-3">
@@ -4746,12 +5020,12 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
                       <div>
 
                         <p className="font-bold">
-                          {cost.name || "Extra kostnad"}
+                          {translateText(cost.name || "Extra kostnad", language)}
                         </p>
 
                         {cost.description && (
                           <p className="text-xs text-zinc-500">
-                            {cost.description}
+                            {translateText(cost.description, language)}
                           </p>
                         )}
 
@@ -4779,7 +5053,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           <div>
 
             <h3 className="text-sm font-bold uppercase text-zinc-500">
-              Kund
+              {t("Kund")}
             </h3>
 
             <div className="mt-4 space-y-3 text-sm">
@@ -4796,7 +5070,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           <div>
 
             <h3 className="text-sm font-bold uppercase text-zinc-500">
-              Valda alternativ
+              {t("Valda alternativ")}
             </h3>
 
             <div className="mt-4 flex flex-col gap-3">
@@ -4811,25 +5085,25 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
                   <div>
 
                     <p className="font-bold">
-                      {formatOptionTitle(option.title)}
+                      {translateText(formatOptionTitle(option.title), language)}
                     </p>
 
                     {option.sectionTitle && (
                       <p className="text-xs text-zinc-500">
-                        {option.sectionTitle}
+                        {translateText(option.sectionTitle, language)}
                       </p>
                     )}
 
                     {option.detailText && (
                       <p className="text-xs text-zinc-500">
-                        {option.detailText}
+                        {translateText(option.detailText, language)}
                       </p>
                     )}
 
                   </div>
 
                   <span className="text-sm font-bold text-orange-300">
-                    {option.priceValue > 0 ? `+${formatPrice(option.priceValue)}` : "Ingår"}
+                    {option.priceValue > 0 ? `+${formatPrice(option.priceValue)}` : t("Ingår")}
                   </span>
 
                 </div>
@@ -4837,6 +5111,18 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               ))}
 
             </div>
+
+            {safetyNoticeActive && (
+              <div className="mt-4 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
+                  {t(safetyNoticeTitle)}
+                </p>
+
+                <p className="mt-2 text-sm leading-relaxed text-zinc-200">
+                  {t(safetyNoticeText)}
+                </p>
+              </div>
+            )}
 
           </div>
 
@@ -4853,13 +5139,15 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               value={`${deckDimensions.length || 0} m × ${deckDimensions.width || 0} m`}
             />
           )}
-          <SummaryRow label="Total arbetstid" value={formatHours(totalWorkHours)} />
+          <SummaryRow label="Tid på plats" value={formatHours(totalWorkHours)} />
+          <SummaryRow label="Timpris per person" value={hourlyRateSummary} />
+          <SummaryRow label="Arbetskostnad" value={formatPrice(workPrice)} />
           <SummaryRow label="Uppskattad tid" value={estimatedCalendarTime} />
           {startDate && (
-            <SummaryRow label="Startdatum" value={formatLongDate(parseLocalDate(startDate))} />
+            <SummaryRow label="Startdatum" value={formatLongDate(parseLocalDate(startDate), language)} />
           )}
           {startDate && estimatedEndDate && (
-            <SummaryRow label="Beräknat slutdatum" value={estimatedEndDate} />
+            <SummaryRow label="Beräknat slutdatum" value={estimatedEndDateDisplay} />
           )}
 
         </div>
@@ -4868,7 +5156,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <p className="text-xs font-bold uppercase text-zinc-500">
-              Arbete före rabatt
+              {t("Arbete före rabatt")}
             </p>
 
             <p className="mt-2 text-xl font-black text-white">
@@ -4879,7 +5167,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           {discount.active && (
             <div className="rounded-2xl border border-orange-400/20 bg-white/[0.03] p-4">
               <p className="text-xs font-bold uppercase text-zinc-500">
-                Rabatt
+                {t("Rabatt")}
               </p>
 
               <p className="mt-2 text-xl font-black text-orange-400">
@@ -4890,7 +5178,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <p className="text-xs font-bold uppercase text-zinc-500">
-              Arbete efter rabatt
+              {t("Arbete efter rabatt")}
             </p>
 
             <p className="mt-2 text-xl font-black text-white">
@@ -4898,19 +5186,21 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-xs font-bold uppercase text-zinc-500">
-              Fasta kostnader
-            </p>
+          {hasFixedCosts && (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs font-bold uppercase text-zinc-500">
+                {t("Fasta kostnader")}
+              </p>
 
-            <p className="mt-2 text-xl font-black text-orange-400">
-              {formatPrice(fixedCostsTotal)}
-            </p>
-          </div>
+              <p className="mt-2 text-xl font-black text-orange-400">
+                {formatPrice(fixedCostsDisplayTotal)}
+              </p>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-orange-400 bg-orange-500 p-4 text-black">
             <p className="text-xs font-bold uppercase text-black/60">
-              Offertpris
+              {t("Offertpris")}
             </p>
 
             <p className="mt-2 text-2xl font-black">
@@ -4951,11 +5241,12 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 }
 
 function CustomerField({ label, value, onChange, multiline = false }) {
+  const { language } = useI18n();
   const inputClassName = "mt-2 w-full rounded-2xl border border-zinc-800 bg-black p-4 text-white outline-none transition focus:border-orange-400";
 
   return (
     <label className="block text-sm text-zinc-400">
-      {label}
+      {translateText(label, language)}
 
       {multiline ? (
         <textarea
@@ -4976,6 +5267,7 @@ function CustomerField({ label, value, onChange, multiline = false }) {
 }
 
 function OptionPricingFields({ option, pricing, onChange, measurement, onMeasurementChange }) {
+  const { language } = useI18n();
   const canChooseMode = option.pricingControl === "work";
   const useStepPricing = option.pricingControl === "steps";
   const useHourly = pricing.mode === "hourly" || option.pricingControl === "hourly";
@@ -5021,7 +5313,7 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
                     : "border-zinc-800 bg-zinc-950 text-white"
                 }`}
               >
-                {label}
+                {translateText(label, language)}
               </button>
             ))}
           </div>
@@ -5082,7 +5374,7 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
                     : "border-zinc-800 bg-black text-white"
                 }`}
               >
-                {label}
+              {translateText(label, language)}
               </button>
             ))}
           </div>
@@ -5105,7 +5397,7 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
 
               <div className="rounded-2xl border border-orange-400/20 bg-black p-4 sm:col-span-2">
                 <p className="text-xs font-bold uppercase text-zinc-500">
-                  {areaLabel}
+                  {translateText(areaLabel, language)}
                 </p>
 
                 <p className="mt-2 text-2xl font-black text-orange-400">
@@ -5140,7 +5432,7 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
                   : "border-zinc-800 bg-zinc-950 text-white"
               }`}
             >
-              {label}
+              {translateText(label, language)}
             </button>
           ))}
 
@@ -5151,13 +5443,13 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
         <div className={`grid gap-3 ${canChooseMode ? "mt-4" : ""} sm:grid-cols-2`}>
 
           <PricingInput
-            label="Antal timmar"
+            label="Tid på plats"
             value={pricing.hours}
             onChange={(value) => onChange({ hours: value })}
           />
 
           <PricingInput
-            label={option.hourlyRateLabel || "Timpris"}
+            label={option.hourlyRateLabel || "Timpris per person"}
             value={pricing.hourlyRate}
             onChange={(value) => onChange({ hourlyRate: value })}
           />
@@ -5173,7 +5465,7 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
           />
 
           <PricingInput
-            label="Uppskattade timmar"
+            label="Uppskattad tid på plats"
             value={pricing.estimatedHours}
             onChange={(value) => onChange({ estimatedHours: value })}
           />
@@ -5189,7 +5481,7 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
           />
 
           <PricingInput
-            label="Uppskattade timmar"
+            label="Uppskattad tid på plats"
             value={pricing.estimatedHours}
             onChange={(value) => onChange({ estimatedHours: value })}
           />
@@ -5205,7 +5497,7 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
           />
 
           <PricingInput
-            label="Uppskattade timmar"
+            label="Uppskattad tid på plats"
             value={pricing.estimatedHours}
             onChange={(value) => onChange({ estimatedHours: value })}
           />
@@ -5218,6 +5510,7 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
 }
 
 function NumberStepper({ value, onChange, min = 0, step = 1 }) {
+  const { language } = useI18n();
   const numericValue = Number(value) || 0;
   const normalizedValue = Math.max(min, numericValue);
   const decimalPlaces = String(step).includes(".") ? String(step).split(".")[1].length : 0;
@@ -5251,7 +5544,7 @@ function NumberStepper({ value, onChange, min = 0, step = 1 }) {
         onClick={() => stepValue(-1)}
         className="min-h-14 touch-manipulation border-r border-zinc-800 text-2xl font-black text-orange-300 transition active:bg-orange-500/20 disabled:text-zinc-700"
         disabled={normalizedValue <= min}
-        aria-label="Minska värde"
+        aria-label={translateText("Minska värde", language)}
       >
         -
       </button>
@@ -5270,7 +5563,7 @@ function NumberStepper({ value, onChange, min = 0, step = 1 }) {
         type="button"
         onClick={() => stepValue(1)}
         className="min-h-14 touch-manipulation border-l border-zinc-800 text-2xl font-black text-orange-300 transition active:bg-orange-500/20"
-        aria-label="Öka värde"
+        aria-label={translateText("Öka värde", language)}
       >
         +
       </button>
@@ -5293,9 +5586,11 @@ function getNumericStep(label) {
 }
 
 function PricingInput({ label, value, onChange, min = 0, step }) {
+  const { language } = useI18n();
+
   return (
     <label className="block text-sm text-zinc-400">
-      {label}
+      {translateText(label, language)}
 
       <NumberStepper
         value={value}
@@ -5309,9 +5604,11 @@ function PricingInput({ label, value, onChange, min = 0, step }) {
 }
 
 function AvailabilityInput({ label, value, onChange }) {
+  const { language } = useI18n();
+
   return (
     <label className="block text-sm text-zinc-400">
-      {label}
+      {translateText(label, language)}
 
       <NumberStepper
         value={value}
@@ -5325,24 +5622,28 @@ function AvailabilityInput({ label, value, onChange }) {
 }
 
 function SummaryRow({ label, value }) {
+  const { language } = useI18n();
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
       <p className="text-xs uppercase text-zinc-500">
-        {label}
+        {translateText(label, language)}
       </p>
 
       <p className="mt-1 font-bold text-white">
-        {value}
+        {translateText(value, language)}
       </p>
     </div>
   );
 }
 
 function SummaryPrice({ label, value, highlight = false }) {
+  const { language } = useI18n();
+
   return (
     <div className={`p-5 ${highlight ? "bg-orange-500 text-black" : "bg-black/30 text-white"}`}>
       <p className={`text-xs font-bold ${highlight ? "text-black/60" : "text-zinc-500"}`}>
-        {label}
+        {translateText(label, language)}
       </p>
 
       <p className="mt-1 text-lg font-black sm:text-2xl">
@@ -5371,6 +5672,7 @@ function createOfferPdfBlob({
   workPrice,
   peopleCount,
   totalWorkHours,
+  hourlyRateSummary,
   estimatedCalendarTime,
   startDate,
   estimatedEndDate,
@@ -5392,8 +5694,10 @@ function createOfferPdfBlob({
     ? selectedOptionDetails
     : [{ title: "Inga valda alternativ", sectionTitle: "", priceValue: 0 }];
   const extraCostRows = extraCostDetails || [];
+  const fixedCostsDisplayTotal = Math.max(0, fixedCostsTotal - extraCostsTotal);
   const showVvsNotice = vvsNoticeActive || selectedOptionDetails.some(isVvsRelatedOption);
   const showElNotice = elNoticeActive || selectedOptionDetails.some(isElRelatedOption);
+  const showSafetyNotice = showVvsNotice || showElNotice;
   const content = [];
 
   const rect = (x, y, width, height, color) => {
@@ -5448,7 +5752,8 @@ function createOfferPdfBlob({
       ["Mått", `${deckDimensions.length || 0} m × ${deckDimensions.width || 0} m`],
     ] : []),
     ["Antal personer", `${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`],
-    ["Total arbetstid", formatHours(totalWorkHours)],
+    ["Arbetstid", formatHours(totalWorkHours)],
+    ["Timpris/person", hourlyRateSummary],
     ["Uppskattad tid", estimatedCalendarTime],
     ...(startDate ? [
       ["Startdatum", formatLongDate(parseLocalDate(startDate))],
@@ -5456,11 +5761,11 @@ function createOfferPdfBlob({
     ...(startDate && estimatedEndDate ? [
       ["Beräknat slutdatum", estimatedEndDate],
     ] : []),
-    ["Arbete före rabatt", money(workPrice)],
+    ["Arbetskostnad", money(workPrice)],
     ...(discountActive ? [["Rabatt", `-${money(discountAmount)} (${discountPercent}%)`]] : []),
     ["Arbete efter rabatt", money(discountedWorkPrice)],
     ...(extraCostsTotal > 0 ? [["Extra kostnader", money(extraCostsTotal)]] : []),
-    ["Fasta kostnader", money(fixedCostsTotal)],
+    ...(fixedCostsDisplayTotal > 0 ? [["Fasta kostnader", money(fixedCostsDisplayTotal)]] : []),
     ["Offertpris", money(selectedOfferPrice)],
   ];
 
@@ -5476,31 +5781,19 @@ function createOfferPdfBlob({
     text(lineText, 64, 458 - index * 14, 10, "0.9 0.9 0.92");
   });
 
-  if (showVvsNotice) {
-    text("VVS INGÅR EJ", 328, 492, 9, "0.98 0.57 0.24", "F2");
-    rect(328, 432, 219, showElNotice ? 34 : 45, "0.1 0.08 0.05");
-    wrapPdfText(vvsNoticeText, 42, 3).forEach((lineText, index) => {
-      text(lineText, 344, 458 - index * 14, 8, "0.92 0.86 0.78");
+  if (showSafetyNotice) {
+    text(safetyNoticeTitle, 328, 492, 8, "0.98 0.57 0.24", "F2");
+    rect(328, 405, 219, 72, "0.1 0.08 0.05");
+    wrapPdfText(safetyNoticeText, 42, 5).forEach((lineText, index) => {
+      text(lineText, 344, 458 - index * 13, 8, "0.92 0.86 0.78");
     });
   }
 
-  if (showElNotice) {
-    const titleY = showVvsNotice ? 424 : 492;
-    const boxY = showVvsNotice ? 366 : 432;
-    const textY = showVvsNotice ? 390 : 458;
-
-    text("ELINSTALLATION INGÅR EJ", 328, titleY, 9, "0.98 0.57 0.24", "F2");
-    rect(328, boxY, 219, 45, "0.1 0.08 0.05");
-    wrapPdfText(elNoticeText, 42, 3).forEach((lineText, index) => {
-      text(lineText, 344, textY - index * 14, 8, "0.92 0.86 0.78");
-    });
-  }
-
-  const optionsTitleY = showVvsNotice && showElNotice ? 330 : 400;
+  const optionsTitleY = showSafetyNotice ? 370 : 400;
   const firstOptionRowY = optionsTitleY - 32;
   const maxVisibleOptions = extraCostRows.length > 0
-    ? (showVvsNotice && showElNotice ? 3 : 5)
-    : (showVvsNotice && showElNotice ? 5 : 8);
+    ? (showSafetyNotice ? 4 : 5)
+    : (showSafetyNotice ? 7 : 8);
 
   text("VALDA ALTERNATIV", 48, optionsTitleY, 9, "0.98 0.57 0.24", "F2");
   const visibleOptionRows = optionRows.slice(0, maxVisibleOptions);
@@ -5749,6 +6042,7 @@ function wrapPdfText(value, maxLength, maxLines) {
 }
 
 function ActionButton({ children, onClick, variant = "secondary" }) {
+  const { language } = useI18n();
   const isPrimary = variant === "primary";
 
   return (
@@ -5761,7 +6055,7 @@ function ActionButton({ children, onClick, variant = "secondary" }) {
           : "border-white/10 bg-zinc-900 text-white shadow-xl shadow-black/20"
       }`}
     >
-      {children}
+      {translateText(children, language)}
     </button>
   );
 }
