@@ -9,7 +9,7 @@ export default function CategoriesScreen({ goBack, openCategory }) {
     "Golv & Lister",
     "Fönster & Dörrar",
     "Kök & Garderob",
-    "Altan & Pergola",
+    "Altan, Pergola & Staket",
     "Rivning",
     "Konstruktion",
     "Övrigt arbete",

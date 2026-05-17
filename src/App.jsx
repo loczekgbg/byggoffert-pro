@@ -315,7 +315,10 @@ async function exportSavedOfferPdf(offer) {
     displayCategory: offer.displayCategory || offer.category,
     customer: offer.customer || {},
     selectedOfferPrice: offer.prices?.selectedOffer ?? offer.prices?.normal ?? 0,
-    selectedOptionDetails: offer.options || [],
+      selectedOptionDetails: (offer.options || []).map((option) => ({
+        ...option,
+        title: formatOptionTitle(option.title),
+      })),
     extraCostDetails: (offer.extraCosts || []).map((cost) => ({
       ...cost,
       priceValue: cost.priceValue ?? cost.price ?? 0,
@@ -330,10 +333,12 @@ async function exportSavedOfferPdf(offer) {
     estimatedEndDate: offer.schedule?.estimatedEndDate || "",
     discountActive: offer.discount?.active || false,
     discountAmount: offer.discount?.amount || 0,
-    discountPercent: offer.discount?.percent || 0,
-    discountedWorkPrice: offer.prices?.workAfterDiscount ?? offer.prices?.work ?? 0,
-    logoImage,
-  });
+      discountPercent: offer.discount?.percent || 0,
+      discountedWorkPrice: offer.prices?.workAfterDiscount ?? offer.prices?.work ?? 0,
+      vvsNoticeActive: (offer.options || []).some((option) => option.vvsNotice || isVvsRelatedOption(option)),
+      elNoticeActive: (offer.options || []).some((option) => option.elNotice || isElRelatedOption(option)),
+      logoImage,
+    });
   const pdfUrl = URL.createObjectURL(pdfBlob);
   const downloadLink = document.createElement("a");
 
@@ -574,7 +579,7 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
                       key={`${offer.id}-${option.id}`}
                       className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-zinc-200"
                     >
-                      {option.title}
+                      {formatOptionTitle(option.title)}
                     </span>
                   ))}
                 </div>
@@ -770,7 +775,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                         key={`${offer.id}-${option.id}`}
                         className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-zinc-200"
                       >
-                        {option.title}
+                        {formatOptionTitle(option.title)}
                       </span>
 
                     )) : (
@@ -951,6 +956,126 @@ function formatArea(area) {
   const roundedArea = Math.round((Number(area) || 0) * 10) / 10;
 
   return `${roundedArea.toLocaleString("sv-SE")} m²`;
+}
+
+function formatLength(length) {
+  const roundedLength = Math.round((Number(length) || 0) * 10) / 10;
+
+  return `${roundedLength.toLocaleString("sv-SE")} m`;
+}
+
+function formatOptionTitle(title) {
+  const normalizedTitle = String(title || "").toLowerCase();
+
+  if (normalizedTitle.includes("ljus färg") || normalizedTitle.includes("vit /")) {
+    return "Målning med ljus färg";
+  }
+
+  if (normalizedTitle.includes("standard färg") || normalizedTitle.includes("normal färg")) {
+    return "Målning med standardfärg";
+  }
+
+  if (normalizedTitle.includes("mörk färg")) {
+    return "Målning med mörk färg";
+  }
+
+  if (normalizedTitle.includes("flera färger")) {
+    return "Målning med flera färger";
+  }
+
+  if (normalizedTitle === "trästaket") {
+    return "Platsbyggt trästaket";
+  }
+
+  if (normalizedTitle === "betongfundament") {
+    return "Betongplint";
+  }
+
+  if (normalizedTitle === "innerdörr") {
+    return "Montering av enkel innerdörr";
+  }
+
+  if (normalizedTitle === "ytterdörr") {
+    return "Montering av enkel ytterdörr";
+  }
+
+  if (normalizedTitle === "fönster") {
+    return "Montering av standardfönster";
+  }
+
+  if (normalizedTitle === "litet fönster") {
+    return "Montering av litet fönster";
+  }
+
+  if (normalizedTitle === "standardfönster") {
+    return "Montering av standardfönster";
+  }
+
+  if (normalizedTitle === "stort fönster") {
+    return "Montering av stort fönster";
+  }
+
+  if (normalizedTitle === "fast fönster") {
+    return "Montering av fast fönster";
+  }
+
+  if (normalizedTitle === "öppningsbart fönster") {
+    return "Montering av öppningsbart fönster";
+  }
+
+  if (normalizedTitle === "innerdörr enkel") {
+    return "Montering av enkel innerdörr";
+  }
+
+  if (normalizedTitle === "innerdörr dubbel") {
+    return "Montering av dubbel innerdörr";
+  }
+
+  if (normalizedTitle === "ytterdörr enkel") {
+    return "Montering av enkel ytterdörr";
+  }
+
+  if (normalizedTitle === "ytterdörr dubbel") {
+    return "Montering av dubbel ytterdörr";
+  }
+
+  if (normalizedTitle === "altandörr") {
+    return "Montering av altandörr";
+  }
+
+  if (normalizedTitle === "skjutdörr") {
+    return "Montering av skjutdörr";
+  }
+
+  if (normalizedTitle === "lås / handtag") {
+    return "Montering av lås / handtag";
+  }
+
+  return title;
+}
+
+function isVvsRelatedOption(option) {
+  const title = String(option.title || "").toLowerCase();
+  const id = String(option.id || "").toLowerCase();
+
+  return option.vvsNotice
+    || id.includes("dishwasher")
+    || id.includes("faucet")
+    || id.includes("sink")
+    || title.includes("diskmaskin")
+    || title.includes("blandare")
+    || title.includes("kran")
+    || title.includes("diskho")
+    || title.includes("vask");
+}
+
+function isElRelatedOption(option) {
+  const title = String(option.title || "").toLowerCase();
+  const id = String(option.id || "").toLowerCase();
+
+  return option.elNotice
+    || id.includes("cooktop")
+    || title.includes("spishäll");
 }
 
 function formatEstimatedCalendarTime(totalWorkHours, weeklyAvailableHours) {
@@ -1162,6 +1287,14 @@ const altanPergolaDefaultPrices = {
   simpleRailingsPerSquareMeter: 100,
   premiumRailingsPerSquareMeter: 180,
   simpleStairsFixed: 2000,
+  woodFencePerMeter: 350,
+  prefabFenceSectionsPerMeter: 0,
+  privacyScreenPerMeter: 850,
+  picketFencePerMeter: 700,
+  fenceWithGatePerMeter: 950,
+  fencePaintingOilPerMeter: 90,
+  groundPostsPerMeter: 260,
+  concreteFoundationPerMeter: 320,
 };
 
 const paintingDefaultPrices = {
@@ -1182,6 +1315,10 @@ const paintingDefaultPrices = {
   darkColorPerSquareMeter: 45,
   multipleColorsPerSquareMeter: 65,
   accentWallFixed: 1200,
+  stairPaintingStandardPerStep: 200,
+  stairPaintingPremiumPerStep: 350,
+  stairPaintingStandardHoursPerStep: 0.3,
+  stairPaintingPremiumHoursPerStep: 0.45,
   scaffoldingFixed: 4500,
   liftFixed: 3500,
 };
@@ -1212,6 +1349,83 @@ const floorDefaultPrices = {
   doorPipeAdaptationFixed: 1600,
 };
 
+const windowsDoorsDefaultPrices = {
+  windowReplacementPerUnit: 2400,
+  smallWindowPerUnit: 1200,
+  standardWindowPerUnit: 1800,
+  largeWindowPerUnit: 2600,
+  fixedWindowPerUnit: 1400,
+  openableWindowPerUnit: 2200,
+  windowTrimPerUnit: 900,
+  windowAdjustmentPerUnit: 350,
+  windowSillFlashingPerUnit: 650,
+  windowRevealsPerUnit: 750,
+  windowCasingPerUnit: 550,
+  windowDraftingInsulationPerUnit: 450,
+  windowCaulkingSiliconePerUnit: 300,
+  windowCasingPaintingPerUnit: 500,
+  interiorSingleDoorPerUnit: 1200,
+  interiorDoubleDoorPerUnit: 2200,
+  exteriorSingleDoorPerUnit: 2800,
+  exteriorDoubleDoorPerUnit: 4800,
+  patioDoorPerUnit: 3200,
+  slidingDoorPerUnit: 2400,
+  frameReplacementPerUnit: 1600,
+  lockHandlePerUnit: 650,
+  doorAdjustmentPerUnit: 450,
+};
+
+const kitchenWardrobeDefaultPrices = {
+  wallCabinetPerUnit: 750,
+  baseCabinetPerUnit: 900,
+  tallCabinetPerUnit: 1200,
+  ikeaCabinetPerUnit: 1000,
+  countertopInstallationPerUnit: 1800,
+  countertopAdaptationFixed: 1800,
+  faucetHoleCuttingPerUnit: 600,
+  sinkHoleCuttingPerUnit: 900,
+  cooktopHoleCuttingPerUnit: 900,
+  sinkInstallationPerUnit: 1200,
+  faucetInstallationNoVvsPerUnit: 800,
+  handlePerUnit: 120,
+  freestandingAppliancePerUnit: 900,
+  integratedDishwasherPerUnit: 1600,
+  integratedFridgeFreezerPerUnit: 1900,
+  builtInOvenMicrowavePerUnit: 1500,
+  cooktopInstallationPerUnit: 1400,
+  cooktopSealingFixed: 700,
+  applianceFrontAdjustmentPerUnit: 650,
+  wallOpeningAdaptationFixed: 2500,
+  kitchenAdjustmentFixed: 900,
+  wardrobePerUnit: 1100,
+  modularWardrobeFramePerUnit: 700,
+  wardrobeSlidingDoorPerUnit: 1400,
+  paxBuiltInWardrobePerUnit: 2200,
+  wardrobeInteriorPerUnit: 650,
+  wardrobeAdaptationFixed: 1600,
+  wardrobeWallAdaptationFixed: 1800,
+  wardrobeCoverPanelsFixed: 900,
+  siliconeCaulkingFixed: 900,
+  plinthPerUnit: 350,
+  fillerPiecePerUnit: 450,
+  lightingPerUnit: 750,
+  finishFixed: 1200,
+  floorProtectionFixed: 900,
+  furnitureProtectionFixed: 700,
+  maskingFixed: 650,
+  dustProtectionFixed: 950,
+  cleaningFixed: 800,
+  kitchenFanInstallationPerUnit: 1200,
+  ventilationConnectionPerUnit: 950,
+  ventilationPipeAdaptationFixed: 1500,
+  holeCuttingFixed: 1800,
+  carbonFilterFanPerUnit: 900,
+  ventilationSealingFixed: 700,
+};
+
+const vvsNoticeText = "VVS ingår ej. Anslutning av vatten och avlopp utförs av behörig VVS-installatör.";
+const elNoticeText = "Elinstallation ingår ej. Elektrisk anslutning utförs endast om färdigt eluttag och stickkontakt finns. Ny installation, dragning av el och behörig elinstallation ingår ej.";
+
 const demolitionDefaultHourlyRate = 200;
 
 function isDemolitionOption(option) {
@@ -1238,6 +1452,37 @@ function isPergolaOption(option) {
   return option.id === "pergola" || option.id === "pergolaRoof" || optionTitle.includes("pergola");
 }
 
+function isStaketOption(option) {
+  return [
+    "woodFence",
+    "prefabFenceSections",
+    "privacyScreen",
+    "picketFence",
+    "fenceWithGate",
+    "oldFenceDemolition",
+    "fencePaintingOil",
+    "groundPosts",
+    "concreteFoundations",
+  ].includes(option.id);
+}
+
+function isAltanOption(option) {
+  return [
+    "deckingOnly",
+    "deckRepair",
+    "newFrame",
+    "oldDeckDemolition",
+    "simpleRailings",
+    "premiumRailings",
+    "deckStairs",
+    "groundPrep",
+    "woodTreatment",
+    "complexDeck",
+    "ledLighting",
+    "miscCarpentry",
+  ].includes(option.id);
+}
+
 function getPaintingDisplayCategory(options, isOptionActive) {
   const activeLabels = [];
   const hasPainting = options.some((option) => {
@@ -1251,6 +1496,9 @@ function getPaintingDisplayCategory(options, isOptionActive) {
   });
   const hasFacadePainting = options.some((option) => {
     return option.id === "facadePainting" && isOptionActive(option);
+  });
+  const hasStairPainting = options.some((option) => {
+    return option.id === "stairPainting" && isOptionActive(option);
   });
 
   if (hasPainting) {
@@ -1267,6 +1515,10 @@ function getPaintingDisplayCategory(options, isOptionActive) {
 
   if (hasFacadePainting) {
     activeLabels.push("Fasadmålning");
+  }
+
+  if (hasStairPainting) {
+    activeLabels.push("Trappmålning");
   }
 
   return activeLabels.length > 0 ? activeLabels.join(" & ") : "Målning & Tapetsering";
@@ -1327,7 +1579,122 @@ function getFloorDisplayCategory(options, isOptionActive) {
   return hasSkirting ? `${displayName} & lister` : displayName;
 }
 
+function getWindowsDoorsDisplayCategory(options, isOptionActive) {
+  const windowOptionIds = [
+    "windowReplacement",
+    "smallWindow",
+    "standardWindow",
+    "largeWindow",
+    "fixedWindow",
+    "openableWindow",
+    "windowAdjustment",
+    "windowSillFlashing",
+    "windowReveals",
+    "windowCasing",
+    "windowDraftingInsulation",
+    "windowCaulkingSilicone",
+    "windowFineAdjustment",
+    "windowCasingPainting",
+    "oldWindowDemolition",
+  ];
+  const doorOptionIds = [
+    "interiorSingleDoor",
+    "interiorDoubleDoor",
+    "exteriorSingleDoor",
+    "exteriorDoubleDoor",
+    "patioDoor",
+    "slidingDoor",
+    "doorFrameReplacement",
+    "doorLockHandle",
+    "doorAdjustment",
+    "oldDoorDemolition",
+  ];
+  const hasWindows = options.some((option) => {
+    return windowOptionIds.includes(option.id) && isOptionActive(option);
+  });
+  const hasDoors = options.some((option) => {
+    return doorOptionIds.includes(option.id) && isOptionActive(option);
+  });
+
+  if (hasWindows && hasDoors) {
+    return "Fönster & Dörrar";
+  }
+
+  if (hasWindows) {
+    return "Fönster";
+  }
+
+  if (hasDoors) {
+    return "Dörrar";
+  }
+
+  return "Fönster & Dörrar";
+}
+
+function getKitchenWardrobeDisplayCategory(options, isOptionActive) {
+  const kitchenOptionIds = [
+    "kitchenCabinetInstallation",
+    "wallCabinetInstallation",
+    "baseCabinetInstallation",
+    "tallCabinetInstallation",
+    "ikeaCabinetAssembly",
+    "countertopInstallation",
+    "countertopAdaptation",
+    "countertopFaucetHoleCutting",
+    "countertopSinkHoleCutting",
+    "countertopCooktopHoleCutting",
+    "cooktopSiliconeSealing",
+    "sinkInstallation",
+    "faucetInstallationNoVvs",
+    "kitchenHandleInstallation",
+    "freestandingApplianceInstallation",
+    "integratedDishwasherInstallation",
+    "integratedFridgeFreezerInstallation",
+    "builtInOvenMicrowaveInstallation",
+    "cooktopInstallation",
+    "applianceFrontAdjustment",
+    "oldKitchenDemolition",
+    "kitchenWallOpeningAdaptation",
+    "kitchenAdjustment",
+  ];
+  const wardrobeOptionIds = [
+    "wardrobeInstallation",
+    "modularWardrobeAssembly",
+    "wardrobeSlidingDoor",
+    "paxBuiltInWardrobe",
+    "wardrobeInteriorShelves",
+    "wardrobeAdaptation",
+    "wardrobeWallAdaptation",
+    "wardrobeCoverPanels",
+    "oldWardrobeDemolition",
+  ];
+  const hasKitchen = options.some((option) => {
+    return kitchenOptionIds.includes(option.id) && isOptionActive(option);
+  });
+  const hasWardrobe = options.some((option) => {
+    return wardrobeOptionIds.includes(option.id) && isOptionActive(option);
+  });
+
+  if (hasKitchen && hasWardrobe) {
+    return "Kök & Garderob";
+  }
+
+  if (hasKitchen) {
+    return "Kök";
+  }
+
+  if (hasWardrobe) {
+    return "Garderob";
+  }
+
+  return "Kök & Garderob";
+}
+
 function getBaseCategory(category) {
+  if (category === "Altan, Pergola & Staket") {
+    return "Altan & Pergola";
+  }
+
   if (category === "Målning & Tapetsering") {
     return "Målning & Tapeter";
   }
@@ -1338,6 +1705,14 @@ function getBaseCategory(category) {
 
   if (["Golv", "Golv & Lister"].includes(category)) {
     return "Golv & Lister";
+  }
+
+  if (category === "FĂ¶nster & DĂ¶rrar") {
+    return "Fönster & Dörrar";
+  }
+
+  if (category === "KĂ¶k & Garderob") {
+    return "Kök & Garderob";
   }
 
   return category;
@@ -1358,6 +1733,14 @@ function getDisplayCategory(category, options, isOptionActive) {
     return getFloorDisplayCategory(options, isOptionActive);
   }
 
+  if (baseCategory === "Fönster & Dörrar") {
+    return getWindowsDoorsDisplayCategory(options, isOptionActive);
+  }
+
+  if (baseCategory === "Kök & Garderob") {
+    return getKitchenWardrobeDisplayCategory(options, isOptionActive);
+  }
+
   if (baseCategory !== "Altan & Pergola") {
     return category;
   }
@@ -1365,8 +1748,38 @@ function getDisplayCategory(category, options, isOptionActive) {
   const hasActivePergolaOption = options.some((option) => {
     return isPergolaOption(option) && isOptionActive(option);
   });
+  const hasActiveStaketOption = options.some((option) => {
+    return isStaketOption(option) && isOptionActive(option);
+  });
+  const hasActiveAltanOption = options.some((option) => {
+    return isAltanOption(option) && isOptionActive(option);
+  });
 
-  return hasActivePergolaOption ? "Altan & Pergola" : "Altan";
+  if (hasActiveAltanOption && hasActivePergolaOption && hasActiveStaketOption) {
+    return "Altan, Pergola & Staket";
+  }
+
+  if (hasActiveAltanOption && hasActivePergolaOption) {
+    return "Altan & Pergola";
+  }
+
+  if (hasActiveAltanOption && hasActiveStaketOption) {
+    return "Altan & Staket";
+  }
+
+  if (hasActivePergolaOption && hasActiveStaketOption) {
+    return "Pergola & Staket";
+  }
+
+  if (hasActiveStaketOption) {
+    return "Staket";
+  }
+
+  if (hasActivePergolaOption) {
+    return "Pergola";
+  }
+
+  return "Altan";
 }
 
 const calculatorConfigs = {
@@ -1440,6 +1853,17 @@ const calculatorConfigs = {
             costType: "work",
           },
           {
+            id: "stairPainting",
+            title: "Trappmålning",
+            pricingControl: "steps",
+            costType: "work",
+            defaultStepPrice: () => paintingDefaultPrices.stairPaintingStandardPerStep,
+            standardStepPrice: paintingDefaultPrices.stairPaintingStandardPerStep,
+            premiumStepPrice: paintingDefaultPrices.stairPaintingPremiumPerStep,
+            standardHoursPerStep: paintingDefaultPrices.stairPaintingStandardHoursPerStep,
+            premiumHoursPerStep: paintingDefaultPrices.stairPaintingPremiumHoursPerStep,
+          },
+          {
             id: "facadePainting",
             title: "Fasadmålning",
             pricingControl: "work",
@@ -1504,18 +1928,18 @@ const calculatorConfigs = {
         options: [
           {
             id: "whiteLightColor",
-            title: "Vit / ljus färg",
+            title: "Målning med ljus färg",
             defaultActive: true,
             price: () => 0,
           },
           {
             id: "normalColor",
-            title: "Normal färg",
+            title: "Målning med standardfärg",
             price: () => 0,
           },
           {
             id: "darkColor",
-            title: "Mörk färg",
+            title: "Målning med mörk färg",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.darkColorPerSquareMeter,
@@ -1523,7 +1947,7 @@ const calculatorConfigs = {
           },
           {
             id: "multipleColors",
-            title: "Flera färger",
+            title: "Målning med flera färger",
             pricingControl: "work",
             areaControl: "surface",
             defaultFastPrice: (area) => area * paintingDefaultPrices.multipleColorsPerSquareMeter,
@@ -1534,6 +1958,104 @@ const calculatorConfigs = {
             title: "Accentvägg",
             pricingControl: "work",
             defaultFastPrice: () => paintingDefaultPrices.accentWallFixed,
+            defaultEstimatedHours: () => 2,
+          },
+        ],
+      },
+      {
+        title: "Skydd & förberedelse",
+        options: [
+          {
+            id: "kitchenWardrobeFloorProtection",
+            title: "Täckning av golv med skyddspapp",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.floorProtectionFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 2,
+          },
+          {
+            id: "kitchenWardrobeFurnitureProtection",
+            title: "Täckning av möbler med plast / folie",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.furnitureProtectionFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 1.5,
+          },
+          {
+            id: "kitchenWardrobeMasking",
+            title: "Maskering",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.maskingFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 1.5,
+          },
+          {
+            id: "kitchenWardrobeDustProtection",
+            title: "Dammskydd / avgränsning",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.dustProtectionFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 2,
+          },
+          {
+            id: "kitchenWardrobeCleaning",
+            title: "Städning efter arbete",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.cleaningFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 2,
+          },
+        ],
+      },
+      {
+        title: "Ventilation & Fläkt",
+        options: [
+          {
+            id: "kitchenFanInstallation",
+            title: "Montering av köksfläkt",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.kitchenFanInstallationPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "ventilationConnection",
+            title: "Anslutning till ventilation",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.ventilationConnectionPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "ventilationPipeAdaptation",
+            title: "Anpassning av ventilationsrör",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.ventilationPipeAdaptationFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 3,
+          },
+          {
+            id: "ventilationHoleCutting",
+            title: "Håltagning",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.holeCuttingFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 4,
+          },
+          {
+            id: "carbonFilterFan",
+            title: "Kolfilterfläkt",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.carbonFilterFanPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "ventilationAdjustmentSealing",
+            title: "Justering / tätning",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.ventilationSealingFixed,
+            defaultHourlyRate: 250,
             defaultEstimatedHours: () => 2,
           },
         ],
@@ -1589,6 +2111,620 @@ const calculatorConfigs = {
             pricingControl: "fixed",
             costType: "fixed",
             defaultFastPrice: () => paintingDefaultPrices.liftFixed,
+          },
+        ],
+      },
+    ],
+  },
+  "Fönster & Dörrar": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Fönster",
+        options: [
+          {
+            id: "windowReplacement",
+            title: "Byte av fönster",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.windowReplacementPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "smallWindow",
+            title: "Montering av litet fönster",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.smallWindowPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "standardWindow",
+            title: "Montering av standardfönster",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.standardWindowPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "largeWindow",
+            title: "Montering av stort fönster",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.largeWindowPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "fixedWindow",
+            title: "Montering av fast fönster",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.fixedWindowPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "openableWindow",
+            title: "Montering av öppningsbart fönster",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.openableWindowPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "windowAdjustment",
+            title: "Justering",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.windowAdjustmentPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "oldWindowDemolition",
+            title: "Rivning av gamla fönster",
+            quantityControl: true,
+            costType: "work",
+          },
+          {
+            id: "openingAdaptationWindows",
+            title: "Anpassning av öppning",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Dörrar",
+        options: [
+          {
+            id: "interiorSingleDoor",
+            title: "Montering av enkel innerdörr",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.interiorSingleDoorPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "interiorDoubleDoor",
+            title: "Montering av dubbel innerdörr",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.interiorDoubleDoorPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "exteriorSingleDoor",
+            title: "Montering av enkel ytterdörr",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.exteriorSingleDoorPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "exteriorDoubleDoor",
+            title: "Montering av dubbel ytterdörr",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.exteriorDoubleDoorPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "patioDoor",
+            title: "Montering av altandörr",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.patioDoorPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "slidingDoor",
+            title: "Montering av skjutdörr",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.slidingDoorPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "doorFrameReplacement",
+            title: "Karmbyte",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.frameReplacementPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "doorLockHandle",
+            title: "Montering av lås / handtag",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.lockHandlePerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "doorAdjustment",
+            title: "Justering",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.doorAdjustmentPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "oldDoorDemolition",
+            title: "Rivning av gamla dörrar",
+            quantityControl: true,
+            costType: "work",
+          },
+          {
+            id: "openingAdaptationDoors",
+            title: "Anpassning av öppning",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Fönster - Komplettering",
+        options: [
+          {
+            id: "windowSillFlashing",
+            title: "Fönsterbleck",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.windowSillFlashingPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "windowReveals",
+            title: "Smygar",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.windowRevealsPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "windowCasing",
+            title: "Foder",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.windowCasingPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "windowDraftingInsulation",
+            title: "Drevning / isolering",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.windowDraftingInsulationPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "windowCaulkingSilicone",
+            title: "Fogning / silikon",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.windowCaulkingSiliconePerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "windowFineAdjustment",
+            title: "Justering av fönster",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.windowAdjustmentPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "windowCasingPainting",
+            title: "Målning av foder / smygar",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => windowsDoorsDefaultPrices.windowCasingPaintingPerUnit,
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Extra",
+        options: [
+          {
+            id: "windowsDoorsMaterialPurchase",
+            title: "Materialinköp",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "windowsDoorsMaterialHandling",
+            title: "Materialhantering",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "windowsDoorsWasteRemoval",
+            title: "Bortforsling av avfall",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "windowsDoorsOtherWork",
+            title: "Övrigt arbete",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+        ],
+      },
+    ],
+  },
+  "Kök & Garderob": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Kök",
+        options: [
+          {
+            id: "wallCabinetInstallation",
+            title: "Montering av väggskåp",
+            pricingControl: "work",
+            quantityControl: true,
+            quantityLabel: "Antal skåp",
+            unitPriceLabel: "Pris per skåp",
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.wallCabinetPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "baseCabinetInstallation",
+            title: "Montering av bänkskåp",
+            pricingControl: "work",
+            quantityControl: true,
+            quantityLabel: "Antal skåp",
+            unitPriceLabel: "Pris per skåp",
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.baseCabinetPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "tallCabinetInstallation",
+            title: "Montering av högskåp",
+            pricingControl: "work",
+            quantityControl: true,
+            quantityLabel: "Antal skåp",
+            unitPriceLabel: "Pris per skåp",
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.tallCabinetPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "ikeaCabinetAssembly",
+            title: "Montering / ihopskruvning av IKEA-skåp",
+            pricingControl: "work",
+            quantityControl: true,
+            quantityLabel: "Antal skåp",
+            unitPriceLabel: "Pris per skåp",
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.ikeaCabinetPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "countertopInstallation",
+            title: "Montering av bänkskiva",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.countertopInstallationPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "countertopAdaptation",
+            title: "Anpassning av bänkskiva",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.countertopAdaptationFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 3,
+            elNotice: true,
+          },
+          {
+            id: "countertopFaucetHoleCutting",
+            title: "Håltagning i bänkskiva för blandare",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.faucetHoleCuttingPerUnit,
+            defaultHourlyRate: 250,
+            vvsNotice: true,
+          },
+          {
+            id: "countertopSinkHoleCutting",
+            title: "Håltagning i bänkskiva för diskho",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.sinkHoleCuttingPerUnit,
+            defaultHourlyRate: 250,
+            vvsNotice: true,
+          },
+          {
+            id: "countertopCooktopHoleCutting",
+            title: "Håltagning i bänkskiva för spishäll",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.cooktopHoleCuttingPerUnit,
+            defaultHourlyRate: 250,
+            elNotice: true,
+          },
+          {
+            id: "cooktopSiliconeSealing",
+            title: "Silikon / tätning",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.cooktopSealingFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 1,
+            elNotice: true,
+          },
+          {
+            id: "sinkInstallation",
+            title: "Montering av diskho",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.sinkInstallationPerUnit,
+            defaultHourlyRate: 250,
+            vvsNotice: true,
+          },
+          {
+            id: "faucetInstallationNoVvs",
+            title: "Montering av blandare utan VVS-anslutning",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.faucetInstallationNoVvsPerUnit,
+            defaultHourlyRate: 250,
+            vvsNotice: true,
+          },
+          {
+            id: "kitchenHandleInstallation",
+            title: "Montering av handtag",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.handlePerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "oldKitchenDemolition",
+            title: "Rivning av gammalt kök",
+            costType: "work",
+          },
+          {
+            id: "kitchenWallOpeningAdaptation",
+            title: "Anpassning av vägg / öppning",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.wallOpeningAdaptationFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 5,
+          },
+          {
+            id: "kitchenAdjustment",
+            title: "Justering",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.kitchenAdjustmentFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 2,
+          },
+        ],
+      },
+      {
+        title: "Vitvaror",
+        options: [
+          {
+            id: "freestandingApplianceInstallation",
+            title: "Montering av fristående vitvara",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.freestandingAppliancePerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "integratedDishwasherInstallation",
+            title: "Montering av integrerad diskmaskin",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.integratedDishwasherPerUnit,
+            defaultHourlyRate: 250,
+            vvsNotice: true,
+          },
+          {
+            id: "integratedFridgeFreezerInstallation",
+            title: "Montering av integrerad kyl / frys",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.integratedFridgeFreezerPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "builtInOvenMicrowaveInstallation",
+            title: "Montering av inbyggd ugn / mikro",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.builtInOvenMicrowavePerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "cooktopInstallation",
+            title: "Montering av spishäll",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.cooktopInstallationPerUnit,
+            defaultHourlyRate: 250,
+            elNotice: true,
+          },
+          {
+            id: "applianceFrontAdjustment",
+            title: "Justering av luckor / fronter",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.applianceFrontAdjustmentPerUnit,
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Garderob",
+        options: [
+          {
+            id: "wardrobeInstallation",
+            title: "Montering av garderob",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.wardrobePerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "modularWardrobeAssembly",
+            title: "Montering / ihopskruvning av garderob",
+            pricingControl: "work",
+            quantityControl: true,
+            quantityLabel: "Antal stommar",
+            unitPriceLabel: "Pris per stomme",
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.modularWardrobeFramePerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "wardrobeSlidingDoor",
+            title: "Montering av skjutdörrar",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.wardrobeSlidingDoorPerUnit,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 3,
+          },
+          {
+            id: "paxBuiltInWardrobe",
+            title: "PAX / platsbyggd garderob",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.paxBuiltInWardrobePerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "wardrobeInteriorShelves",
+            title: "Montering av inredning / hyllor / lådor",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.wardrobeInteriorPerUnit,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 2,
+          },
+          {
+            id: "wardrobeAdaptation",
+            title: "Anpassning",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.wardrobeAdaptationFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 3,
+          },
+          {
+            id: "wardrobeWallAdaptation",
+            title: "Anpassning mot vägg / tak / golv",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.wardrobeWallAdaptationFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 4,
+          },
+          {
+            id: "wardrobeCoverPanels",
+            title: "Passbitar / täcksidor",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.wardrobeCoverPanelsFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 2,
+          },
+          {
+            id: "oldWardrobeDemolition",
+            title: "Rivning av gammal garderob",
+            costType: "work",
+          },
+        ],
+      },
+      {
+        title: "Komplettering",
+        options: [
+          {
+            id: "kitchenWardrobeSilicone",
+            title: "Silikon / fogning",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.siliconeCaulkingFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 2,
+          },
+          {
+            id: "kitchenWardrobePlinths",
+            title: "Socklar",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.plinthPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "kitchenWardrobeFillers",
+            title: "Passbitar",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.fillerPiecePerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "kitchenWardrobeLighting",
+            title: "Belysning",
+            pricingControl: "work",
+            quantityControl: true,
+            defaultUnitPrice: () => kitchenWardrobeDefaultPrices.lightingPerUnit,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "kitchenWardrobeFinish",
+            title: "Målning / finish",
+            pricingControl: "work",
+            defaultFastPrice: () => kitchenWardrobeDefaultPrices.finishFixed,
+            defaultHourlyRate: 250,
+            defaultEstimatedHours: () => 3,
+          },
+        ],
+      },
+      {
+        title: "Extra",
+        options: [
+          {
+            id: "kitchenWardrobeMaterialPurchase",
+            title: "Materialinköp",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "kitchenWardrobeMaterialHandling",
+            title: "Materialhantering",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "kitchenWardrobeWasteRemoval",
+            title: "Bortforsling av avfall",
+            pricingControl: "hourly",
+            costType: "work",
+          },
+          {
+            id: "kitchenWardrobeOtherWork",
+            title: "Övrigt arbete",
+            pricingControl: "hourly",
+            costType: "work",
           },
         ],
       },
@@ -1964,6 +3100,81 @@ const calculatorConfigs = {
         ],
       },
       {
+        title: "Staket & Räcken",
+        options: [
+          {
+            id: "woodFence",
+            title: "Platsbyggt trästaket",
+            pricingControl: "work",
+            lengthControl: true,
+            defaultMeterPrice: () => altanPergolaDefaultPrices.woodFencePerMeter,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "prefabFenceSections",
+            title: "Färdiga staketsektioner",
+            pricingControl: "work",
+            lengthControl: true,
+            defaultMeterPrice: () => altanPergolaDefaultPrices.prefabFenceSectionsPerMeter,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "privacyScreen",
+            title: "Insynsskydd",
+            pricingControl: "work",
+            lengthControl: true,
+            defaultMeterPrice: () => altanPergolaDefaultPrices.privacyScreenPerMeter,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "picketFence",
+            title: "Spjälstaket",
+            pricingControl: "work",
+            lengthControl: true,
+            defaultMeterPrice: () => altanPergolaDefaultPrices.picketFencePerMeter,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "fenceWithGate",
+            title: "Staket med grind",
+            pricingControl: "work",
+            lengthControl: true,
+            defaultMeterPrice: () => altanPergolaDefaultPrices.fenceWithGatePerMeter,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "oldFenceDemolition",
+            title: "Rivning av gammalt staket",
+            lengthControl: true,
+            costType: "work",
+          },
+          {
+            id: "fencePaintingOil",
+            title: "Målning / olja",
+            pricingControl: "work",
+            lengthControl: true,
+            defaultMeterPrice: () => altanPergolaDefaultPrices.fencePaintingOilPerMeter,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "groundPosts",
+            title: "Stolpar i mark",
+            pricingControl: "work",
+            lengthControl: true,
+            defaultMeterPrice: () => altanPergolaDefaultPrices.groundPostsPerMeter,
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "concreteFoundations",
+            title: "Betongplint",
+            pricingControl: "work",
+            lengthControl: true,
+            defaultMeterPrice: () => altanPergolaDefaultPrices.concreteFoundationPerMeter,
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
         title: "Material & Logistik",
         options: [
           {
@@ -2100,7 +3311,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
   const baseCategory = getBaseCategory(category);
   const calculatorConfig = calculatorConfigs[baseCategory] || calculatorConfigs.default;
   const usesDimensionArea = baseCategory === "Altan & Pergola";
-  const usesGlobalArea = !["Målning & Tapeter", "Innerväggar & Innertak", "Golv & Lister"].includes(baseCategory);
+  const usesGlobalArea = !["Målning & Tapeter", "Innerväggar & Innertak", "Golv & Lister", "Fönster & Dörrar", "Kök & Garderob"].includes(baseCategory);
   const calculatorSections = (calculatorConfig.sections || [
     {
       options: calculatorConfig.options,
@@ -2184,10 +3395,20 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
   const getOptionPricing = (option) => {
     const pricing = optionPricing[option.id] || {};
     const pricingArea = getOptionArea(option);
+    const stepTier = pricing.stepTier || "standard";
+    const defaultStepPrice = stepTier === "premium"
+      ? option.premiumStepPrice
+      : option.defaultStepPrice?.();
 
     return {
-      mode: pricing.mode || (option.pricingControl === "hourly" ? "hourly" : "fast"),
+      mode: pricing.mode || (option.pricingControl === "hourly" ? "hourly" : option.lengthControl ? "meter" : option.quantityControl ? "unit" : "fast"),
       fastPrice: pricing.fastPrice ?? option.defaultFastPrice?.(pricingArea) ?? 0,
+      meterPrice: pricing.meterPrice ?? option.defaultMeterPrice?.(pricingArea) ?? 0,
+      quantity: pricing.quantity ?? 0,
+      unitPrice: pricing.unitPrice ?? option.defaultUnitPrice?.(pricingArea) ?? 0,
+      stepTier,
+      steps: pricing.steps ?? 0,
+      stepPrice: pricing.stepPrice ?? defaultStepPrice ?? 0,
       estimatedHours: pricing.estimatedHours ?? option.defaultEstimatedHours?.(pricingArea) ?? 0,
       hours: pricing.hours ?? 0,
       hourlyRate: pricing.hourlyRate ?? option.defaultHourlyRate ?? 250,
@@ -2241,8 +3462,22 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
     const pricing = getOptionPricing(option);
     const normalizedPeopleCount = Math.max(1, Number(peopleCount) || 1);
 
+    if (option.pricingControl === "steps") {
+      return Math.max(0, Number(pricing.steps) || 0) * Math.max(0, Number(pricing.stepPrice) || 0);
+    }
+
     if (pricing.mode === "hourly" || option.pricingControl === "hourly") {
       return Math.max(0, Number(pricing.hours) || 0) * Math.max(0, Number(pricing.hourlyRate) || 0) * normalizedPeopleCount;
+    }
+
+    if (pricing.mode === "meter" && option.lengthControl) {
+      const measurement = getOptionMeasurement(option);
+
+      return Math.max(0, Number(measurement.length) || 0) * Math.max(0, Number(pricing.meterPrice) || 0);
+    }
+
+    if (pricing.mode === "unit" && option.quantityControl) {
+      return Math.max(0, Number(pricing.quantity) || 0) * Math.max(0, Number(pricing.unitPrice) || 0);
     }
 
     return Math.max(0, Number(pricing.fastPrice) || 0);
@@ -2254,6 +3489,14 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
     }
 
     const pricing = getOptionPricing(option);
+
+    if (option.pricingControl === "steps") {
+      const hoursPerStep = pricing.stepTier === "premium"
+        ? option.premiumHoursPerStep
+        : option.standardHoursPerStep;
+
+      return Math.max(0, Number(pricing.steps) || 0) * Math.max(0, Number(hoursPerStep) || 0);
+    }
 
     if (pricing.mode === "hourly" || option.pricingControl === "hourly") {
       return Math.max(0, Number(pricing.hours) || 0) * normalizedPeopleCount;
@@ -2378,10 +3621,19 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
     .filter((option) => getOptionActive(option))
     .map((option) => ({
       ...option,
+      title: formatOptionTitle(option.title),
       priceValue: calculateOptionPrice(option, true),
       hoursValue: calculateOptionHours(option, true),
       costType: option.costType || "work",
-      detailText: option.areaControl ? `Yta: ${formatArea(getOptionArea(option))}` : "",
+      vvsNotice: option.vvsNotice || false,
+      elNotice: option.elNotice || false,
+      detailText: option.pricingControl === "steps"
+        ? `Antal steg: ${getOptionPricing(option).steps}`
+        : option.lengthControl
+          ? `Längd: ${formatLength(getOptionMeasurement(option).length)}`
+          : option.quantityControl
+            ? `Antal stycken: ${getOptionPricing(option).quantity}`
+            : option.areaControl ? `Yta: ${formatArea(getOptionArea(option))}` : "",
     })),
     ...(extraWorkCost > 0 ? [{
       id: "extraWork",
@@ -2399,6 +3651,8 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
     }] : []),
     ...selectedFixedCostDetails,
   ];
+  const vvsNoticeActive = selectedOptionDetails.some((option) => option.vvsNotice);
+  const elNoticeActive = selectedOptionDetails.some(isElRelatedOption);
 
   const minPrice = Math.round((discountedWorkPrice * 0.85) + fixedCostsTotal);
 
@@ -2434,6 +3688,8 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       discountAmount,
       discountPercent,
       discountedWorkPrice,
+      vvsNoticeActive,
+      elNoticeActive,
       logoImage,
     });
     const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -2498,10 +3754,12 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       },
       options: selectedOptionDetails.map((option) => ({
         id: option.id,
-        title: option.title,
+        title: formatOptionTitle(option.title),
         sectionTitle: option.sectionTitle || "",
         priceValue: option.priceValue,
         hoursValue: option.hoursValue || 0,
+        vvsNotice: option.vvsNotice || false,
+        elNotice: option.elNotice || false,
       })),
       prices: {
         work: Math.round(workPrice),
@@ -2772,6 +4030,30 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           ))}
 
         </div>
+
+        {vvsNoticeActive && (
+          <div className="mt-6 rounded-3xl border border-orange-400/30 bg-orange-500/10 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
+              VVS ingår ej
+            </p>
+
+            <p className="mt-2 text-sm leading-relaxed text-zinc-200">
+              {vvsNoticeText}
+            </p>
+          </div>
+        )}
+
+        {elNoticeActive && (
+          <div className="mt-6 rounded-3xl border border-yellow-400/30 bg-yellow-500/10 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">
+              Elinstallation ingår ej
+            </p>
+
+            <p className="mt-2 text-sm leading-relaxed text-zinc-200">
+              {elNoticeText}
+            </p>
+          </div>
+        )}
 
         {/* AVAILABILITY */}
         <div className="mt-8 border-t border-zinc-800 pt-8">
@@ -3529,7 +4811,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
                   <div>
 
                     <p className="font-bold">
-                      {option.title}
+                      {formatOptionTitle(option.title)}
                     </p>
 
                     {option.sectionTitle && (
@@ -3695,12 +4977,93 @@ function CustomerField({ label, value, onChange, multiline = false }) {
 
 function OptionPricingFields({ option, pricing, onChange, measurement, onMeasurementChange }) {
   const canChooseMode = option.pricingControl === "work";
+  const useStepPricing = option.pricingControl === "steps";
   const useHourly = pricing.mode === "hourly" || option.pricingControl === "hourly";
   const areaLabel = option.areaControl === "facade" ? "Fasad m²" : "Yta m²";
   const secondDimensionLabel = option.areaControl === "facade" ? "Höjd (m)" : "Bredd (m)";
+  const pricingModes = option.lengthControl
+    ? [
+      ["fast", "Fast pris"],
+      ["meter", "Pris/löpmeter"],
+      ["hourly", "Timpris"],
+    ]
+    : option.quantityControl
+      ? [
+        ["fast", "Fast pris"],
+        ["unit", "Pris/styck"],
+        ["hourly", "Timpris"],
+      ]
+    : [
+      ["fast", "Fast pris"],
+      ["hourly", "Timpris"],
+    ];
 
   return (
     <div className="rounded-2xl border border-orange-400/20 bg-black/60 p-4">
+
+      {useStepPricing && (
+        <div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ["standard", "Standard"],
+              ["premium", "Premium"],
+            ].map(([tier, label]) => (
+              <button
+                key={tier}
+                type="button"
+                onClick={() => onChange({
+                  stepTier: tier,
+                  stepPrice: tier === "premium" ? option.premiumStepPrice : option.standardStepPrice,
+                })}
+                className={`min-h-11 rounded-xl border px-2 text-sm font-bold ${
+                  pricing.stepTier === tier
+                    ? "border-orange-400 bg-orange-500 text-black"
+                    : "border-zinc-800 bg-zinc-950 text-white"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <PricingInput
+              label="Antal steg"
+              value={pricing.steps}
+              onChange={(value) => onChange({ steps: value })}
+              step={1}
+            />
+
+            <PricingInput
+              label="Pris per steg"
+              value={pricing.stepPrice}
+              onChange={(value) => onChange({ stepPrice: value })}
+            />
+          </div>
+        </div>
+      )}
+
+      {option.lengthControl && (
+        <div className="mb-4 rounded-2xl border border-white/10 bg-zinc-950 p-3">
+          <PricingInput
+            label="Längd i löpmeter"
+            value={measurement.length}
+            onChange={(value) => onMeasurementChange({ length: value })}
+            step={0.1}
+          />
+        </div>
+      )}
+
+      {option.quantityControl && (
+        <div className="mb-4 rounded-2xl border border-white/10 bg-zinc-950 p-3">
+          <PricingInput
+            label={option.quantityLabel || "Antal stycken"}
+            value={pricing.quantity}
+            onChange={(value) => onChange({ quantity: value })}
+            step={1}
+          />
+        </div>
+      )}
 
       {option.areaControl && (
         <div className="mb-4 rounded-2xl border border-white/10 bg-zinc-950 p-3">
@@ -3763,37 +5126,28 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
         </div>
       )}
 
-      {canChooseMode && (
-        <div className="grid grid-cols-2 gap-2">
+      {!useStepPricing && canChooseMode && (
+        <div className={`grid gap-2 ${option.lengthControl || option.quantityControl ? "grid-cols-3" : "grid-cols-2"}`}>
 
-          <button
-            type="button"
-            onClick={() => onChange({ mode: "fast" })}
-            className={`min-h-11 rounded-xl border text-sm font-bold ${
-              pricing.mode === "fast"
-                ? "border-orange-400 bg-orange-500 text-black"
-                : "border-zinc-800 bg-zinc-950 text-white"
-            }`}
-          >
-            Fast pris
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onChange({ mode: "hourly" })}
-            className={`min-h-11 rounded-xl border text-sm font-bold ${
-              pricing.mode === "hourly"
-                ? "border-orange-400 bg-orange-500 text-black"
-                : "border-zinc-800 bg-zinc-950 text-white"
-            }`}
-          >
-            Timpris
-          </button>
+          {pricingModes.map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onChange({ mode })}
+              className={`min-h-11 rounded-xl border px-2 text-sm font-bold ${
+                pricing.mode === mode
+                  ? "border-orange-400 bg-orange-500 text-black"
+                  : "border-zinc-800 bg-zinc-950 text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
 
         </div>
       )}
 
-      {useHourly ? (
+      {!useStepPricing && useHourly ? (
         <div className={`grid gap-3 ${canChooseMode ? "mt-4" : ""} sm:grid-cols-2`}>
 
           <PricingInput
@@ -3809,7 +5163,39 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
           />
 
         </div>
-      ) : (
+      ) : !useStepPricing && pricing.mode === "meter" && option.lengthControl ? (
+        <div className={`grid gap-3 ${canChooseMode ? "mt-4" : ""} sm:grid-cols-2`}>
+
+          <PricingInput
+            label="Pris per löpmeter"
+            value={pricing.meterPrice}
+            onChange={(value) => onChange({ meterPrice: value })}
+          />
+
+          <PricingInput
+            label="Uppskattade timmar"
+            value={pricing.estimatedHours}
+            onChange={(value) => onChange({ estimatedHours: value })}
+          />
+
+        </div>
+      ) : !useStepPricing && pricing.mode === "unit" && option.quantityControl ? (
+        <div className={`grid gap-3 ${canChooseMode ? "mt-4" : ""} sm:grid-cols-2`}>
+
+          <PricingInput
+            label={option.unitPriceLabel || "Pris per styck"}
+            value={pricing.unitPrice}
+            onChange={(value) => onChange({ unitPrice: value })}
+          />
+
+          <PricingInput
+            label="Uppskattade timmar"
+            value={pricing.estimatedHours}
+            onChange={(value) => onChange({ estimatedHours: value })}
+          />
+
+        </div>
+      ) : !useStepPricing ? (
         <div className={`grid gap-3 ${canChooseMode ? "mt-4" : ""} sm:grid-cols-2`}>
 
           <PricingInput
@@ -3825,7 +5211,7 @@ function OptionPricingFields({ option, pricing, onChange, measurement, onMeasure
           />
 
         </div>
-      )}
+      ) : null}
 
     </div>
   );
@@ -3992,6 +5378,8 @@ function createOfferPdfBlob({
   discountAmount,
   discountPercent,
   discountedWorkPrice,
+  vvsNoticeActive,
+  elNoticeActive,
   logoImage,
 }) {
   const customerRows = [
@@ -4004,6 +5392,8 @@ function createOfferPdfBlob({
     ? selectedOptionDetails
     : [{ title: "Inga valda alternativ", sectionTitle: "", priceValue: 0 }];
   const extraCostRows = extraCostDetails || [];
+  const showVvsNotice = vvsNoticeActive || selectedOptionDetails.some(isVvsRelatedOption);
+  const showElNotice = elNoticeActive || selectedOptionDetails.some(isElRelatedOption);
   const content = [];
 
   const rect = (x, y, width, height, color) => {
@@ -4086,13 +5476,39 @@ function createOfferPdfBlob({
     text(lineText, 64, 458 - index * 14, 10, "0.9 0.9 0.92");
   });
 
-  text("VALDA ALTERNATIV", 48, 400, 9, "0.98 0.57 0.24", "F2");
-  const visibleOptionRows = optionRows.slice(0, extraCostRows.length > 0 ? 5 : 8);
+  if (showVvsNotice) {
+    text("VVS INGÅR EJ", 328, 492, 9, "0.98 0.57 0.24", "F2");
+    rect(328, 432, 219, showElNotice ? 34 : 45, "0.1 0.08 0.05");
+    wrapPdfText(vvsNoticeText, 42, 3).forEach((lineText, index) => {
+      text(lineText, 344, 458 - index * 14, 8, "0.92 0.86 0.78");
+    });
+  }
+
+  if (showElNotice) {
+    const titleY = showVvsNotice ? 424 : 492;
+    const boxY = showVvsNotice ? 366 : 432;
+    const textY = showVvsNotice ? 390 : 458;
+
+    text("ELINSTALLATION INGÅR EJ", 328, titleY, 9, "0.98 0.57 0.24", "F2");
+    rect(328, boxY, 219, 45, "0.1 0.08 0.05");
+    wrapPdfText(elNoticeText, 42, 3).forEach((lineText, index) => {
+      text(lineText, 344, textY - index * 14, 8, "0.92 0.86 0.78");
+    });
+  }
+
+  const optionsTitleY = showVvsNotice && showElNotice ? 330 : 400;
+  const firstOptionRowY = optionsTitleY - 32;
+  const maxVisibleOptions = extraCostRows.length > 0
+    ? (showVvsNotice && showElNotice ? 3 : 5)
+    : (showVvsNotice && showElNotice ? 5 : 8);
+
+  text("VALDA ALTERNATIV", 48, optionsTitleY, 9, "0.98 0.57 0.24", "F2");
+  const visibleOptionRows = optionRows.slice(0, maxVisibleOptions);
 
   visibleOptionRows.forEach((option, index) => {
-    const y = 368 - index * 31;
+    const y = firstOptionRowY - index * 31;
     rect(48, y - 8, 499, 24, index % 2 === 0 ? "0.08 0.08 0.08" : "0.1 0.1 0.1");
-    text(option.title, 64, y, 10, "1 1 1", "F2");
+    text(formatOptionTitle(option.title), 64, y, 10, "1 1 1", "F2");
     if (option.sectionTitle) {
       text(option.sectionTitle, 64, y - 11, 7, "0.48 0.48 0.52");
     }
@@ -4103,7 +5519,7 @@ function createOfferPdfBlob({
   });
 
   if (extraCostRows.length > 0) {
-    const extraCostsTitleY = 368 - visibleOptionRows.length * 31 - 18;
+    const extraCostsTitleY = firstOptionRowY - visibleOptionRows.length * 31 - 18;
 
     text("EXTRA KOSTNADER", 48, extraCostsTitleY, 9, "0.98 0.57 0.24", "F2");
     extraCostRows.slice(0, 4).forEach((cost, index) => {
