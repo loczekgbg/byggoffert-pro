@@ -8,6 +8,10 @@ import {
   Settings,
   Menu,
   ArrowLeft,
+  Edit3,
+  FileDown,
+  Trash2,
+  Plus,
 } from "lucide-react";
 
 import Card from "./components/Card";
@@ -21,13 +25,29 @@ export default function App() {
 
   const [screen, setScreen] = useState("home");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [editingOffer, setEditingOffer] = useState(null);
+  const [selectedClientKey, setSelectedClientKey] = useState("");
+  const [quoteCustomerDraft, setQuoteCustomerDraft] = useState(null);
   const [savedOffers, setSavedOffers] = useState(() => loadSavedOffers());
+  const clients = buildClients(savedOffers);
 
   const saveOffer = (offer) => {
-    const nextOffers = [
-      offer,
-      ...savedOffers,
-    ];
+    const offerExists = savedOffers.some((savedOffer) => savedOffer.id === offer.id);
+    const nextOffers = offerExists
+      ? savedOffers.map((savedOffer) => (savedOffer.id === offer.id ? offer : savedOffer))
+      : [
+        offer,
+        ...savedOffers,
+      ];
+
+    setSavedOffers(nextOffers);
+    localStorage.setItem("snickareOffers", JSON.stringify(nextOffers));
+    setEditingOffer(null);
+    setQuoteCustomerDraft(null);
+  };
+
+  const deleteOffer = (offerId) => {
+    const nextOffers = savedOffers.filter((offer) => offer.id !== offerId);
 
     setSavedOffers(nextOffers);
     localStorage.setItem("snickareOffers", JSON.stringify(nextOffers));
@@ -36,11 +56,15 @@ export default function App() {
   if (screen === "categories") {
     return (
       <CategoriesScreen
-        goBack={() => setScreen("home")}
+        goBack={() => {
+          setQuoteCustomerDraft(null);
+          setScreen("home");
+        }}
         openCategory={(category) => {
-  setSelectedCategory(category);
-  setScreen("calculator");
-}}
+          setEditingOffer(null);
+          setSelectedCategory(category);
+          setScreen("calculator");
+        }}
       />
     );
   }
@@ -48,11 +72,16 @@ export default function App() {
   if (screen === "calculator") {
     return (
       <CategoryCalculator
-  key={selectedCategory}
-  category={selectedCategory}
-  goBack={() => setScreen("categories")}
-  onSaveOffer={saveOffer}
-/>
+        key={editingOffer?.id || `${selectedCategory}-${getClientKey(quoteCustomerDraft || {})}`}
+        category={selectedCategory}
+        initialOffer={editingOffer}
+        initialCustomer={quoteCustomerDraft}
+        goBack={() => {
+          setEditingOffer(null);
+          setScreen(editingOffer ? "history" : "categories");
+        }}
+        onSaveOffer={saveOffer}
+      />
     );
   }
 
@@ -61,6 +90,54 @@ export default function App() {
       <HistoryScreen
         goBack={() => setScreen("home")}
         offers={savedOffers}
+        onDeleteOffer={deleteOffer}
+        onEditOffer={(offer) => {
+          setEditingOffer(offer);
+          setQuoteCustomerDraft(null);
+          setSelectedCategory(offer.category);
+          setScreen("calculator");
+        }}
+      />
+    );
+  }
+
+  if (screen === "clients") {
+    return (
+      <ClientsScreen
+        clients={clients}
+        goBack={() => setScreen("home")}
+        onOpenClient={(client) => {
+          setSelectedClientKey(client.key);
+          setScreen("clientDetail");
+        }}
+        onNewOffer={(client) => {
+          setQuoteCustomerDraft(client.customer);
+          setEditingOffer(null);
+          setScreen("categories");
+        }}
+      />
+    );
+  }
+
+  if (screen === "clientDetail") {
+    const selectedClient = clients.find((client) => client.key === selectedClientKey);
+
+    return (
+      <ClientDetailScreen
+        client={selectedClient}
+        goBack={() => setScreen("clients")}
+        onDeleteOffer={deleteOffer}
+        onEditOffer={(offer) => {
+          setEditingOffer(offer);
+          setQuoteCustomerDraft(null);
+          setSelectedCategory(offer.category);
+          setScreen("calculator");
+        }}
+        onNewOffer={(client) => {
+          setQuoteCustomerDraft(client.customer);
+          setEditingOffer(null);
+          setScreen("categories");
+        }}
       />
     );
   }
@@ -114,7 +191,11 @@ export default function App() {
         <div className="grid grid-cols-2 gap-4">
 
           <Card
-            onClick={() => setScreen("categories")}
+            onClick={() => {
+              setQuoteCustomerDraft(null);
+              setEditingOffer(null);
+              setScreen("categories");
+            }}
             icon={<Calculator size={34} />}
             title="Ny offert"
             text="Skapa nytt kostnadsförslag"
@@ -128,6 +209,7 @@ export default function App() {
           />
 
           <Card
+            onClick={() => setScreen("clients")}
             icon={<User size={34} />}
             title="Kunder"
             text="Hantera kunder"
@@ -172,7 +254,400 @@ function loadSavedOffers() {
   }
 }
 
-function HistoryScreen({ offers, goBack }) {
+function getClientKey(customer = {}) {
+  const phone = (customer.phone || "").replace(/\s+/g, "").toLowerCase();
+  const name = (customer.name || "").trim().toLowerCase();
+  const address = (customer.address || "").trim().toLowerCase();
+
+  return phone || `${name}-${address}` || "okand-kund";
+}
+
+function buildClients(offers) {
+  const clientMap = new Map();
+
+  offers.forEach((offer) => {
+    const customer = offer.customer || {};
+    const key = getClientKey(customer);
+    const existingClient = clientMap.get(key);
+    const activityDate = new Date(offer.updatedAt || offer.date || Date.now()).getTime();
+    const offerValue = offer.prices?.selectedOffer ?? offer.prices?.normal ?? 0;
+
+    if (!existingClient) {
+      clientMap.set(key, {
+        key,
+        customer: {
+          name: customer.name || "Inte angivet",
+          phone: customer.phone || "",
+          address: customer.address || "",
+          notes: customer.notes || "",
+        },
+        offers: [offer],
+        lastActivity: activityDate,
+        totalValue: offerValue,
+      });
+
+      return;
+    }
+
+    existingClient.customer = {
+      name: existingClient.customer.name !== "Inte angivet" ? existingClient.customer.name : customer.name || "Inte angivet",
+      phone: existingClient.customer.phone || customer.phone || "",
+      address: existingClient.customer.address || customer.address || "",
+      notes: customer.notes || existingClient.customer.notes || "",
+    };
+    existingClient.offers.push(offer);
+    existingClient.lastActivity = Math.max(existingClient.lastActivity, activityDate);
+    existingClient.totalValue += offerValue;
+  });
+
+  return Array.from(clientMap.values()).sort((firstClient, secondClient) => (
+    secondClient.lastActivity - firstClient.lastActivity
+  ));
+}
+
+async function exportSavedOfferPdf(offer) {
+  const logoImage = await loadPdfLogoImage();
+  const pdfBlob = createOfferPdfBlob({
+    area: offer.area ?? 0,
+    showArea: offer.area !== null && offer.area !== undefined,
+    areaMode: offer.areaMode || "manual",
+    deckDimensions: offer.deckDimensions || null,
+    displayCategory: offer.displayCategory || offer.category,
+    customer: offer.customer || {},
+    selectedOfferPrice: offer.prices?.selectedOffer ?? offer.prices?.normal ?? 0,
+    selectedOptionDetails: offer.options || [],
+    extraCostDetails: (offer.extraCosts || []).map((cost) => ({
+      ...cost,
+      priceValue: cost.priceValue ?? cost.price ?? 0,
+    })),
+    extraCostsTotal: offer.prices?.extraCosts || 0,
+    fixedCostsTotal: offer.prices?.fixed || 0,
+    workPrice: offer.prices?.work || 0,
+    peopleCount: offer.peopleCount || 1,
+    totalWorkHours: offer.schedule?.totalWorkHours || 0,
+    estimatedCalendarTime: offer.schedule?.estimatedCalendarTime || "Ej angivet",
+    startDate: offer.schedule?.startDate || "",
+    estimatedEndDate: offer.schedule?.estimatedEndDate || "",
+    discountActive: offer.discount?.active || false,
+    discountAmount: offer.discount?.amount || 0,
+    discountPercent: offer.discount?.percent || 0,
+    discountedWorkPrice: offer.prices?.workAfterDiscount ?? offer.prices?.work ?? 0,
+    logoImage,
+  });
+  const pdfUrl = URL.createObjectURL(pdfBlob);
+  const downloadLink = document.createElement("a");
+
+  downloadLink.href = pdfUrl;
+  downloadLink.download = `offert-${(offer.customer?.name || "kund").toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  document.body.append(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(pdfUrl);
+  }, 1000);
+}
+
+function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
+  return (
+    <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
+
+      <div className="flex items-center gap-4">
+
+        <button
+          type="button"
+          onClick={goBack}
+          className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900 p-3"
+        >
+          <ArrowLeft size={22} />
+        </button>
+
+        <div>
+
+          <h1 className="text-3xl font-black">
+            Kunder
+          </h1>
+
+          <p className="text-orange-400">
+            Kundregister
+          </p>
+
+        </div>
+
+        <img
+          src={marcinByggLogo}
+          alt="Marcin Bygg"
+          className="ml-auto h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+        />
+
+      </div>
+
+      {clients.length === 0 ? (
+        <div className="mt-10 rounded-3xl border border-orange-400/30 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-8 text-center shadow-2xl shadow-orange-500/10">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-400">
+            Inga kunder
+          </p>
+
+          <h2 className="mt-3 text-3xl font-black">
+            Kundlistan är tom
+          </h2>
+
+          <p className="mt-3 text-zinc-400">
+            Kunder skapas automatiskt när du sparar en offert.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-10 flex flex-col gap-5">
+          {clients.map((client) => (
+            <article
+              key={client.key}
+              className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl shadow-black/30"
+            >
+              <button
+                type="button"
+                onClick={() => onOpenClient(client)}
+                className="block w-full touch-manipulation bg-gradient-to-r from-zinc-900 to-black p-5 text-left"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
+                      Senast: {formatOfferDate(client.lastActivity)}
+                    </p>
+
+                    <h2 className="mt-2 text-2xl font-black">
+                      {client.customer.name || "Inte angivet"}
+                    </h2>
+
+                    <p className="mt-1 text-sm text-zinc-400">
+                      {client.customer.phone || "Inte angivet"} · {client.customer.address || "Inte angivet"}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-xs uppercase text-zinc-500">
+                      Offerter
+                    </p>
+
+                    <p className="text-2xl font-black text-orange-400">
+                      {client.offers.length}
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <div className="grid gap-3 p-5 sm:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-xs font-bold uppercase text-zinc-500">
+                    Total offertvärde
+                  </p>
+
+                  <p className="mt-2 text-xl font-black text-white">
+                    {formatPrice(client.totalValue)}
+                  </p>
+                </div>
+
+                <HistoryActionButton onClick={() => onNewOffer(client)} icon={<Plus size={18} />}>
+                  Ny offert
+                </HistoryActionButton>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewOffer }) {
+  const [offerToDelete, setOfferToDelete] = useState(null);
+
+  if (!client) {
+    return (
+      <div className="min-h-[100dvh] bg-black p-6 text-white">
+        <button
+          type="button"
+          onClick={goBack}
+          className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900 p-3"
+        >
+          <ArrowLeft size={22} />
+        </button>
+
+        <div className="mt-10 rounded-3xl border border-orange-400/30 bg-zinc-950 p-8 text-center">
+          <h1 className="text-2xl font-black">
+            Kunden finns inte längre
+          </h1>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
+
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={goBack}
+          className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900 p-3"
+        >
+          <ArrowLeft size={22} />
+        </button>
+
+        <div>
+          <h1 className="text-3xl font-black">
+            {client.customer.name}
+          </h1>
+
+          <p className="text-orange-400">
+            Kundprofil
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-8 rounded-3xl border border-orange-400/25 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-6 shadow-2xl shadow-orange-500/10">
+        <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <SummaryRow label="Telefon" value={client.customer.phone || "Inte angivet"} />
+          <SummaryRow label="Adress" value={client.customer.address || "Inte angivet"} />
+          <SummaryRow label="Anteckningar" value={client.customer.notes || "Inga anteckningar"} />
+          <SummaryRow label="Sista aktivitet" value={formatOfferDate(client.lastActivity)} />
+          <SummaryRow label="Antal offerter" value={`${client.offers.length}`} />
+          <SummaryRow label="Total offertvärde" value={formatPrice(client.totalValue)} />
+        </div>
+
+        <div className="mt-6">
+          <HistoryActionButton onClick={() => onNewOffer(client)} icon={<Plus size={18} />}>
+            Ny offert för kunden
+          </HistoryActionButton>
+        </div>
+      </div>
+
+      <div className="mt-10">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-400">
+          Arbetshistorik
+        </p>
+
+        <div className="mt-4 flex flex-col gap-5">
+          {client.offers.map((offer) => (
+            <article
+              key={offer.id}
+              className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl shadow-black/30"
+            >
+              <div className="border-b border-white/10 bg-gradient-to-r from-zinc-900 to-black p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
+                      {formatOfferDate(offer.updatedAt || offer.date)}
+                    </p>
+
+                    <h2 className="mt-2 text-2xl font-black">
+                      {offer.displayCategory || offer.category}
+                    </h2>
+
+                    <p className="mt-1 text-sm text-zinc-400">
+                      Start: {offer.schedule?.startDate ? formatLongDate(parseLocalDate(offer.schedule.startDate)) : "Inte angivet"}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-xs uppercase text-zinc-500">
+                      Offertpris
+                    </p>
+
+                    <p className="text-xl font-black text-orange-400">
+                      {formatPrice(offer.prices?.selectedOffer ?? offer.prices?.normal ?? 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 p-5">
+                <div className="grid gap-3 text-sm sm:grid-cols-3">
+                  <SummaryRow label="Datum" value={formatOfferDate(offer.date)} />
+                  <SummaryRow label="Uppskattad tid" value={offer.schedule?.estimatedCalendarTime || "Ej angivet"} />
+                  <SummaryRow label="Slutdatum" value={offer.schedule?.estimatedEndDate || "Inte angivet"} />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {(offer.options || []).slice(0, 8).map((option) => (
+                    <span
+                      key={`${offer.id}-${option.id}`}
+                      className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-zinc-200"
+                    >
+                      {option.title}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <HistoryActionButton onClick={() => onEditOffer(offer)} icon={<Folder size={18} />}>
+                    Öppna
+                  </HistoryActionButton>
+
+                  <HistoryActionButton onClick={() => onEditOffer(offer)} icon={<Edit3 size={18} />}>
+                    Redigera
+                  </HistoryActionButton>
+
+                  <HistoryActionButton onClick={() => exportSavedOfferPdf(offer)} icon={<FileDown size={18} />}>
+                    Exportera PDF
+                  </HistoryActionButton>
+
+                  <HistoryActionButton onClick={() => setOfferToDelete(offer)} icon={<Trash2 size={18} />} variant="danger">
+                    Ta bort
+                  </HistoryActionButton>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      {offerToDelete && (
+        <div className="fixed inset-0 z-[80] flex items-end bg-black/75 p-4 backdrop-blur-sm sm:items-center sm:justify-center">
+          <div className="w-full rounded-3xl border border-orange-400/25 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-6 shadow-2xl shadow-orange-500/10 sm:max-w-md">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-400">
+              Bekräfta
+            </p>
+
+            <h2 className="mt-3 text-2xl font-black">
+              Ta bort offert?
+            </h2>
+
+            <p className="mt-3 text-sm text-zinc-400">
+              Offerten tas bort från kundens historik och från Historik.
+            </p>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setOfferToDelete(null)}
+                className="min-h-14 touch-manipulation rounded-2xl border border-white/10 bg-white/[0.04] px-4 font-black text-white"
+              >
+                Avbryt
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteOffer(offerToDelete.id);
+                  setOfferToDelete(null);
+                }}
+                className="min-h-14 touch-manipulation rounded-2xl bg-red-500 px-4 font-black text-white shadow-lg shadow-red-500/20"
+              >
+                Ta bort
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
+  const [offerToDelete, setOfferToDelete] = useState(null);
+
   return (
     <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
 
@@ -258,11 +733,11 @@ function HistoryScreen({ offers, goBack }) {
                   <div className="text-right">
 
                     <p className="text-xs uppercase text-zinc-500">
-                      Normal
+                      Offertpris
                     </p>
 
                     <p className="text-xl font-black text-orange-400">
-                      {formatPrice(offer.prices?.normal || 0)}
+                      {formatPrice(offer.prices?.selectedOffer ?? offer.prices?.normal ?? 0)}
                     </p>
 
                   </div>
@@ -289,7 +764,7 @@ function HistoryScreen({ offers, goBack }) {
 
                   <div className="mt-3 flex flex-wrap gap-2">
 
-                    {offer.options.length > 0 ? offer.options.map((option) => (
+                    {(offer.options || []).length > 0 ? (offer.options || []).map((option) => (
 
                       <span
                         key={`${offer.id}-${option.id}`}
@@ -337,9 +812,25 @@ function HistoryScreen({ offers, goBack }) {
 
                 <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-white/10 text-center">
 
-                  <HistoryPrice label="MIN" value={offer.prices?.min || 0} />
-                  <HistoryPrice label="NORMAL" value={offer.prices?.normal || 0} highlight />
-                  <HistoryPrice label="PREMIUM" value={offer.prices?.premium || 0} />
+                  <HistoryPrice label="MIN" value={offer.prices?.min || 0} highlight={offer.prices?.selectedVariant === "min"} />
+                  <HistoryPrice label="NORMAL" value={offer.prices?.normal || 0} highlight={!offer.prices?.selectedVariant || offer.prices?.selectedVariant === "normal"} />
+                  <HistoryPrice label="PREMIUM" value={offer.prices?.premium || 0} highlight={offer.prices?.selectedVariant === "premium"} />
+
+                </div>
+
+                <div className="grid gap-3 pt-1 sm:grid-cols-3">
+
+                  <HistoryActionButton onClick={() => onEditOffer(offer)} icon={<Edit3 size={18} />}>
+                    Öppna / Redigera
+                  </HistoryActionButton>
+
+                  <HistoryActionButton onClick={() => exportSavedOfferPdf(offer)} icon={<FileDown size={18} />}>
+                    Exportera PDF
+                  </HistoryActionButton>
+
+                  <HistoryActionButton onClick={() => setOfferToDelete(offer)} icon={<Trash2 size={18} />} variant="danger">
+                    Ta bort
+                  </HistoryActionButton>
 
                 </div>
 
@@ -353,7 +844,69 @@ function HistoryScreen({ offers, goBack }) {
 
       )}
 
+      {offerToDelete && (
+        <div className="fixed inset-0 z-[80] flex items-end bg-black/75 p-4 backdrop-blur-sm sm:items-center sm:justify-center">
+
+          <div className="w-full rounded-3xl border border-orange-400/25 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-6 shadow-2xl shadow-orange-500/10 sm:max-w-md">
+
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-400">
+              Bekräfta
+            </p>
+
+            <h2 className="mt-3 text-2xl font-black">
+              Ta bort offert?
+            </h2>
+
+            <p className="mt-3 text-sm text-zinc-400">
+              Offerten för {offerToDelete.customer?.name || "kunden"} tas bort permanent från historiken.
+            </p>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+
+              <button
+                type="button"
+                onClick={() => setOfferToDelete(null)}
+                className="min-h-14 touch-manipulation rounded-2xl border border-white/10 bg-white/[0.04] px-4 font-black text-white"
+              >
+                Avbryt
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteOffer(offerToDelete.id);
+                  setOfferToDelete(null);
+                }}
+                className="min-h-14 touch-manipulation rounded-2xl bg-red-500 px-4 font-black text-white shadow-lg shadow-red-500/20"
+              >
+                Ta bort
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
+  );
+}
+
+function HistoryActionButton({ children, icon, onClick, variant = "default" }) {
+  const className = variant === "danger"
+    ? "border-red-500/30 bg-red-500/10 text-red-100 hover:bg-red-500/20"
+    : "border-orange-400/25 bg-white/[0.04] text-white hover:bg-orange-500/10";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative z-10 flex min-h-14 touch-manipulation items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${className}`}
+    >
+      {icon}
+      <span>{children}</span>
+    </button>
   );
 }
 
@@ -419,6 +972,20 @@ function formatEstimatedCalendarTime(totalWorkHours, weeklyAvailableHours) {
   return `ca ${days} ${days === 1 ? "dag" : "dagar"}`;
 }
 
+function formatEstimatedCalendarDays(days) {
+  if (days <= 0) {
+    return "Ej angivet";
+  }
+
+  if (days >= 7) {
+    const roundedWeeks = Math.max(1, Math.round((days / 7) * 10) / 10);
+
+    return `ca ${roundedWeeks.toLocaleString("sv-SE")} ${roundedWeeks === 1 ? "vecka" : "veckor"}`;
+  }
+
+  return `ca ${days} ${days === 1 ? "dag" : "dagar"}`;
+}
+
 function parseLocalDate(dateValue) {
   if (!dateValue) {
     return null;
@@ -441,19 +1008,114 @@ function formatLongDate(date) {
   });
 }
 
-function calculateEstimatedEndDate(startDate, totalWorkHours, weeklyAvailableHours) {
+function calculateEstimatedEndDate(startDate, totalWorkHours, availability) {
   const parsedStartDate = parseLocalDate(startDate);
 
-  if (!parsedStartDate || totalWorkHours <= 0 || weeklyAvailableHours <= 0) {
+  if (!parsedStartDate || totalWorkHours <= 0) {
     return "";
   }
 
-  const calendarDays = Math.max(1, Math.ceil((totalWorkHours / weeklyAvailableHours) * 7));
-  const endDate = new Date(parsedStartDate);
+  const weekdayHours = Math.max(0, Number(availability.weekdayEveningHours) || 0);
+  const weekdayCount = Math.max(0, Number(availability.weekdayEveningsPerWeek) || 0);
+  const weekendHours = Math.max(0, Number(availability.weekendDayHours) || 0);
+  const weekendCount = Math.max(0, Number(availability.weekendDaysPerWeek) || 0);
+  let remainingHours = totalWorkHours;
+  const currentDate = new Date(parsedStartDate);
+  const weeklyUsage = {};
 
-  endDate.setDate(endDate.getDate() + calendarDays);
+  for (let dayIndex = 0; dayIndex < 730; dayIndex += 1) {
+    const day = currentDate.getDay();
+    const isWeekend = day === 0 || day === 6;
+    const weekStart = new Date(currentDate);
+    const mondayOffset = (day + 6) % 7;
 
-  return `ca ${formatLongDate(endDate)}`;
+    weekStart.setDate(currentDate.getDate() - mondayOffset);
+    const weekKey = weekStart.toISOString().slice(0, 10);
+    const usage = weeklyUsage[weekKey] || {
+      weekdays: 0,
+      weekendDays: 0,
+    };
+    let availableHours = 0;
+
+    if (isWeekend && usage.weekendDays < weekendCount) {
+      availableHours = weekendHours;
+      usage.weekendDays += 1;
+    }
+
+    if (!isWeekend && usage.weekdays < weekdayCount) {
+      availableHours = weekdayHours;
+      usage.weekdays += 1;
+    }
+
+    weeklyUsage[weekKey] = usage;
+
+    if (availableHours > 0) {
+      remainingHours -= availableHours;
+
+      if (remainingHours <= 0) {
+        return `ca ${formatLongDate(currentDate)}`;
+      }
+    }
+
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return "";
+}
+
+function calculateScheduledCalendarDays(startDate, totalWorkHours, availability) {
+  const parsedStartDate = parseLocalDate(startDate);
+
+  if (!parsedStartDate || totalWorkHours <= 0) {
+    return 0;
+  }
+
+  const weekdayHours = Math.max(0, Number(availability.weekdayEveningHours) || 0);
+  const weekdayCount = Math.max(0, Number(availability.weekdayEveningsPerWeek) || 0);
+  const weekendHours = Math.max(0, Number(availability.weekendDayHours) || 0);
+  const weekendCount = Math.max(0, Number(availability.weekendDaysPerWeek) || 0);
+  let remainingHours = totalWorkHours;
+  const currentDate = new Date(parsedStartDate);
+  const weeklyUsage = {};
+
+  for (let dayIndex = 0; dayIndex < 730; dayIndex += 1) {
+    const day = currentDate.getDay();
+    const isWeekend = day === 0 || day === 6;
+    const weekStart = new Date(currentDate);
+    const mondayOffset = (day + 6) % 7;
+
+    weekStart.setDate(currentDate.getDate() - mondayOffset);
+    const weekKey = weekStart.toISOString().slice(0, 10);
+    const usage = weeklyUsage[weekKey] || {
+      weekdays: 0,
+      weekendDays: 0,
+    };
+    let availableHours = 0;
+
+    if (isWeekend && usage.weekendDays < weekendCount) {
+      availableHours = weekendHours;
+      usage.weekendDays += 1;
+    }
+
+    if (!isWeekend && usage.weekdays < weekdayCount) {
+      availableHours = weekdayHours;
+      usage.weekdays += 1;
+    }
+
+    weeklyUsage[weekKey] = usage;
+
+    if (availableHours > 0) {
+      remainingHours -= availableHours;
+
+      if (remainingHours <= 0) {
+        return dayIndex + 1;
+      }
+    }
+
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return 0;
 }
 
 const defaultCalculatorOptions = [
@@ -1348,48 +2010,92 @@ const calculatorConfigs = {
   },
 };
 
-function CategoryCalculator({ category, goBack, onSaveOffer }) {
+function buildInitialCalculatorState(offer, initialCustomer) {
+  const formState = offer?.formState || {};
+  const selectedOptionsFromSummary = (offer?.options || []).reduce((options, option) => ({
+    ...options,
+    [option.id]: true,
+  }), {});
+  const fixedCostsFromSummary = (offer?.options || []).reduce((costs, option) => {
+    if (fixedCostOptions.some((fixedCost) => fixedCost.id === option.id)) {
+      return {
+        ...costs,
+        [option.id]: true,
+      };
+    }
 
-  const [area, setArea] = useState(25);
-  const [areaMode, setAreaMode] = useState("manual");
-  const [deckDimensions, setDeckDimensions] = useState({
-    length: "",
-    width: "",
-  });
-  const [selectedOptions, setSelectedOptions] = useState({});
-  const [customer, setCustomer] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    notes: "",
-  });
-  const [extraWork, setExtraWork] = useState({
-    hours: 0,
-    hourlyRate: 250,
-  });
-  const [temporaryExtraStaff, setTemporaryExtraStaff] = useState({
-    active: false,
-    people: 1,
-    hours: 0,
-    internalHourlyRate: 200,
-    customerHourlyRate: 250,
-  });
-  const [peopleCount, setPeopleCount] = useState(1);
-  const [availability, setAvailability] = useState({
-    weekdayEveningHours: 4,
-    weekdayEveningsPerWeek: 5,
-    weekendDayHours: 8,
-    weekendDaysPerWeek: 2,
-  });
-  const [startDate, setStartDate] = useState("");
-  const [fixedCosts, setFixedCosts] = useState({});
-  const [extraCosts, setExtraCosts] = useState([]);
-  const [optionPricing, setOptionPricing] = useState({});
-  const [optionMeasurements, setOptionMeasurements] = useState({});
-  const [discount, setDiscount] = useState({
-    active: false,
-    percent: 0,
-  });
+    return costs;
+  }, {});
+
+  return {
+    area: formState.area ?? offer?.area ?? 25,
+    areaMode: formState.areaMode ?? offer?.areaMode ?? "manual",
+    deckDimensions: formState.deckDimensions ?? offer?.deckDimensions ?? {
+      length: "",
+      width: "",
+    },
+    selectedOptions: formState.selectedOptions ?? selectedOptionsFromSummary,
+    customer: formState.customer ?? offer?.customer ?? initialCustomer ?? {
+      name: "",
+      phone: "",
+      address: "",
+      notes: "",
+    },
+    extraWork: formState.extraWork ?? {
+      hours: offer?.extraWork?.hours ?? 0,
+      hourlyRate: offer?.extraWork?.hourlyRate ?? 250,
+    },
+    temporaryExtraStaff: formState.temporaryExtraStaff ?? {
+      active: offer?.temporaryExtraStaff?.active ?? false,
+      people: offer?.temporaryExtraStaff?.people ?? 1,
+      hours: offer?.temporaryExtraStaff?.hours ?? 0,
+      internalHourlyRate: offer?.temporaryExtraStaff?.internalHourlyRate ?? 200,
+      customerHourlyRate: offer?.temporaryExtraStaff?.customerHourlyRate ?? 250,
+    },
+    peopleCount: formState.peopleCount ?? offer?.peopleCount ?? 1,
+    availability: formState.availability ?? offer?.schedule?.availability ?? {
+      weekdayEveningHours: 4,
+      weekdayEveningsPerWeek: 5,
+      weekendDayHours: 8,
+      weekendDaysPerWeek: 2,
+    },
+    startDate: formState.startDate ?? offer?.schedule?.startDate ?? "",
+    fixedCosts: formState.fixedCosts ?? fixedCostsFromSummary,
+    extraCosts: formState.extraCosts ?? (offer?.extraCosts || []).map((cost) => ({
+      id: cost.id || crypto.randomUUID(),
+      name: cost.name || "",
+      description: cost.description || "",
+      price: cost.price ?? cost.priceValue ?? 0,
+    })),
+    optionPricing: formState.optionPricing ?? {},
+    optionMeasurements: formState.optionMeasurements ?? {},
+    discount: formState.discount ?? {
+      active: offer?.discount?.active ?? false,
+      percent: offer?.discount?.percent ?? 0,
+    },
+    selectedPriceVariant: formState.selectedPriceVariant ?? offer?.prices?.selectedVariant ?? "normal",
+  };
+}
+
+function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, onSaveOffer }) {
+  const initialState = buildInitialCalculatorState(initialOffer, initialCustomer);
+
+  const [area, setArea] = useState(initialState.area);
+  const [areaMode, setAreaMode] = useState(initialState.areaMode);
+  const [deckDimensions, setDeckDimensions] = useState(initialState.deckDimensions);
+  const [selectedOptions, setSelectedOptions] = useState(initialState.selectedOptions);
+  const [customer, setCustomer] = useState(initialState.customer);
+  const [extraWork, setExtraWork] = useState(initialState.extraWork);
+  const [temporaryExtraStaff, setTemporaryExtraStaff] = useState(initialState.temporaryExtraStaff);
+  const [peopleCount, setPeopleCount] = useState(initialState.peopleCount);
+  const [availability, setAvailability] = useState(initialState.availability);
+  const [startDate, setStartDate] = useState(initialState.startDate);
+  const [fixedCosts, setFixedCosts] = useState(initialState.fixedCosts);
+  const [extraCosts, setExtraCosts] = useState(initialState.extraCosts);
+  const [optionPricing, setOptionPricing] = useState(initialState.optionPricing);
+  const [optionMeasurements, setOptionMeasurements] = useState(initialState.optionMeasurements);
+  const [discount, setDiscount] = useState(initialState.discount);
+  const [selectedPriceVariant, setSelectedPriceVariant] = useState(initialState.selectedPriceVariant);
 
   const baseCategory = getBaseCategory(category);
   const calculatorConfig = calculatorConfigs[baseCategory] || calculatorConfigs.default;
@@ -1630,8 +2336,11 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
   }, 0);
   const totalWorkHours = optionWorkHours + extraWorkHours + temporaryExtraStaffWorkHours;
   const weeklyAvailableHours = calculateWeeklyAvailableHours(availability);
-  const estimatedCalendarTime = formatEstimatedCalendarTime(totalWorkHours, weeklyAvailableHours);
-  const estimatedEndDate = calculateEstimatedEndDate(startDate, totalWorkHours, weeklyAvailableHours);
+  const scheduledCalendarDays = calculateScheduledCalendarDays(startDate, totalWorkHours, availability);
+  const estimatedCalendarTime = scheduledCalendarDays > 0
+    ? formatEstimatedCalendarDays(scheduledCalendarDays)
+    : formatEstimatedCalendarTime(totalWorkHours, weeklyAvailableHours);
+  const estimatedEndDate = calculateEstimatedEndDate(startDate, totalWorkHours, availability);
 
   const selectedFixedCostDetails = (calculatorConfig.usesCustomFixedCosts ? [] : fixedCostOptions)
     .filter((option) => fixedCosts[option.id])
@@ -1694,6 +2403,12 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
   const minPrice = Math.round((discountedWorkPrice * 0.85) + fixedCostsTotal);
 
   const premiumPrice = Math.round((discountedWorkPrice * 1.3) + fixedCostsTotal);
+  const offerPriceOptions = {
+    min: minPrice,
+    normal: normalPrice,
+    premium: premiumPrice,
+  };
+  const selectedOfferPrice = offerPriceOptions[selectedPriceVariant] ?? normalPrice;
 
   const exportPdf = async () => {
     const logoImage = await loadPdfLogoImage();
@@ -1704,9 +2419,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       deckDimensions: usesDimensionArea ? deckDimensions : null,
       displayCategory,
       customer,
-      minPrice,
-      normalPrice,
-      premiumPrice,
+      selectedOfferPrice,
       selectedOptionDetails,
       extraCostDetails,
       extraCostsTotal,
@@ -1739,8 +2452,9 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
   const saveCurrentOffer = () => {
     onSaveOffer({
-      id: crypto.randomUUID(),
-      date: new Date().toISOString(),
+      id: initialOffer?.id || crypto.randomUUID(),
+      date: initialOffer?.date || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       customer,
       category,
       displayCategory,
@@ -1797,6 +2511,29 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
         min: minPrice,
         normal: normalPrice,
         premium: premiumPrice,
+        selectedVariant: selectedPriceVariant,
+        selectedOffer: selectedOfferPrice,
+      },
+      formState: {
+        area,
+        areaMode,
+        deckDimensions,
+        selectedOptions,
+        customer,
+        extraWork,
+        temporaryExtraStaff,
+        peopleCount: normalizedPeopleCount,
+        availability,
+        startDate,
+        fixedCosts,
+        extraCosts,
+        optionPricing,
+        optionMeasurements,
+        discount: {
+          active: discount.active,
+          percent: discountPercent,
+        },
+        selectedPriceVariant,
       },
     });
   };
@@ -2487,6 +3224,53 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
           </div>
 
+          <div className="mt-6 rounded-3xl border border-orange-400/25 bg-black/70 p-4 shadow-xl shadow-orange-500/5">
+
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+
+              <div>
+
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
+                  Pris till offert
+                </p>
+
+                <p className="mt-1 text-sm text-zinc-400">
+                  Välj vilket pris som ska användas i PDF och sparad offert.
+                </p>
+
+              </div>
+
+              <p className="text-2xl font-black text-white">
+                {formatPrice(selectedOfferPrice)}
+              </p>
+
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-zinc-950 p-1">
+
+              {[
+                { id: "min", label: "Min" },
+                { id: "normal", label: "Normal" },
+                { id: "premium", label: "Premium" },
+              ].map((variant) => (
+                <button
+                  key={variant.id}
+                  type="button"
+                  onClick={() => setSelectedPriceVariant(variant.id)}
+                  className={`min-h-12 rounded-xl px-3 text-sm font-black transition ${
+                    selectedPriceVariant === variant.id
+                      ? "bg-orange-500 text-black shadow-lg shadow-orange-500/20"
+                      : "text-zinc-300 hover:bg-white/10"
+                  }`}
+                >
+                  {variant.label}
+                </button>
+              ))}
+
+            </div>
+
+          </div>
+
           <div className="mt-10 border-t border-zinc-800 pt-6">
 
             <div className="mb-6 grid gap-3">
@@ -2547,11 +3331,11 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
               <div className="rounded-2xl border border-orange-400 bg-orange-500 p-4 text-black">
                 <p className="text-xs font-bold uppercase text-black/60">
-                  Totalt
+                  Offertpris
                 </p>
 
                 <p className="mt-2 text-2xl font-black">
-                  {formatPrice(normalPrice)}
+                  {formatPrice(selectedOfferPrice)}
                 </p>
               </div>
 
@@ -2592,6 +3376,20 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
               </span>
 
             </div>
+
+            {startDate && (
+              <div className="mt-3 flex justify-between gap-4">
+
+                <span className="text-zinc-400">
+                  Startdatum
+                </span>
+
+                <span className="text-right">
+                  {formatLongDate(parseLocalDate(startDate))}
+                </span>
+
+              </div>
+            )}
 
             {startDate && estimatedEndDate && (
               <div className="mt-3 flex justify-between gap-4">
@@ -2638,11 +3436,11 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
             <div className="text-right">
 
               <p className="text-xs uppercase text-zinc-500">
-                Normalpris
+                Offertpris
               </p>
 
               <p className="text-3xl font-black text-orange-400">
-                {formatPrice(normalPrice)}
+                {formatPrice(selectedOfferPrice)}
               </p>
 
             </div>
@@ -2775,6 +3573,9 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
           )}
           <SummaryRow label="Total arbetstid" value={formatHours(totalWorkHours)} />
           <SummaryRow label="Uppskattad tid" value={estimatedCalendarTime} />
+          {startDate && (
+            <SummaryRow label="Startdatum" value={formatLongDate(parseLocalDate(startDate))} />
+          )}
           {startDate && estimatedEndDate && (
             <SummaryRow label="Beräknat slutdatum" value={estimatedEndDate} />
           )}
@@ -2827,11 +3628,11 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
           <div className="rounded-2xl border border-orange-400 bg-orange-500 p-4 text-black">
             <p className="text-xs font-bold uppercase text-black/60">
-              Totalt
+              Offertpris
             </p>
 
             <p className="mt-2 text-2xl font-black">
-              {formatPrice(normalPrice)}
+              {formatPrice(selectedOfferPrice)}
             </p>
           </div>
 
@@ -2839,9 +3640,9 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
 
         <div className="grid grid-cols-3 border-t border-white/10 text-center">
 
-          <SummaryPrice label="MIN" value={minPrice} />
-          <SummaryPrice label="NORMAL" value={normalPrice} highlight />
-          <SummaryPrice label="PREMIUM" value={premiumPrice} />
+          <SummaryPrice label="MIN" value={minPrice} highlight={selectedPriceVariant === "min"} />
+          <SummaryPrice label="NORMAL" value={normalPrice} highlight={selectedPriceVariant === "normal"} />
+          <SummaryPrice label="PREMIUM" value={premiumPrice} highlight={selectedPriceVariant === "premium"} />
 
         </div>
 
@@ -2850,7 +3651,7 @@ function CategoryCalculator({ category, goBack, onSaveOffer }) {
       <div className="sticky bottom-0 z-50 -mx-6 mt-5 grid gap-3 border-t border-white/10 bg-black/95 px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:grid-cols-3">
 
         <ActionButton onClick={saveCurrentOffer}>
-          Spara offert
+          {initialOffer ? "Spara ändringar" : "Spara offert"}
         </ActionButton>
 
         <ActionButton onClick={exportPdf}>
@@ -3176,9 +3977,7 @@ function createOfferPdfBlob({
   deckDimensions,
   displayCategory,
   customer,
-  minPrice,
-  normalPrice,
-  premiumPrice,
+  selectedOfferPrice,
   selectedOptionDetails,
   extraCostDetails,
   extraCostsTotal,
@@ -3233,13 +4032,13 @@ function createOfferPdfBlob({
   if (logoImage) {
     image("Logo", 48, 772, 42, 42);
   }
-  text("PREMIUM OFFERT", 395, 792, 9, "0.98 0.57 0.24", "F2");
+  text("OFFERT", 443, 792, 12, "0.98 0.57 0.24", "F2");
   text(new Date().toLocaleDateString("sv-SE"), 432, 775, 10, "0.72 0.72 0.76");
 
   text(displayCategory, 48, 724, 24, "1 1 1", "F2");
   text(`${showArea ? `${formatArea(area)} · ` : ""}${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`, 48, 704, 11, "0.65 0.65 0.7");
-  text("Normalpris", 390, 724, 10, "0.65 0.65 0.7");
-  text(money(normalPrice), 390, 701, 22, "0.98 0.57 0.24", "F2");
+  text("Offertpris", 390, 724, 10, "0.65 0.65 0.7");
+  text(money(selectedOfferPrice), 390, 701, 22, "0.98 0.57 0.24", "F2");
 
   rect(48, 552, 235, 116, "0.1 0.1 0.1");
   rect(312, 552, 235, 116, "0.1 0.1 0.1");
@@ -3261,8 +4060,10 @@ function createOfferPdfBlob({
     ["Antal personer", `${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`],
     ["Total arbetstid", formatHours(totalWorkHours)],
     ["Uppskattad tid", estimatedCalendarTime],
-    ...(startDate && estimatedEndDate ? [
+    ...(startDate ? [
       ["Startdatum", formatLongDate(parseLocalDate(startDate))],
+    ] : []),
+    ...(startDate && estimatedEndDate ? [
       ["Beräknat slutdatum", estimatedEndDate],
     ] : []),
     ["Arbete före rabatt", money(workPrice)],
@@ -3270,7 +4071,7 @@ function createOfferPdfBlob({
     ["Arbete efter rabatt", money(discountedWorkPrice)],
     ...(extraCostsTotal > 0 ? [["Extra kostnader", money(extraCostsTotal)]] : []),
     ["Fasta kostnader", money(fixedCostsTotal)],
-    ["Totalt", money(normalPrice)],
+    ["Offertpris", money(selectedOfferPrice)],
   ];
 
   projectRows.forEach(([label, value], index) => {
@@ -3316,15 +4117,9 @@ function createOfferPdfBlob({
     });
   }
 
-  rect(48, 76, 166, 70, "0.08 0.08 0.08");
-  rect(214, 76, 166, 70, "0.98 0.45 0.08");
-  rect(380, 76, 167, 70, "0.08 0.08 0.08");
-  text("MIN", 108, 120, 9, "0.65 0.65 0.7", "F2");
-  text(money(minPrice), 78, 96, 15, "1 1 1", "F2");
-  text("NORMAL", 268, 120, 9, "0 0 0", "F2");
-  text(money(normalPrice), 238, 96, 15, "0 0 0", "F2");
-  text("PREMIUM", 434, 120, 9, "0.65 0.65 0.7", "F2");
-  text(money(premiumPrice), 410, 96, 15, "1 1 1", "F2");
+  rect(48, 76, 499, 70, "0.98 0.45 0.08");
+  text("OFFERTPRIS", 70, 120, 9, "0 0 0", "F2");
+  text(money(selectedOfferPrice), 70, 94, 22, "0 0 0", "F2");
 
   return buildPdf(content.join("\n"), logoImage);
 }
