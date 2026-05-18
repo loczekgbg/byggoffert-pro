@@ -5,15 +5,15 @@ export default function PriceCard({ label, value, color }) {
   const { language } = useI18n();
 
   return (
-    <div className="bg-black border border-zinc-800 rounded-3xl p-5">
+    <div className="premium-card-compact overflow-hidden p-5">
 
       <div className="flex justify-between items-center">
 
-        <span className="text-zinc-500 font-bold">
+        <span className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500">
           {translateText(label, language)}
         </span>
 
-        <span className={`text-4xl font-black ${color}`}>
+        <span className={`text-2xl font-black sm:text-3xl ${color}`}>
           {formatPrice(value)}
         </span>
 

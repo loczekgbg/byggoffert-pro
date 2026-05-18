@@ -21,15 +21,86 @@ import PriceCard from "./components/PriceCard";
 import CategoriesScreen from "./screens/CategoriesScreen";
 import ToolsScreen from "./screens/ToolsScreen";
 import marcinByggLogo from "./assets/marcin-bygg-logo.png";
-import { I18nProvider, LanguageToggle, translateText, useI18n } from "./i18n";
+import { I18nProvider, translateText, useI18n } from "./i18n";
 import { formatPrice } from "./utils/formatPrice";
 
+const defaultAppSettings = {
+  companyName: "Marcin Bygg",
+  orgNumber: "",
+  phone: "076 320 5125",
+  email: "",
+  address: "",
+  website: "",
+  logoDataUrl: "",
+  instagram: "",
+  facebook: "",
+  tiktok: "",
+  standardHourlyRate: 250,
+  standardPeopleCount: 2,
+  standardWastePercent: 10,
+  standardVatPercent: 25,
+  language: "sv",
+  unit: "m",
+};
+
+const offerCategories = [
+  "Målning & Tapeter",
+  "Innerväggar & Innertak",
+  "Golv & Lister",
+  "Fönster & Dörrar",
+  "Kök & Garderob",
+  "Fasad & Utvändig Renovering",
+  "Tak & Yttertak",
+  "Altan, Pergola & Staket",
+  "Service & Småjobb",
+  "Tillbyggnad & Utebyggnader",
+  "Rivning & Bilning",
+  "Konstruktion",
+];
+
+const projectStatuses = [
+  "Ny förfrågan",
+  "Offert skickad",
+  "Väntar svar",
+  "Accepterad",
+  "Pågående",
+  "Slutförd",
+  "Nekad",
+];
+
+const premiumCustomerTags = [
+  "Premiumkund",
+  "Återkommande kund",
+  "Prioritet",
+  "B2B",
+  "ROT",
+];
+
+function loadAppSettings() {
+  try {
+    return {
+      ...defaultAppSettings,
+      ...(JSON.parse(localStorage.getItem("marcinByggSettings")) || {}),
+    };
+  } catch {
+    return defaultAppSettings;
+  }
+}
+
+function saveAppSettings(settings) {
+  localStorage.setItem("marcinByggSettings", JSON.stringify(settings));
+}
+
 export default function App() {
-  const [language, setLanguageState] = useState(() => localStorage.getItem("marcinByggLanguage") || "sv");
+  const [language, setLanguageState] = useState(() => loadAppSettings().language || localStorage.getItem("marcinByggLanguage") || "sv");
 
   const setLanguage = (nextLanguage) => {
     setLanguageState(nextLanguage);
     localStorage.setItem("marcinByggLanguage", nextLanguage);
+    saveAppSettings({
+      ...loadAppSettings(),
+      language: nextLanguage,
+    });
   };
 
   return (
@@ -40,9 +111,10 @@ export default function App() {
 }
 
 function AppContent() {
-  const { t } = useI18n();
+  const { setLanguage, t } = useI18n();
 
   const [screen, setScreen] = useState("home");
+  const [appSettings, setAppSettings] = useState(() => loadAppSettings());
   const [selectedCategory, setSelectedCategory] = useState("");
   const [editingOffer, setEditingOffer] = useState(null);
   const [selectedClientKey, setSelectedClientKey] = useState("");
@@ -72,6 +144,14 @@ function AppContent() {
     localStorage.setItem("snickareOffers", JSON.stringify(nextOffers));
   };
 
+  const updateAppSettings = (nextSettings) => {
+    setAppSettings(nextSettings);
+    saveAppSettings(nextSettings);
+    if (nextSettings.language) {
+      setLanguage(nextSettings.language);
+    }
+  };
+
   if (screen === "categories") {
     return (
       <CategoriesScreen
@@ -84,6 +164,26 @@ function AppContent() {
           setSelectedCategory(category);
           setScreen("calculator");
         }}
+        openMultiCategory={() => {
+          setEditingOffer(null);
+          setSelectedCategory("Multi-category offert");
+          setScreen("multiCalculator");
+        }}
+      />
+    );
+  }
+
+  if (screen === "multiCalculator") {
+    return (
+      <MultiCategoryOfferScreen
+        initialOffer={editingOffer?.isMultiCategory ? editingOffer : null}
+        initialCustomer={quoteCustomerDraft}
+        goBack={() => {
+          setEditingOffer(null);
+          setScreen(editingOffer ? "history" : "categories");
+        }}
+        onSaveOffer={saveOffer}
+        appSettings={appSettings}
       />
     );
   }
@@ -100,6 +200,7 @@ function AppContent() {
           setScreen(editingOffer ? "history" : "categories");
         }}
         onSaveOffer={saveOffer}
+        appSettings={appSettings}
       />
     );
   }
@@ -113,9 +214,14 @@ function AppContent() {
         onEditOffer={(offer) => {
           setEditingOffer(offer);
           setQuoteCustomerDraft(null);
+          if (offer.isMultiCategory) {
+            setScreen("multiCalculator");
+            return;
+          }
           setSelectedCategory(offer.category);
           setScreen("calculator");
         }}
+        appSettings={appSettings}
       />
     );
   }
@@ -149,6 +255,10 @@ function AppContent() {
         onEditOffer={(offer) => {
           setEditingOffer(offer);
           setQuoteCustomerDraft(null);
+          if (offer.isMultiCategory) {
+            setScreen("multiCalculator");
+            return;
+          }
           setSelectedCategory(offer.category);
           setScreen("calculator");
         }}
@@ -163,61 +273,122 @@ function AppContent() {
 
   if (screen === "tools") {
     return (
-      <ToolsScreen goBack={() => setScreen("home")} />
+      <ToolsScreen goBack={() => setScreen("home")} defaultUnit={appSettings.unit} />
+    );
+  }
+
+  if (screen === "settings") {
+    return (
+      <SettingsScreen
+        goBack={() => setScreen("home")}
+        settings={appSettings}
+        onChange={updateAppSettings}
+      />
     );
   }
 
   return (
-    <div className="min-h-[100dvh] overflow-x-hidden bg-black text-white">
+    <div className="premium-screen text-white">
 
       {/* HERO */}
-      <div className="relative min-h-[450px] overflow-hidden sm:min-h-[520px] lg:min-h-[560px]">
+      <div className="premium-hero">
 
         <img
           src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=1200&auto=format&fit=crop"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-35"
         />
 
-        <div className="pointer-events-none absolute inset-0 bg-black/70" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(245,162,11,0.18),transparent_28rem),linear-gradient(90deg,rgba(0,0,0,0.96),rgba(0,0,0,0.72),rgba(0,0,0,0.9))]" />
 
-        <div className="relative z-10 mx-auto flex min-h-[450px] max-w-6xl flex-col px-6 py-6 sm:min-h-[520px] sm:px-8 sm:py-8 lg:min-h-[560px]">
+        <div className="premium-shell premium-hero-grid">
 
-          <div className="flex justify-between items-center">
+          <div className="premium-topbar">
 
-            <button type="button" className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3">
+            <button type="button" className="premium-icon-button" aria-label={t("Meny")}>
               <Menu size={24} />
             </button>
 
-            <div className="flex items-center gap-2">
-              <LanguageToggle />
-
-              <button type="button" className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3">
+            <div className="ml-auto flex items-center gap-2">
+              <span className="hidden rounded-full border border-orange-400/25 bg-orange-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-orange-200 sm:inline-flex">
+                {t("Premium byggapp")}
+              </span>
+              <button
+                type="button"
+                onClick={() => setScreen("settings")}
+                className="premium-icon-button"
+                aria-label={t("Inställningar")}
+              >
                 <Settings size={22} />
               </button>
             </div>
 
           </div>
 
-          <div className="mt-12 pb-20 sm:mt-16 sm:pb-24 lg:mt-20 lg:pb-28">
+          <div className="premium-hero-copy flex flex-col justify-center">
 
             <img
               src={marcinByggLogo}
               alt="Marcin Bygg"
-              className="h-40 w-40 rounded-[2rem] object-contain shadow-2xl shadow-orange-500/20 sm:h-48 sm:w-48 lg:h-52 lg:w-52"
+              className="premium-logo-mark"
             />
 
-            <p className="mt-8 max-w-sm text-zinc-300 leading-relaxed sm:text-lg lg:max-w-md">
+            <p className="premium-kicker mt-7">
+              Marcin Bygg
+            </p>
+
+            <h1 className="mt-2 max-w-xl text-4xl font-black uppercase leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
+              {t("Offert & projekt i fickan")}
+            </h1>
+
+            <p className="mt-5 max-w-sm text-base leading-relaxed text-zinc-300 sm:text-lg lg:max-w-md">
               {t("Professionell snickarservice för hem och företag.")}
             </p>
 
+            <div className="mt-7 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setQuoteCustomerDraft(null);
+                  setEditingOffer(null);
+                  setScreen("categories");
+                }}
+                className="premium-cta min-h-13 rounded-2xl px-6 text-sm font-black uppercase"
+              >
+                {t("Ny offert")}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setScreen("history")}
+                className="min-h-13 rounded-2xl border border-white/10 bg-white/[0.04] px-6 text-sm font-black uppercase text-white"
+              >
+                {t("Historik")}
+              </button>
+            </div>
+
+          </div>
+
+          <div className="premium-info-strip">
+            <div className="premium-card-compact p-4">
+              <p className="premium-kicker">{t("Standard timpris")}</p>
+              <p className="mt-2 text-xl font-black">{formatPrice(appSettings.standardHourlyRate)}/h</p>
+            </div>
+            <div className="premium-card-compact p-4">
+              <p className="premium-kicker">{t("Projekt & CRM Lite")}</p>
+              <p className="mt-2 text-xl font-black">{savedOffers.length} {t("Sparade offerter")}</p>
+            </div>
+            <div className="premium-card-compact p-4">
+              <p className="premium-kicker">{t("Kunder")}</p>
+              <p className="mt-2 text-xl font-black">{clients.length} {t("Kunder")}</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* GRID */}
-      <div className="relative z-20 -mt-8 px-6 sm:mx-auto sm:mt-10 sm:max-w-6xl sm:px-8 lg:mt-12">
+      <div className="premium-shell relative z-20 -mt-8 sm:-mt-12">
 
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="premium-home-grid">
 
           <Card
             onClick={() => {
@@ -262,15 +433,16 @@ function AppContent() {
       </div>
 
       {/* CONTACT */}
-      <div className="mt-10 px-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+      <div className="premium-shell mt-8 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
 
-        <div className="bg-orange-500 rounded-3xl p-6 text-black">
+        <div className="premium-cta relative overflow-hidden p-5 sm:p-6">
+          <span className="pointer-events-none absolute -left-10 top-1/2 h-28 w-64 -translate-y-1/2 rotate-[-8deg] bg-black/10 blur-xl" />
 
-          <p className="font-bold text-sm">
+          <p className="relative text-xs font-black uppercase tracking-[0.18em] text-black/70">
             {t("KONTAKTA MIG IDAG")}
           </p>
 
-          <h2 className="text-4xl font-black mt-2">
+          <h2 className="relative mt-2 text-4xl font-black sm:text-5xl">
             076 320 5125
           </h2>
 
@@ -314,26 +486,35 @@ function buildClients(offers) {
         customer: {
           name: customer.name || "Inte angivet",
           phone: customer.phone || "",
+          email: customer.email || "",
           address: customer.address || "",
           notes: customer.notes || "",
         },
         offers: [offer],
         lastActivity: activityDate,
         totalValue: offerValue,
+        tags: offer.customerTags || [],
       });
 
       return;
     }
 
+    const mergedTags = [...new Set([
+      ...(existingClient.tags || []),
+      ...(offer.customerTags || []),
+    ])];
+
     existingClient.customer = {
       name: existingClient.customer.name !== "Inte angivet" ? existingClient.customer.name : customer.name || "Inte angivet",
       phone: existingClient.customer.phone || customer.phone || "",
+      email: existingClient.customer.email || customer.email || "",
       address: existingClient.customer.address || customer.address || "",
       notes: customer.notes || existingClient.customer.notes || "",
     };
     existingClient.offers.push(offer);
     existingClient.lastActivity = Math.max(existingClient.lastActivity, activityDate);
     existingClient.totalValue += offerValue;
+    existingClient.tags = mergedTags;
   });
 
   return Array.from(clientMap.values()).sort((firstClient, secondClient) => (
@@ -341,8 +522,650 @@ function buildClients(offers) {
   ));
 }
 
+function SettingsScreen({ goBack, settings, onChange }) {
+  const { t } = useI18n();
+
+  const updateSetting = (field, value) => {
+    onChange({
+      ...settings,
+      [field]: value,
+    });
+  };
+
+  const handleLogoUpload = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => updateSetting("logoDataUrl", reader.result || "");
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={goBack}
+          className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900 p-3"
+        >
+          <ArrowLeft size={22} />
+        </button>
+
+        <div className="min-w-0">
+          <h1 className="break-words text-3xl font-black">
+            {t("Inställningar")}
+          </h1>
+          <p className="text-orange-400">
+            {t("Appinställningar")}
+          </p>
+        </div>
+
+        <img
+          src={marcinByggLogo}
+          alt="Marcin Bygg"
+          className="ml-auto h-12 w-12 shrink-0 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+        />
+      </div>
+
+      <div className="mt-8 grid gap-5">
+        <SettingsPanel title={t("Företagsuppgifter")}>
+          <SettingsGrid>
+            <SettingsInput label={t("Företagsnamn")} value={settings.companyName} onChange={(value) => updateSetting("companyName", value)} />
+            <SettingsInput label={t("Org.nr")} value={settings.orgNumber} onChange={(value) => updateSetting("orgNumber", value)} />
+            <SettingsInput label={t("Telefon")} value={settings.phone} onChange={(value) => updateSetting("phone", value)} />
+            <SettingsInput label={t("Email")} value={settings.email} onChange={(value) => updateSetting("email", value)} />
+            <SettingsInput label={t("Adress")} value={settings.address} onChange={(value) => updateSetting("address", value)} />
+            <SettingsInput label={t("Webbplats")} value={settings.website} onChange={(value) => updateSetting("website", value)} />
+          </SettingsGrid>
+
+          <label className="mt-4 block text-sm text-zinc-400">
+            {t("Upload logo firmy")}
+            <input
+              type="file"
+              accept="image/png"
+              onChange={handleLogoUpload}
+              className="mt-2 block w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-sm text-zinc-300 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:font-black file:text-black"
+            />
+          </label>
+          {settings.logoDataUrl && (
+            <div className="mt-4 flex items-center gap-3">
+              <img src={settings.logoDataUrl} alt="" className="h-14 w-14 rounded-2xl object-contain bg-black" />
+              <button type="button" onClick={() => updateSetting("logoDataUrl", "")} className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-black text-red-200">
+                {t("Ta bort")}
+              </button>
+            </div>
+          )}
+        </SettingsPanel>
+
+        <SettingsPanel title={t("Social media")}>
+          <SettingsGrid>
+            <SettingsInput label="Instagram" value={settings.instagram} onChange={(value) => updateSetting("instagram", value)} />
+            <SettingsInput label="Facebook" value={settings.facebook} onChange={(value) => updateSetting("facebook", value)} />
+            <SettingsInput label="TikTok" value={settings.tiktok} onChange={(value) => updateSetting("tiktok", value)} />
+          </SettingsGrid>
+        </SettingsPanel>
+
+        <SettingsPanel title={t("Standardvärden")}>
+          <SettingsGrid>
+            <SettingsInput type="number" label={t("Standard timpris")} value={settings.standardHourlyRate} onChange={(value) => updateSetting("standardHourlyRate", Number(value) || 0)} />
+            <SettingsInput type="number" label={t("Standard antal personer")} value={settings.standardPeopleCount} onChange={(value) => updateSetting("standardPeopleCount", Math.max(1, Number(value) || 1))} />
+            <SettingsInput type="number" label={t("Standard spill %")} value={settings.standardWastePercent} onChange={(value) => updateSetting("standardWastePercent", Number(value) || 0)} />
+            <SettingsInput type="number" label={t("Standard moms %")} value={settings.standardVatPercent} onChange={(value) => updateSetting("standardVatPercent", Number(value) || 0)} />
+          </SettingsGrid>
+        </SettingsPanel>
+
+        <SettingsPanel title={t("Språk och enheter")}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm text-zinc-400">
+              {t("Välj språk")}
+              <select value={settings.language} onChange={(event) => updateSetting("language", event.target.value)} className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none">
+                <option value="pl">PL</option>
+                <option value="sv">SV</option>
+              </select>
+            </label>
+            <label className="block text-sm text-zinc-400">
+              {t("Enhet")}
+              <select value={settings.unit} onChange={(event) => updateSetting("unit", event.target.value)} className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none">
+                <option value="mm">mm</option>
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+              </select>
+            </label>
+          </div>
+          <p className="mt-4 text-sm text-zinc-400">
+            {t("PDF genereras alltid på svenska.")}
+          </p>
+        </SettingsPanel>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPanel({ title, children }) {
+  return (
+    <section className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-2xl shadow-black/20">
+      <h2 className="text-xl font-black text-white">
+        {title}
+      </h2>
+      <div className="mt-4">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function SettingsGrid({ children }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {children}
+    </div>
+  );
+}
+
+function SettingsInput({ label, value, onChange, type = "text" }) {
+  return (
+    <label className="block text-sm text-zinc-400">
+      {label}
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+      />
+    </label>
+  );
+}
+
+function ProjectCrmPanel({
+  projectStatus,
+  setProjectStatus,
+  privateNotes,
+  setPrivateNotes,
+  customerTags,
+  setCustomerTags,
+  projectPhotos,
+  setProjectPhotos,
+}) {
+  const { language, t } = useI18n();
+
+  const toggleTag = (tag) => {
+    setCustomerTags((currentTags) => (
+      currentTags.includes(tag)
+        ? currentTags.filter((currentTag) => currentTag !== tag)
+        : [...currentTags, tag]
+    ));
+  };
+
+  const addPhotos = (event) => {
+    const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
+
+    files.slice(0, 6).forEach((file) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        setProjectPhotos((currentPhotos) => [
+          ...currentPhotos,
+          {
+            id: crypto.randomUUID(),
+            name: file.name,
+            dataUrl: reader.result || "",
+          },
+        ].slice(-8));
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    event.target.value = "";
+  };
+
+  return (
+    <section className="mt-8 rounded-3xl border border-orange-400/20 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-5 shadow-2xl shadow-orange-500/10">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
+            {t("Projekt & CRM Lite")}
+          </p>
+          <h2 className="mt-2 text-xl font-black">
+            {t("Projektinformation")}
+          </h2>
+        </div>
+
+        <span className="rounded-full border border-orange-400/30 bg-orange-500/10 px-3 py-2 text-xs font-black text-orange-200">
+          {t(projectStatus)}
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-4">
+        <label className="block text-sm text-zinc-400">
+          {t("Projektstatus")}
+          <select
+            value={projectStatus}
+            onChange={(event) => setProjectStatus(event.target.value)}
+            className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+          >
+            {projectStatuses.map((status) => (
+              <option key={status} value={status}>{translateText(status, language)}</option>
+            ))}
+          </select>
+        </label>
+
+        <div>
+          <p className="text-sm text-zinc-400">{t("Premium customer tags")}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {premiumCustomerTags.map((tag) => {
+              const active = customerTags.includes(tag);
+
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={`min-h-11 rounded-full border px-4 text-sm font-black transition ${active ? "border-orange-400 bg-orange-500 text-black" : "border-white/10 bg-white/[0.04] text-zinc-200"}`}
+                >
+                  {t(tag)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <label className="block text-sm text-zinc-400">
+          {t("Private notes")}
+          <textarea
+            value={privateNotes}
+            onChange={(event) => setPrivateNotes(event.target.value)}
+            className="mt-2 min-h-24 w-full resize-none rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-base text-white outline-none"
+            placeholder={t("Syns bara internt")}
+          />
+        </label>
+
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-zinc-400">{t("Projektbilder")}</p>
+            <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 text-sm font-black text-orange-200">
+              <Plus size={16} />
+              {t("Lägg till bilder")}
+              <input type="file" accept="image/*" multiple onChange={addPhotos} className="hidden" />
+            </label>
+          </div>
+
+          {projectPhotos.length > 0 && (
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {projectPhotos.map((photo) => (
+                <div key={photo.id} className="overflow-hidden rounded-2xl border border-white/10 bg-black">
+                  <img src={photo.dataUrl} alt={photo.name} className="h-28 w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setProjectPhotos((currentPhotos) => currentPhotos.filter((currentPhoto) => currentPhoto.id !== photo.id))}
+                    className="flex min-h-10 w-full items-center justify-center gap-2 bg-red-500/10 text-xs font-black text-red-200"
+                  >
+                    <Trash2 size={14} />
+                    {t("Ta bort")}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function getMultiCategoryServices(category) {
+  const baseCategory = getBaseCategory(category);
+  const config = calculatorConfigs[baseCategory] || calculatorConfigs.default;
+  const sections = config.sections || [{ title: "Tjänster", options: config.options || [] }];
+
+  return sections.flatMap((section) => (section.options || []).map(normalizeCalculatorOption).map((option) => ({
+    id: option.id,
+    title: formatOptionTitle(option.title),
+    sectionTitle: section.title || "Tjänster",
+  })));
+}
+
+function getSectionServices(section) {
+  const availableServices = getMultiCategoryServices(section.category);
+  const existingServices = section.services || {};
+
+  return availableServices.map((service) => ({
+    ...service,
+    active: existingServices[service.id]?.active || false,
+    price: existingServices[service.id]?.price ?? 0,
+    hours: existingServices[service.id]?.hours ?? 0,
+    notes: existingServices[service.id]?.notes ?? "",
+  }));
+}
+
+function getActiveMultiCategoryServices(section) {
+  return getSectionServices(section).filter((service) => service.active);
+}
+
+function calculateMultiSectionTotal(section) {
+  return getActiveMultiCategoryServices(section).reduce((total, service) => total + Math.max(0, Number(service.price) || 0), 0);
+}
+
+function calculateMultiSectionHours(section) {
+  return getActiveMultiCategoryServices(section).reduce((total, service) => total + Math.max(0, Number(service.hours) || 0), 0);
+}
+
+function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSaveOffer, appSettings }) {
+  const { language, t } = useI18n();
+  const [customer, setCustomer] = useState(initialOffer?.customer || initialCustomer || {
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    notes: "",
+  });
+  const [sections, setSections] = useState(initialOffer?.multiSections || []);
+  const [nextCategory, setNextCategory] = useState(offerCategories[0]);
+  const [expandedSectionId, setExpandedSectionId] = useState(initialOffer?.multiSections?.[0]?.id || "");
+  const [projectStatus, setProjectStatus] = useState(initialOffer?.projectStatus || "Ny förfrågan");
+  const [privateNotes, setPrivateNotes] = useState(initialOffer?.privateNotes || "");
+  const [customerTags, setCustomerTags] = useState(initialOffer?.customerTags || []);
+  const [projectPhotos, setProjectPhotos] = useState(initialOffer?.projectPhotos || []);
+  const totalPrice = sections.reduce((total, section) => total + calculateMultiSectionTotal(section), 0);
+  const totalHours = sections.reduce((total, section) => total + calculateMultiSectionHours(section), 0);
+
+  const addSection = () => {
+    const id = crypto.randomUUID();
+    setSections((currentSections) => [
+      ...currentSections,
+      {
+        id,
+        category: nextCategory,
+        services: {},
+        expanded: true,
+      },
+    ]);
+    setExpandedSectionId(id);
+  };
+
+  const updateSection = (id, values) => {
+    setSections((currentSections) => currentSections.map((section) => (
+      section.id === id ? { ...section, ...values, services: values.category ? {} : section.services } : section
+    )));
+  };
+
+  const updateSectionService = (sectionId, serviceId, values) => {
+    setSections((currentSections) => currentSections.map((section) => {
+      if (section.id !== sectionId) {
+        return section;
+      }
+
+      return {
+        ...section,
+        services: {
+          ...(section.services || {}),
+          [serviceId]: {
+            ...(section.services?.[serviceId] || {}),
+            ...values,
+          },
+        },
+      };
+    }));
+  };
+
+  const removeSection = (id) => {
+    setSections((currentSections) => currentSections.filter((section) => section.id !== id));
+    if (expandedSectionId === id) {
+      setExpandedSectionId("");
+    }
+  };
+
+  const selectedMultiOptions = sections.flatMap((section) => getActiveMultiCategoryServices(section).map((service) => ({
+    id: `${section.id}-${service.id}`,
+    title: service.title,
+    sectionTitle: `${section.category} / ${service.sectionTitle}`,
+    detailText: service.notes,
+    priceValue: Math.max(0, Number(service.price) || 0),
+    hoursValue: Math.max(0, Number(service.hours) || 0),
+  })));
+
+  const buildOffer = () => ({
+    id: initialOffer?.id || crypto.randomUUID(),
+    date: initialOffer?.date || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isMultiCategory: true,
+    customer,
+    projectStatus,
+    privateNotes,
+    customerTags,
+    projectPhotos,
+    category: "Multi-category offert",
+    displayCategory: "Multi-category offert",
+    multiSections: sections,
+    area: null,
+    peopleCount: appSettings.standardPeopleCount,
+    schedule: {
+      totalWorkHours: totalHours,
+      hourlyRateSummary: `${formatPrice(appSettings.standardHourlyRate)}/h`,
+      estimatedCalendarTime: totalHours > 0 ? formatEstimatedCalendarTime(totalHours, 36) : "",
+    },
+    options: selectedMultiOptions,
+    extraCosts: [],
+    discount: {
+      active: false,
+      percent: 0,
+      amount: 0,
+    },
+    companySettings: appSettings,
+    prices: {
+      work: totalPrice,
+      workAfterDiscount: totalPrice,
+      fixed: 0,
+      extraCosts: 0,
+      min: totalPrice,
+      normal: totalPrice,
+      premium: totalPrice,
+      selectedVariant: "normal",
+      selectedOffer: totalPrice,
+    },
+  });
+
+  const exportPdf = async () => {
+    const offer = buildOffer();
+    const logoImage = await loadPdfLogoImage(appSettings);
+    const pdfBlob = createOfferPdfBlob({
+      area: 0,
+      showArea: false,
+      areaMode: "manual",
+      deckDimensions: null,
+      displayCategory: offer.displayCategory,
+      customer,
+      projectStatus,
+      selectedOfferPrice: totalPrice,
+      selectedOptionDetails: selectedMultiOptions,
+      extraCostDetails: [],
+      extraCostsTotal: 0,
+      fixedCostsTotal: 0,
+      workPrice: totalPrice,
+      peopleCount: appSettings.standardPeopleCount,
+      totalWorkHours: totalHours,
+      hourlyRateSummary: offer.schedule.hourlyRateSummary,
+      estimatedCalendarTime: offer.schedule.estimatedCalendarTime,
+      startDate: "",
+      estimatedEndDate: "",
+      discountActive: false,
+      discountAmount: 0,
+      discountPercent: 0,
+      discountedWorkPrice: totalPrice,
+      vvsNoticeActive: false,
+      elNoticeActive: false,
+      demolitionNoticeActive: sections.some((section) => isDemolitionCategory(section.category)),
+      companySettings: appSettings,
+      logoImage,
+    });
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const downloadLink = document.createElement("a");
+
+    downloadLink.href = pdfUrl;
+    downloadLink.download = `multi-offert-${new Date().toISOString().slice(0, 10)}.pdf`;
+    document.body.append(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+  };
+
+  return (
+    <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(7rem+env(safe-area-inset-bottom))] text-white">
+      <div className="flex items-center gap-4">
+        <button type="button" onClick={goBack} className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+          <ArrowLeft size={22} />
+        </button>
+        <div className="min-w-0">
+          <h1 className="break-words text-3xl font-black">
+            {t("Multi-category offert")}
+          </h1>
+          <p className="text-orange-400">
+            {t("Flera kategorier i samma offert")}
+          </p>
+        </div>
+        <img src={marcinByggLogo} alt="Marcin Bygg" className="ml-auto h-12 w-12 shrink-0 rounded-2xl object-contain shadow-xl shadow-orange-500/20" />
+      </div>
+
+      <div className="mt-8 grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-5">
+          <h2 className="text-xl font-black">{t("Kunduppgifter")}</h2>
+          <div className="mt-4 grid gap-4">
+            <SettingsInput label={t("Namn")} value={customer.name} onChange={(value) => setCustomer({ ...customer, name: value })} />
+            <SettingsInput label={t("Telefon")} value={customer.phone} onChange={(value) => setCustomer({ ...customer, phone: value })} />
+            <SettingsInput label={t("Email")} value={customer.email || ""} onChange={(value) => setCustomer({ ...customer, email: value })} />
+            <SettingsInput label={t("Adress")} value={customer.address} onChange={(value) => setCustomer({ ...customer, address: value })} />
+            <label className="block text-sm text-zinc-400">
+              {t("Anteckningar")}
+              <textarea value={customer.notes} onChange={(event) => setCustomer({ ...customer, notes: event.target.value })} className="mt-2 min-h-24 w-full resize-none rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-base text-white outline-none" />
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-orange-400/30 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-5 shadow-2xl shadow-orange-500/10">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-400">{t("Total")}</p>
+          <p className="mt-2 text-4xl font-black">{formatPrice(totalPrice)}</p>
+          <p className="mt-2 text-sm text-zinc-400">{formatHours(totalHours)} · {sections.length} {t("sektioner")}</p>
+        </section>
+      </div>
+
+      <ProjectCrmPanel
+        projectStatus={projectStatus}
+        setProjectStatus={setProjectStatus}
+        privateNotes={privateNotes}
+        setPrivateNotes={setPrivateNotes}
+        customerTags={customerTags}
+        setCustomerTags={setCustomerTags}
+        projectPhotos={projectPhotos}
+        setProjectPhotos={setProjectPhotos}
+      />
+
+      <div className="mt-6 rounded-3xl border border-zinc-800 bg-zinc-900/80 p-5">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <select value={nextCategory} onChange={(event) => setNextCategory(event.target.value)} className="min-h-14 rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none">
+            {offerCategories.map((category) => (
+              <option key={category} value={category}>{translateText(category, language)}</option>
+            ))}
+          </select>
+          <button type="button" onClick={addSection} className="min-h-14 rounded-2xl bg-orange-500 px-5 font-black text-black">
+            {t("Lägg till kategori")}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4">
+        {sections.map((section, index) => {
+          const expanded = expandedSectionId === section.id;
+          const services = getSectionServices(section);
+          const activeServices = services.filter((service) => service.active);
+          const sectionPrice = calculateMultiSectionTotal(section);
+          const sectionHours = calculateMultiSectionHours(section);
+
+          return (
+            <section key={section.id} className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-4">
+              <button type="button" onClick={() => setExpandedSectionId(expanded ? "" : section.id)} className="flex w-full items-center justify-between gap-4 text-left">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-400">{t("Sektion")} {index + 1}</p>
+                  <h2 className="mt-1 text-xl font-black">{translateText(section.category, language)}</h2>
+                  <p className="mt-1 text-sm text-zinc-400">{formatPrice(sectionPrice)} · {formatHours(sectionHours)} · {activeServices.length} {t("valda tjänster")}</p>
+                </div>
+                <span className="text-2xl font-black text-orange-400">{expanded ? "-" : "+"}</span>
+              </button>
+
+              {expanded && (
+                <div className="mt-5 grid gap-4">
+                  <label className="block text-sm text-zinc-400">
+                    {t("Kategori")}
+                    <select value={section.category} onChange={(event) => updateSection(section.id, { category: event.target.value })} className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none">
+                      {offerCategories.map((category) => (
+                        <option key={category} value={category}>{translateText(category, language)}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="grid gap-3">
+                    {services.map((service) => (
+                      <div key={service.id} className={`rounded-2xl border p-4 ${service.active ? "border-orange-400/40 bg-orange-500/10" : "border-white/10 bg-black/40"}`}>
+                        <button
+                          type="button"
+                          onClick={() => updateSectionService(section.id, service.id, { active: !service.active })}
+                          className="flex min-h-12 w-full items-center justify-between gap-3 text-left"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-black uppercase tracking-[0.14em] text-zinc-500">
+                              {translateText(service.sectionTitle, language)}
+                            </p>
+                            <h3 className="mt-1 font-black text-white">
+                              {translateText(service.title, language)}
+                            </h3>
+                          </div>
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-black ${service.active ? "border-orange-400 bg-orange-500 text-black" : "border-white/10 text-transparent"}`}>
+                            ✓
+                          </span>
+                        </button>
+
+                        {service.active && (
+                          <div className="mt-4 grid gap-3">
+                            <SettingsGrid>
+                              <SettingsInput type="number" label={t("Pris")} value={service.price} onChange={(value) => updateSectionService(section.id, service.id, { price: Number(value) || 0 })} />
+                              <SettingsInput type="number" label={t("Tid på plats")} value={service.hours} onChange={(value) => updateSectionService(section.id, service.id, { hours: Number(value) || 0 })} />
+                            </SettingsGrid>
+                            <label className="block text-sm text-zinc-400">
+                              {t("Anteckningar")}
+                              <textarea value={service.notes} onChange={(event) => updateSectionService(section.id, service.id, { notes: event.target.value })} className="mt-2 min-h-20 w-full resize-none rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-base text-white outline-none" />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => removeSection(section.id)} className="min-h-12 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 font-black text-red-200">
+                    {t("Ta bort kategori")}
+                  </button>
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-800 bg-black/95 p-4 backdrop-blur">
+        <div className="mx-auto grid max-w-4xl grid-cols-3 gap-3">
+          <button type="button" onClick={() => onSaveOffer(buildOffer())} className="min-h-12 rounded-2xl bg-orange-500 px-3 text-sm font-black text-black">{t("Spara offert")}</button>
+          <button type="button" onClick={exportPdf} disabled={selectedMultiOptions.length === 0} className="min-h-12 rounded-2xl border border-orange-400/40 bg-orange-500/10 px-3 text-sm font-black text-orange-200 disabled:border-zinc-800 disabled:text-zinc-600">{t("Exportera PDF")}</button>
+          <button type="button" onClick={goBack} className="min-h-12 rounded-2xl border border-zinc-800 bg-zinc-900 px-3 text-sm font-black text-white">{t("Avbryt")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 async function exportSavedOfferPdf(offer) {
-  const logoImage = await loadPdfLogoImage();
+  const companySettings = offer.companySettings || loadAppSettings();
+  const logoImage = await loadPdfLogoImage(companySettings);
   const pdfBlob = createOfferPdfBlob({
     area: offer.area ?? 0,
     showArea: offer.area !== null && offer.area !== undefined,
@@ -350,6 +1173,7 @@ async function exportSavedOfferPdf(offer) {
     deckDimensions: offer.deckDimensions || null,
     displayCategory: offer.displayCategory || offer.category,
     customer: offer.customer || {},
+    projectStatus: offer.projectStatus || "Ny förfrågan",
     selectedOfferPrice: offer.prices?.selectedOffer ?? offer.prices?.normal ?? 0,
       selectedOptionDetails: (offer.options || []).map((option) => ({
         ...option,
@@ -375,6 +1199,7 @@ async function exportSavedOfferPdf(offer) {
       vvsNoticeActive: (offer.options || []).some((option) => option.vvsNotice || isVvsRelatedOption(option)),
       elNoticeActive: (offer.options || []).some((option) => option.elNotice || isElRelatedOption(option)),
       demolitionNoticeActive: offer.demolitionNoticeActive || isDemolitionCategory(offer.displayCategory || offer.category),
+      companySettings,
       logoImage,
     });
   const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -419,15 +1244,11 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
 
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <LanguageToggle />
-
-          <img
-            src={marcinByggLogo}
-            alt="Marcin Bygg"
-            className="h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
-          />
-        </div>
+        <img
+          src={marcinByggLogo}
+          alt="Marcin Bygg"
+          className="ml-auto h-12 w-12 shrink-0 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+        />
 
       </div>
 
@@ -470,6 +1291,22 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
                     <p className="mt-1 text-sm text-zinc-400">
                       {translateText(client.customer.phone || "Inte angivet", language)} · {translateText(client.customer.address || "Inte angivet", language)}
                     </p>
+
+                    {client.customer.email && (
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {client.customer.email}
+                      </p>
+                    )}
+
+                    {client.tags?.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {client.tags.map((tag) => (
+                          <span key={`${client.key}-${tag}`} className="rounded-full border border-orange-400/25 bg-orange-500/10 px-3 py-1.5 text-xs font-black text-orange-200">
+                            {t(tag)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="text-right">
@@ -558,11 +1395,13 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
       <div className="mt-8 rounded-3xl border border-orange-400/25 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-6 shadow-2xl shadow-orange-500/10">
         <div className="grid gap-3 text-sm sm:grid-cols-2">
           <SummaryRow label="Telefon" value={client.customer.phone || "Inte angivet"} />
+          <SummaryRow label="Email" value={client.customer.email || "Inte angivet"} />
           <SummaryRow label="Adress" value={client.customer.address || "Inte angivet"} />
           <SummaryRow label="Anteckningar" value={client.customer.notes || "Inga anteckningar"} />
           <SummaryRow label="Sista aktivitet" value={formatOfferDate(client.lastActivity, language)} />
           <SummaryRow label="Antal offerter" value={`${client.offers.length}`} />
           <SummaryRow label="Total offertvärde" value={formatPrice(client.totalValue)} />
+          <SummaryRow label="Premium customer tags" value={(client.tags || []).length > 0 ? client.tags.map((tag) => translateText(tag, language)).join(", ") : "Inte angivet"} />
         </div>
 
         <div className="mt-6">
@@ -597,6 +1436,17 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
                     <p className="mt-1 text-sm text-zinc-400">
                       {t("Start")}: {offer.schedule?.startDate ? formatLongDate(parseLocalDate(offer.schedule.startDate), language) : t("Inte angivet")}
                     </p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-orange-400/30 bg-orange-500/10 px-3 py-1.5 text-xs font-black text-orange-200">
+                        {t(offer.projectStatus || "Ny förfrågan")}
+                      </span>
+                      {(offer.customerTags || []).map((tag) => (
+                        <span key={`${offer.id}-${tag}`} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-zinc-200">
+                          {t(tag)}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="text-right">
@@ -713,6 +1563,32 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
 function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
   const { language, t } = useI18n();
   const [offerToDelete, setOfferToDelete] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("Alla statusar");
+  const [searchQuery, setSearchQuery] = useState("");
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredOffers = offers.filter((offer) => {
+    const statusMatches = statusFilter === "Alla statusar" || (offer.projectStatus || "Ny förfrågan") === statusFilter;
+
+    if (!statusMatches) {
+      return false;
+    }
+
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    return [
+      offer.customer?.name,
+      offer.customer?.phone,
+      offer.customer?.email,
+      offer.customer?.address,
+      offer.displayCategory,
+      offer.category,
+      offer.projectStatus,
+      offer.privateNotes,
+      ...(offer.customerTags || []),
+    ].filter(Boolean).join(" ").toLowerCase().includes(normalizedQuery);
+  });
 
   return (
     <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
@@ -730,26 +1606,51 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
         <div>
 
           <h1 className="text-3xl font-black">
-            {t("Historik")}
+            {t("Projekt & CRM Lite")}
           </h1>
 
           <p className="text-orange-400">
-            {t("Sparade offerter")}
+            {t("Alla offerter som projekt")}
           </p>
 
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <LanguageToggle />
-
-          <img
-            src={marcinByggLogo}
-            alt="Marcin Bygg"
-            className="h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
-          />
-        </div>
+        <img
+          src={marcinByggLogo}
+          alt="Marcin Bygg"
+          className="ml-auto h-12 w-12 shrink-0 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+        />
 
       </div>
+
+      {offers.length > 0 && (
+        <div className="mt-8 grid gap-3 rounded-3xl border border-white/10 bg-zinc-950 p-4 sm:grid-cols-[1fr_220px]">
+          <label className="block text-sm text-zinc-400">
+            {t("Sök projekt")}
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t("Sök klient, adress, telefon eller tagg")}
+              className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+            />
+          </label>
+
+          <label className="block text-sm text-zinc-400">
+            {t("Projektstatus")}
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+            >
+              <option value="Alla statusar">{t("Alla statusar")}</option>
+              {projectStatuses.map((status) => (
+                <option key={status} value={status}>{translateText(status, language)}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
 
       {offers.length === 0 ? (
 
@@ -773,7 +1674,11 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
 
         <div className="mt-10 flex flex-col gap-5">
 
-          {offers.map((offer) => (
+          {filteredOffers.length === 0 ? (
+            <div className="rounded-3xl border border-white/10 bg-zinc-950 p-8 text-center text-zinc-400">
+              {t("Inga projekt matchar filtret.")}
+            </div>
+          ) : filteredOffers.map((offer) => (
 
             <article
               key={offer.id}
@@ -798,6 +1703,17 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                       {translateText(offer.displayCategory || offer.category, language)} · {offer.area !== null && offer.area !== undefined ? `${formatArea(offer.area)} · ` : ""}{offer.peopleCount ?? 2} {translateText((offer.peopleCount ?? 2) === 1 ? "person" : "personer", language)}
                     </p>
 
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-orange-400/30 bg-orange-500/10 px-3 py-1.5 text-xs font-black text-orange-200">
+                        {t(offer.projectStatus || "Ny förfrågan")}
+                      </span>
+                      {(offer.customerTags || []).map((tag) => (
+                        <span key={`${offer.id}-${tag}`} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-zinc-200">
+                          {t(tag)}
+                        </span>
+                      ))}
+                    </div>
+
                   </div>
 
                   <div className="text-right">
@@ -821,8 +1737,11 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                 <div className="grid gap-3 text-sm sm:grid-cols-3">
 
                   <SummaryRow label="Telefon" value={offer.customer?.phone || "Inte angivet"} />
+                  <SummaryRow label="Email" value={offer.customer?.email || "Inte angivet"} />
                   <SummaryRow label="Adress" value={offer.customer?.address || "Inte angivet"} />
                   <SummaryRow label="Anteckningar" value={offer.customer?.notes || "Inga anteckningar"} />
+                  <SummaryRow label="Private notes" value={offer.privateNotes || "Inga privata anteckningar"} />
+                  <SummaryRow label="Projektbilder" value={`${offer.projectPhotos?.length || 0}`} />
 
                 </div>
 
@@ -1928,11 +2847,11 @@ function getBaseCategory(category) {
     return "Golv & Lister";
   }
 
-  if (category === "FĂ¶nster & DĂ¶rrar") {
+  if (category === "Fönster & Dörrar") {
     return "Fönster & Dörrar";
   }
 
-  if (category === "KĂ¶k & Garderob") {
+  if (category === "Kök & Garderob") {
     return "Kök & Garderob";
   }
 
@@ -3089,14 +4008,6 @@ const calculatorConfigs = {
             title: "Täckning av möbler med plast / folie",
             pricingControl: "work",
             defaultFastPrice: () => kitchenWardrobeDefaultPrices.furnitureProtectionFixed,
-            defaultHourlyRate: 250,
-            defaultEstimatedHours: () => 1.5,
-          },
-          {
-            id: "kitchenWardrobeMasking",
-            title: "Maskering inför arbete",
-            pricingControl: "work",
-            defaultFastPrice: () => kitchenWardrobeDefaultPrices.maskingFixed,
             defaultHourlyRate: 250,
             defaultEstimatedHours: () => 1.5,
           },
@@ -4396,6 +5307,7 @@ function buildInitialCalculatorState(offer, initialCustomer) {
     customer: formState.customer ?? offer?.customer ?? initialCustomer ?? {
       name: "",
       phone: "",
+      email: "",
       address: "",
       notes: "",
     },
@@ -4435,7 +5347,7 @@ function buildInitialCalculatorState(offer, initialCustomer) {
   };
 }
 
-function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, onSaveOffer }) {
+function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, onSaveOffer, appSettings }) {
   const { language, t } = useI18n();
   const initialState = buildInitialCalculatorState(initialOffer, initialCustomer);
 
@@ -4444,9 +5356,12 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
   const [deckDimensions, setDeckDimensions] = useState(initialState.deckDimensions);
   const [selectedOptions, setSelectedOptions] = useState(initialState.selectedOptions);
   const [customer, setCustomer] = useState(initialState.customer);
-  const [extraWork, setExtraWork] = useState(initialState.extraWork);
+  const [extraWork, setExtraWork] = useState(initialOffer ? initialState.extraWork : {
+    ...initialState.extraWork,
+    hourlyRate: appSettings.standardHourlyRate,
+  });
   const [temporaryExtraStaff, setTemporaryExtraStaff] = useState(initialState.temporaryExtraStaff);
-  const [peopleCount, setPeopleCount] = useState(initialState.peopleCount);
+  const [peopleCount, setPeopleCount] = useState(initialOffer ? initialState.peopleCount : appSettings.standardPeopleCount);
   const [availability, setAvailability] = useState(initialState.availability);
   const [startDate, setStartDate] = useState(initialState.startDate);
   const [fixedCosts, setFixedCosts] = useState(initialState.fixedCosts);
@@ -4455,6 +5370,10 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
   const [optionMeasurements, setOptionMeasurements] = useState(initialState.optionMeasurements);
   const [discount, setDiscount] = useState(initialState.discount);
   const [selectedPriceVariant, setSelectedPriceVariant] = useState(initialState.selectedPriceVariant);
+  const [projectStatus, setProjectStatus] = useState(initialOffer?.projectStatus || "Ny förfrågan");
+  const [privateNotes, setPrivateNotes] = useState(initialOffer?.privateNotes || "");
+  const [customerTags, setCustomerTags] = useState(initialOffer?.customerTags || []);
+  const [projectPhotos, setProjectPhotos] = useState(initialOffer?.projectPhotos || []);
 
   const baseCategory = getBaseCategory(category);
   const calculatorConfig = calculatorConfigs[baseCategory] || calculatorConfigs.default;
@@ -4841,7 +5760,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
   const selectedOfferPrice = offerPriceOptions[selectedPriceVariant] ?? normalPrice;
 
   const exportPdf = async () => {
-    const logoImage = await loadPdfLogoImage();
+    const logoImage = await loadPdfLogoImage(appSettings);
     const pdfBlob = createOfferPdfBlob({
       area,
       showArea: usesGlobalArea,
@@ -4849,6 +5768,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       deckDimensions: usesDimensionArea ? deckDimensions : null,
       displayCategory,
       customer,
+      projectStatus,
       selectedOfferPrice,
       selectedOptionDetails,
       extraCostDetails,
@@ -4869,6 +5789,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       elNoticeActive,
       demolitionNoticeActive,
       logoImage,
+      companySettings: appSettings,
     });
     const pdfUrl = URL.createObjectURL(pdfBlob);
     const downloadLink = document.createElement("a");
@@ -4890,6 +5811,10 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       date: initialOffer?.date || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       customer,
+      projectStatus,
+      privateNotes,
+      customerTags,
+      projectPhotos,
       category,
       displayCategory,
       area: usesGlobalArea ? area : null,
@@ -4942,6 +5867,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
         elNotice: option.elNotice || false,
       })),
       demolitionNoticeActive,
+      companySettings: appSettings,
       prices: {
         work: Math.round(workPrice),
         workAfterDiscount: Math.round(discountedWorkPrice),
@@ -4973,6 +5899,10 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           percent: discountPercent,
         },
         selectedPriceVariant,
+        projectStatus,
+        privateNotes,
+        customerTags,
+        projectPhotos,
       },
     });
   };
@@ -5002,14 +5932,10 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
 
         </div>
 
-        <div className="ml-auto">
-          <LanguageToggle />
-        </div>
-
         <img
           src={marcinByggLogo}
           alt="Marcin Bygg"
-          className="ml-auto h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+          className="ml-auto h-12 w-12 shrink-0 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
         />
 
       </div>
@@ -5113,6 +6039,12 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
             />
 
             <CustomerField
+              label="Email"
+              value={customer.email || ""}
+              onChange={(value) => setCustomer({ ...customer, email: value })}
+            />
+
+            <CustomerField
               label="Adress"
               value={customer.address}
               onChange={(value) => setCustomer({ ...customer, address: value })}
@@ -5128,6 +6060,17 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           </div>
 
         </div>
+
+        <ProjectCrmPanel
+          projectStatus={projectStatus}
+          setProjectStatus={setProjectStatus}
+          privateNotes={privateNotes}
+          setPrivateNotes={setPrivateNotes}
+          customerTags={customerTags}
+          setCustomerTags={setCustomerTags}
+          projectPhotos={projectPhotos}
+          setProjectPhotos={setProjectPhotos}
+        />
 
         {/* PEOPLE */}
         <div className="mt-8 border-t border-zinc-800 pt-8">
@@ -6622,6 +7565,7 @@ function createOfferPdfBlob({
   deckDimensions,
   displayCategory,
   customer,
+  projectStatus = "Ny förfrågan",
   selectedOfferPrice,
   selectedOptionDetails,
   extraCostDetails,
@@ -6641,18 +7585,33 @@ function createOfferPdfBlob({
   vvsNoticeActive,
   elNoticeActive,
   demolitionNoticeActive,
+  companySettings = loadAppSettings(),
   logoImage,
 }) {
+  const isPdfValueFilled = (value) => {
+    const normalized = String(value ?? "").trim();
+
+    return Boolean(normalized) && !["Inte angivet", "Ej angivet", "Nie podano"].includes(normalized);
+  };
+  const companyRows = [
+    ["Företag", companySettings.companyName],
+    ["Org.nr", companySettings.orgNumber],
+    ["Telefon", companySettings.phone],
+    ["Email", companySettings.email],
+    ["Adress", companySettings.address],
+    ["Webb", companySettings.website],
+    ["Instagram", companySettings.instagram],
+    ["Facebook", companySettings.facebook],
+    ["TikTok", companySettings.tiktok],
+  ].filter(([, value]) => isPdfValueFilled(value));
   const customerRows = [
-    ["Namn", customer.name || "Inte angivet"],
-    ["Telefon", customer.phone || "Inte angivet"],
-    ["Adress", customer.address || "Inte angivet"],
-    ["Anteckningar", customer.notes || "Inga anteckningar"],
-  ];
-  const optionRows = selectedOptionDetails.length > 0
-    ? selectedOptionDetails
-    : [{ title: "Inga valda alternativ", sectionTitle: "", priceValue: 0 }];
-  const extraCostRows = extraCostDetails || [];
+    ["Namn", customer.name],
+    ["Telefon", customer.phone],
+    ["Email", customer.email],
+    ["Adress", customer.address],
+  ].filter(([, value]) => isPdfValueFilled(value));
+  const optionRows = (selectedOptionDetails || []).filter((option) => isPdfValueFilled(option.title));
+  const extraCostRows = (extraCostDetails || []).filter((cost) => isPdfValueFilled(cost.name) || isPdfValueFilled(cost.description) || Number(cost.priceValue) > 0);
   const fixedCostsDisplayTotal = Math.max(0, fixedCostsTotal - extraCostsTotal);
   const showVvsNotice = vvsNoticeActive || selectedOptionDetails.some(isVvsRelatedOption);
   const showElNotice = elNoticeActive || selectedOptionDetails.some(isElRelatedOption);
@@ -6663,6 +7622,7 @@ function createOfferPdfBlob({
   ];
   const showNoticeBlock = noticeBlocks.length > 0;
   const content = [];
+  let cursorY = 0;
 
   const rect = (x, y, width, height, color) => {
     content.push(`${color} rg ${x} ${y} ${width} ${height} re f`);
@@ -6681,36 +7641,10 @@ function createOfferPdfBlob({
   };
 
   const money = (value) => formatPrice(value);
-
-  rect(0, 0, 595, 842, "0.02 0.02 0.02");
-  rect(28, 28, 539, 786, "0.07 0.07 0.07");
-  rect(28, 768, 539, 46, "0.15 0.07 0.02");
-  line(28, 768, 567, 768, "0.98 0.45 0.08", 1.4);
-
-  if (logoImage) {
-    image("Logo", 48, 772, 42, 42);
-  }
-  text("OFFERT", 443, 792, 12, "0.98 0.57 0.24", "F2");
-  text(new Date().toLocaleDateString("sv-SE"), 432, 775, 10, "0.72 0.72 0.76");
-
-  text(displayCategory, 48, 724, 24, "1 1 1", "F2");
-  text(`${showArea ? `${formatArea(area)} · ` : ""}${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`, 48, 704, 11, "0.65 0.65 0.7");
-  text("Offertpris", 390, 724, 10, "0.65 0.65 0.7");
-  text(money(selectedOfferPrice), 390, 701, 22, "0.98 0.57 0.24", "F2");
-
-  rect(48, 552, 235, 116, "0.1 0.1 0.1");
-  rect(312, 552, 235, 116, "0.1 0.1 0.1");
-  text("KUNDUPPGIFTER", 64, 645, 9, "0.98 0.57 0.24", "F2");
-  text("PROJEKT", 328, 645, 9, "0.98 0.57 0.24", "F2");
-
-  customerRows.slice(0, 3).forEach(([label, value], index) => {
-    const y = 620 - index * 24;
-    text(label, 64, y, 9, "0.62 0.62 0.66");
-    text(value, 142, y, 10, "1 1 1", "F2");
-  });
-
+  const companyDetails = companyRows.slice(1).map(([label, value]) => `${label}: ${value}`);
   const projectRows = [
     ["Kategori", displayCategory],
+    ["Projektstatus", projectStatus],
     ...(showArea ? [["Storlek", formatArea(area)]] : []),
     ...(showArea && areaMode === "dimensions" && deckDimensions ? [
       ["Mått", `${deckDimensions.length || 0} m × ${deckDimensions.width || 0} m`],
@@ -6731,78 +7665,162 @@ function createOfferPdfBlob({
     ...(extraCostsTotal > 0 ? [["Extra kostnader", money(extraCostsTotal)]] : []),
     ...(fixedCostsDisplayTotal > 0 ? [["Fasta kostnader", money(fixedCostsDisplayTotal)]] : []),
     ["Offertpris", money(selectedOfferPrice)],
+  ].filter(([, value]) => isPdfValueFilled(value));
+  const socialRows = [
+    companySettings.instagram && `Instagram: ${companySettings.instagram}`,
+    companySettings.facebook && `Facebook: ${companySettings.facebook}`,
+    companySettings.tiktok && `TikTok: ${companySettings.tiktok}`,
+  ].filter(Boolean);
+  const termsRows = [
+    "Offerten baseras på angivna uppgifter och valda alternativ.",
+    "Material, fasta kostnader och extra arbete redovisas separat där det är aktuellt.",
+    "Slutlig omfattning kan justeras efter platsbesök eller ändrade förutsättningar.",
+  ];
+  const signatureRows = [
+    ["För Marcin Bygg", "Kund"],
   ];
 
-  projectRows.forEach(([label, value], index) => {
-    const y = 620 - index * 10;
-    text(label, 328, y, 7, "0.62 0.62 0.66");
-    text(value, 408, y, 8, "1 1 1", "F2");
-  });
+  const sectionTitle = (titleValue, y) => {
+    text(titleValue.toUpperCase(), 48, y, 8, "0.98 0.57 0.24", "F2");
+    line(48, y - 8, 547, y - 8, "0.22 0.22 0.24", 0.6);
+  };
 
-  text("ANTECKNINGAR", 48, 492, 9, "0.98 0.57 0.24", "F2");
-  rect(48, 432, 499, 45, "0.08 0.08 0.08");
-  wrapPdfText(customer.notes || "Inga anteckningar", 92, 3).forEach((lineText, index) => {
-    text(lineText, 64, 458 - index * 14, 10, "0.9 0.9 0.92");
-  });
+  const detailRows = (rows, x, y, width, maxRows = 4) => {
+    let nextY = y;
 
-  if (showNoticeBlock) {
-    rect(328, 392, 219, 85, "0.1 0.08 0.05");
-    let noticeY = 458;
+    rows.slice(0, maxRows).forEach(([label, value]) => {
+      const rowY = nextY;
+      const valueLines = wrapPdfText(value, 26, 2);
 
-    noticeBlocks.forEach((notice, noticeIndex) => {
-      text(notice.title, 344, noticeY + 18, 8, "0.98 0.57 0.24", "F2");
-      wrapPdfText(notice.text, 42, noticeIndex === 0 && noticeBlocks.length > 1 ? 3 : 4).forEach((lineText, index) => {
-        text(lineText, 344, noticeY - index * 11, 7, "0.92 0.86 0.78");
+      text(label, x, rowY, 6.7, "0.56 0.56 0.6");
+      valueLines.forEach((lineText, lineIndex) => {
+        text(lineText, x + width * 0.38, rowY - lineIndex * 9, 8, "1 1 1", "F2");
       });
-      noticeY -= noticeBlocks.length > 1 ? 42 : 0;
+      nextY -= Math.max(18, valueLines.length * 10 + 8);
     });
-  }
 
-  const optionsTitleY = showNoticeBlock ? 356 : 400;
-  const firstOptionRowY = optionsTitleY - 32;
-  const maxVisibleOptions = extraCostRows.length > 0
-    ? (showNoticeBlock ? 4 : 5)
-    : (showNoticeBlock ? 6 : 8);
+    return nextY;
+  };
 
-  text("VALDA ALTERNATIV", 48, optionsTitleY, 9, "0.98 0.57 0.24", "F2");
-  const visibleOptionRows = optionRows.slice(0, maxVisibleOptions);
-
-  visibleOptionRows.forEach((option, index) => {
-    const y = firstOptionRowY - index * 31;
-    rect(48, y - 8, 499, 24, index % 2 === 0 ? "0.08 0.08 0.08" : "0.1 0.1 0.1");
-    text(formatOptionTitle(option.title), 64, y, 10, "1 1 1", "F2");
-    if (option.sectionTitle) {
-      text(option.sectionTitle, 64, y - 11, 7, "0.48 0.48 0.52");
-    }
-    if (option.detailText) {
-      text(option.detailText, 180, y - 11, 7, "0.48 0.48 0.52");
-    }
-    text(option.priceValue > 0 ? `+${money(option.priceValue)}` : "Ingår", 420, y, 9, "0.98 0.72 0.45", "F2");
-  });
-
-  if (extraCostRows.length > 0) {
-    const extraCostsTitleY = firstOptionRowY - visibleOptionRows.length * 31 - 18;
-
-    text("EXTRA KOSTNADER", 48, extraCostsTitleY, 9, "0.98 0.57 0.24", "F2");
-    extraCostRows.slice(0, 4).forEach((cost, index) => {
-      const y = extraCostsTitleY - 32 - index * 26;
-      rect(48, y - 8, 499, 20, index % 2 === 0 ? "0.08 0.08 0.08" : "0.1 0.1 0.1");
-      text(cost.name || "Extra kostnad", 64, y, 9, "1 1 1", "F2");
-      if (cost.description) {
-        text(cost.description, 64, y - 10, 7, "0.48 0.48 0.52");
+  const tableRows = (rows, startY, maxRows = 7) => {
+    rows.slice(0, maxRows).forEach((row, index) => {
+      const y = startY - index * 24;
+      rect(48, y - 8, 499, 19, index % 2 === 0 ? "0.085 0.085 0.09" : "0.11 0.11 0.115");
+      text(wrapPdfText(row.label, 40, 1)[0] || "", 62, y, 8, "0.68 0.68 0.72");
+      text(wrapPdfText(row.value, 26, 1)[0] || "", 390, y, 8.5, "1 1 1", "F2");
+      if (row.detail) {
+        text(wrapPdfText(row.detail, 92, 1)[0] || "", 62, y - 9, 6.5, "0.45 0.45 0.5");
       }
-      text(`+${money(cost.priceValue)}`, 420, y, 9, "0.98 0.72 0.45", "F2");
+    });
+  };
+
+  rect(0, 0, 595, 842, "0.015 0.015 0.018");
+  rect(26, 26, 543, 790, "0.055 0.055 0.06");
+  rect(26, 708, 543, 108, "0.12 0.055 0.018");
+  rect(26, 705, 543, 3, "0.98 0.45 0.08");
+
+  if (logoImage) {
+    image("Logo", 48, 744, 54, 54);
+  }
+  if (companySettings.companyName) {
+    text(companySettings.companyName, logoImage ? 118 : 48, 786, 13, "1 1 1", "F2");
+  }
+  companyDetails.slice(0, 2).forEach((detail, index) => {
+    text(detail, logoImage ? 118 : 48, 768 - index * 12, 7.2, "0.76 0.76 0.8");
+  });
+  text("OFFERT", 444, 786, 18, "0.98 0.57 0.24", "F2");
+  text(new Date().toLocaleDateString("sv-SE"), 455, 768, 8.5, "0.82 0.82 0.86");
+
+  text(displayCategory, 48, 675, 22, "1 1 1", "F2");
+  text(`${showArea ? `${formatArea(area)} · ` : ""}${peopleCount} ${peopleCount === 1 ? "person" : "personer"} · ${estimatedCalendarTime}`, 48, 654, 9.5, "0.72 0.72 0.76");
+  rect(375, 632, 172, 54, "0.98 0.45 0.08");
+  text("OFFERTPRIS", 392, 666, 8, "0 0 0", "F2");
+  text(money(selectedOfferPrice), 392, 646, 17, "0 0 0", "F2");
+
+  if (customerRows.length > 0) {
+    rect(48, 520, 235, 108, "0.09 0.09 0.095");
+    text("KUNDUPPGIFTER", 64, 606, 8, "0.98 0.57 0.24", "F2");
+    detailRows(customerRows, 64, 586, 190);
+  }
+  if (companyRows.length > 0) {
+    rect(312, 520, 235, 108, "0.09 0.09 0.095");
+    text("FÖRETAGSUPPGIFTER", 328, 606, 8, "0.98 0.57 0.24", "F2");
+    detailRows(companyRows, 328, 586, 185);
+  }
+
+  sectionTitle("Projekt & pris", 492);
+  const pricingRows = projectRows.map(([label, value]) => ({ label, value }));
+  tableRows(pricingRows, 470, 8);
+
+  cursorY = 470 - Math.min(pricingRows.length, 8) * 24 - 20;
+  const optionTableRows = optionRows.slice(0, 7).map((option) => ({
+    label: formatOptionTitle(option.title),
+    value: option.priceValue > 0 ? `+${money(option.priceValue)}` : "Ingår",
+    detail: [option.sectionTitle, option.detailText].filter(Boolean).join(" · "),
+  }));
+  if (optionTableRows.length > 0 && cursorY > 180) {
+    sectionTitle("Valda alternativ", cursorY);
+    tableRows(optionTableRows, cursorY - 22, 7);
+    cursorY = cursorY - 22 - Math.min(optionTableRows.length, 7) * 24 - 16;
+  }
+  if (extraCostRows.length > 0 && cursorY > 178) {
+    sectionTitle("Extra kostnader", cursorY);
+    tableRows(extraCostRows.slice(0, 3).map((cost) => ({
+      label: cost.name || "Extra kostnad",
+      value: `+${money(cost.priceValue)}`,
+      detail: cost.description,
+    })), cursorY - 22, 3);
+    cursorY -= 98;
+  }
+
+  if (customer.notes && cursorY > 150) {
+    sectionTitle("Anteckningar", cursorY);
+    rect(48, cursorY - 66, 499, 43, "0.08 0.08 0.085");
+    wrapPdfText(customer.notes, 95, 3).forEach((lineText, index) => {
+      text(lineText, 64, cursorY - 40 - index * 12, 8.5, "0.9 0.9 0.92");
+    });
+    cursorY -= 84;
+  }
+
+  if (showNoticeBlock && cursorY > 126) {
+    sectionTitle("Viktig information", cursorY);
+    noticeBlocks.slice(0, 2).forEach((notice, noticeIndex) => {
+      const y = cursorY - 24 - noticeIndex * 34;
+      text(notice.title, 64, y, 7.5, "0.98 0.57 0.24", "F2");
+      wrapPdfText(notice.text, 105, 2).forEach((lineText, index) => {
+        text(lineText, 64, y - 11 - index * 10, 6.5, "0.78 0.76 0.72");
+      });
     });
   }
 
-  rect(48, 76, 499, 70, "0.98 0.45 0.08");
-  text("OFFERTPRIS", 70, 120, 9, "0 0 0", "F2");
-  text(money(selectedOfferPrice), 70, 94, 22, "0 0 0", "F2");
+  rect(48, 76, 499, 44, "0.08 0.08 0.085");
+  termsRows.forEach((term, index) => {
+    text(term, 64, 104 - index * 10, 6.5, "0.68 0.68 0.72");
+  });
+  if (socialRows.length > 0) {
+    text(socialRows.join(" · "), 64, 64, 7, "0.98 0.57 0.24");
+  }
+
+  signatureRows.forEach(([leftLabel, rightLabel]) => {
+    line(64, 50, 230, 50, "0.45 0.45 0.48", 0.6);
+    line(360, 50, 526, 50, "0.45 0.45 0.48", 0.6);
+    text(leftLabel, 64, 38, 7, "0.68 0.68 0.72");
+    text(rightLabel, 360, 38, 7, "0.68 0.68 0.72");
+  });
 
   return buildPdf(content.join("\n"), logoImage);
 }
 
-async function loadPdfLogoImage() {
+async function loadPdfLogoImage(companySettings = loadAppSettings()) {
+  if (companySettings.logoDataUrl) {
+    const logoBytes = dataUrlToBytes(companySettings.logoDataUrl);
+    const parsedLogo = logoBytes ? parsePngForPdf(logoBytes) : null;
+
+    if (parsedLogo) {
+      return parsedLogo;
+    }
+  }
+
   if (loadPdfLogoImage.cache !== undefined) {
     return loadPdfLogoImage.cache;
   }
@@ -6875,6 +7893,23 @@ function parsePngForPdf(bytes) {
     height,
     data,
   };
+}
+
+function dataUrlToBytes(dataUrl) {
+  const [, base64 = ""] = String(dataUrl).split(",");
+
+  if (!base64) {
+    return null;
+  }
+
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
 }
 
 function readPngUint32(bytes, offset) {

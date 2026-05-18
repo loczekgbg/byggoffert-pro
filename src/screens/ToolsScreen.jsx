@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight, ShoppingCart, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, FileDown, ShoppingCart, Trash2 } from "lucide-react";
 import marcinByggLogo from "../assets/marcin-bygg-logo.png";
-import { LanguageToggle, translateText, useI18n } from "../i18n";
+import { translateText, useI18n } from "../i18n";
 
 const tools = [
   {
@@ -30,8 +30,8 @@ const tools = [
   },
   {
     id: "screws",
-    group: "Skruvåtgång",
-    title: "Skruvåtgång",
+    group: "Skruv & Spikåtgång",
+    title: "Skruv & Spikåtgång",
     description: "Trall, panel, gips och konstruktion",
   },
   {
@@ -117,6 +117,15 @@ const defaultValues = {
     wallHeight: 2.5,
     length: 4,
     width: 5,
+    panelWidth: 120,
+    panelCc: 600,
+    fastenersPerCrossing: 1,
+    floorBoardType: "600 x 1800 mm",
+    customFloorBoardWidth: 600,
+    customFloorBoardLength: 1800,
+    screwRows: 3,
+    screwSpacing: 150,
+    waste: 10,
   },
   decking: {
     areaMode: "manual",
@@ -140,7 +149,10 @@ const defaultValues = {
     areaMode: "manual",
     area: 20,
     boardType: "1200 x 2400 mm",
+    layerCount: "one",
     boardOrientation: "vertical",
+    layer1Orientation: "horizontal",
+    layer2Orientation: "vertical",
     boardCcMode: "cc600",
     customBoardCc: 600,
     wallLength: 4,
@@ -221,8 +233,9 @@ const screwRates = {
 
 const boardSizes = {
   "900 x 2200 mm": { width: 900, height: 2200 },
-  "900 x 2700 mm": { width: 900, height: 2700 },
   "900 x 2400 mm": { width: 900, height: 2400 },
+  "900 x 2500 mm": { width: 900, height: 2500 },
+  "900 x 2700 mm": { width: 900, height: 2700 },
   "1200 x 2400 mm": { width: 1200, height: 2400 },
   "1200 x 2500 mm": { width: 1200, height: 2500 },
   custom: { width: 1200, height: 2400 },
@@ -232,6 +245,12 @@ const sheetSizes = {
   "1200 x 2500 mm": { width: 1200, height: 2500 },
   "900 x 2500 mm": { width: 900, height: 2500 },
   custom: { width: 1200, height: 2500 },
+};
+
+const floorChipboardSizes = {
+  "600 x 1800 mm": { width: 600, height: 1800 },
+  "600 x 2400 mm": { width: 600, height: 2400 },
+  custom: { width: 600, height: 1800 },
 };
 
 const studDimensions = ["45x70", "45x95", "45x120", "custom"];
@@ -252,6 +271,75 @@ function formatNumber(value, maximumFractionDigits = 2) {
 
 function createLocalId() {
   return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function pdfSafeText(value) {
+  return String(value ?? "")
+    .replaceAll("å", "a")
+    .replaceAll("ä", "a")
+    .replaceAll("ö", "o")
+    .replaceAll("Å", "A")
+    .replaceAll("Ä", "A")
+    .replaceAll("Ö", "O")
+    .replace(/[()\\]/g, "\\$&");
+}
+
+function downloadShoppingListPdf(items, filename) {
+  const lines = [
+    "MARCIN BYGG - INKOPSLISTA",
+    new Date().toLocaleDateString("sv-SE"),
+    "",
+    ...items.flatMap((item, index) => [
+      `${index + 1}. ${item.name}`,
+      `   Antal: ${formatNumber(item.quantity)} ${item.unit}`,
+      `   Kalkylator: ${item.source}`,
+      item.note ? `   Notering: ${item.note}` : "",
+      "",
+    ]),
+  ].filter(Boolean);
+  const catalogId = 1;
+  const pagesId = 2;
+  const fontId = 3;
+  const pageId = 4;
+  const contentId = 5;
+  const content = [
+    "BT",
+    "/F1 20 Tf",
+    "50 790 Td",
+    "(MARCIN BYGG) Tj",
+    "/F1 11 Tf",
+    "0 -28 Td",
+    ...lines.map((line) => `(${pdfSafeText(line).slice(0, 95)}) Tj 0 -16 Td`),
+    "ET",
+  ].join("\n");
+  const objects = [
+    `<< /Type /Catalog /Pages ${pagesId} 0 R >>`,
+    `<< /Type /Pages /Kids [${pageId} 0 R] /Count 1 >>`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`,
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+  ];
+
+  const parts = ["%PDF-1.4\n"];
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(parts.join("").length);
+    parts.push(`${index + 1} 0 obj\n${object}\nendobj\n`);
+  });
+  const xrefOffset = parts.join("").length;
+  parts.push(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`);
+  offsets.slice(1).forEach((offset) => {
+    parts.push(`${String(offset).padStart(10, "0")} 00000 n \n`);
+  });
+  parts.push(`trailer << /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+
+  const blob = new Blob(parts, { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${filename}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const lengthUnits = ["mm", "cm", "m"];
@@ -298,6 +386,17 @@ function sheetSize(values) {
   return sheetSizes[values.boardType] || sheetSizes["1200 x 2500 mm"];
 }
 
+function floorChipboardSize(values) {
+  if (values.floorBoardType === "custom") {
+    return {
+      width: numberValue(values.customFloorBoardWidth),
+      height: numberValue(values.customFloorBoardLength),
+    };
+  }
+
+  return floorChipboardSizes[values.floorBoardType] || floorChipboardSizes["600 x 1800 mm"];
+}
+
 function surfaceArea(values) {
   if (values.areaMode === "wall" || values.areaMode === "dimensions") {
     return numberValue(values.wallLength) * numberValue(values.wallHeight);
@@ -318,35 +417,25 @@ function selectedCc(values) {
   return Number(String(values.boardCcMode || "cc600").replace("cc", "")) || 600;
 }
 
-function calculateSheetLayout(values, size, area) {
+function calculateSheetLayout(values, size, area, orientation = values.boardOrientation) {
   const boardWidth = numberValue(size.width);
   const boardHeight = numberValue(size.height);
   const boardArea = (boardWidth / 1000) * (boardHeight / 1000);
-  const areaSheets = boardArea > 0 ? Math.ceil(area / boardArea) : 0;
+  const theoreticalMinimum = boardArea > 0 ? Math.ceil(area / boardArea) : 0;
   const cc = selectedCc(values);
-  const mountedWidth = values.boardOrientation === "horizontal" ? boardHeight : boardWidth;
-  const mountedHeight = values.boardOrientation === "horizontal" ? boardWidth : boardHeight;
-  const wallLength = numberValue(values.wallLength);
-  const wallHeight = numberValue(values.wallHeight);
-  const canLayout = (values.areaMode === "wall" || values.areaMode === "dimensions") && wallLength > 0 && wallHeight > 0 && mountedWidth > 0 && mountedHeight > 0;
-  const columns = canLayout ? Math.ceil((wallLength * 1000) / mountedWidth) : 0;
-  const rows = canLayout ? Math.ceil((wallHeight * 1000) / mountedHeight) : 0;
-  const layoutSheets = canLayout ? columns * rows : areaSheets;
-  const ccAligned = cc > 0 && mountedWidth % cc === 0;
-  const ccFactor = ccAligned ? 1 : 1.05;
-  const optimizedSheets = Math.max(areaSheets, layoutSheets);
-  const finalSheets = Math.ceil(optimizedSheets * ccFactor * (1 + numberValue(values.waste) / 100));
+  const practicalSheets = theoreticalMinimum;
+  const spillSheets = Math.max(0, Math.ceil(practicalSheets * (numberValue(values.waste) / 100)));
+  const finalSheets = practicalSheets + spillSheets;
 
   return {
     boardArea,
-    areaSheets,
-    layoutSheets,
-    optimizedSheets,
+    theoreticalMinimum,
+    areaSheets: theoreticalMinimum,
+    practicalSheets,
+    spillSheets,
     finalSheets,
-    columns,
-    rows,
     cc,
-    ccAligned,
+    orientation,
   };
 }
 
@@ -399,11 +488,28 @@ function calculateSpacing(values) {
 function calculateDrywall(values) {
   const wallArea = surfaceArea(values);
   const size = boardSize(values);
-  const layout = calculateSheetLayout(values, size, wallArea);
+  const layer1 = calculateSheetLayout(values, size, wallArea, values.layer1Orientation || values.boardOrientation);
+  const hasSecondLayer = values.layerCount === "two";
+  const layer2 = hasSecondLayer
+    ? calculateSheetLayout(values, size, wallArea, values.layer2Orientation || values.boardOrientation)
+    : null;
+  const finalSheets = layer1.finalSheets + (layer2?.finalSheets || 0);
+  const theoreticalMinimum = layer1.theoreticalMinimum + (layer2?.theoreticalMinimum || 0);
+  const practicalSheets = layer1.practicalSheets + (layer2?.practicalSheets || 0);
+  const spillSheets = layer1.spillSheets + (layer2?.spillSheets || 0);
 
   return {
     wallArea,
-    ...layout,
+    ...layer1,
+    layer1,
+    layer2,
+    layers: hasSecondLayer ? 2 : 1,
+    totalArea: wallArea * (hasSecondLayer ? 2 : 1),
+    theoreticalMinimum,
+    areaSheets: theoreticalMinimum,
+    practicalSheets,
+    spillSheets,
+    finalSheets,
     size,
   };
 }
@@ -417,6 +523,62 @@ function calculateSheet(values) {
     area,
     ...layout,
     size,
+  };
+}
+
+function calculateScrews(values) {
+  const area = surfaceArea(values);
+  const wasteMultiplier = 1 + numberValue(values.waste) / 100;
+
+  if (values.type === "panel") {
+    const panelWidthMeters = numberValue(values.panelWidth) / 1000;
+    const ccMeters = Math.max(0.1, numberValue(values.panelCc) / 1000);
+    const panelLinearMeters = panelWidthMeters > 0 ? area / panelWidthMeters : 0;
+    const crossings = panelLinearMeters / ccMeters;
+    const baseFasteners = Math.ceil(crossings * Math.max(1, numberValue(values.fastenersPerCrossing)));
+
+    return {
+      area,
+      baseFasteners,
+      finalFasteners: Math.ceil(baseFasteners * wasteMultiplier),
+      panelLinearMeters,
+      crossings: Math.ceil(crossings),
+      mode: "panel",
+    };
+  }
+
+  if (values.type === "golvspånskiva") {
+    const size = floorChipboardSize(values);
+    const boardArea = (numberValue(size.width) / 1000) * (numberValue(size.height) / 1000);
+    const boards = boardArea > 0 ? Math.ceil(area / boardArea) : 0;
+    const screwsPerRow = numberValue(values.screwSpacing) > 0
+      ? Math.ceil(numberValue(size.height) / numberValue(values.screwSpacing)) + 1
+      : 0;
+    const screwsPerBoard = screwsPerRow * Math.max(1, Math.ceil(numberValue(values.screwRows)));
+    const baseFasteners = screwsPerBoard * boards;
+
+    return {
+      area,
+      size,
+      boardArea,
+      boards,
+      screwsPerRow,
+      screwsPerBoard,
+      baseFasteners,
+      finalFasteners: Math.ceil(baseFasteners * wasteMultiplier),
+      mode: "golvspånskiva",
+    };
+  }
+
+  const rate = screwRates[values.type] || screwRates.trall;
+  const baseFasteners = Math.ceil(area * rate);
+
+  return {
+    area,
+    rate,
+    baseFasteners,
+    finalFasteners: Math.ceil(baseFasteners * wasteMultiplier),
+    mode: "standard",
   };
 }
 
@@ -469,7 +631,7 @@ function shoppingItemsForTool(tool, values) {
         name: `Gipsskiva ${values.boardType === "custom" ? `${formatNumber(result.size.width)} x ${formatNumber(result.size.height)} mm` : values.boardType}`,
         quantity: result.finalSheets,
         unit: "st",
-        note: `Yta ${formatNumber(result.wallArea)} m², ${values.boardOrientation}, cc${formatNumber(result.cc, 0)}, spill ${formatNumber(values.waste)} %`,
+        note: `${result.layers} lager, lager 1 ${result.layer1.orientation}${result.layer2 ? `, lager 2 ${result.layer2.orientation}` : ""}, yta ${formatNumber(result.totalArea)} m², cc${formatNumber(result.cc, 0)}, spill ${formatNumber(values.waste)} %`,
         source: tool.title,
       },
     ];
@@ -502,6 +664,25 @@ function shoppingItemsForTool(tool, values) {
         quantity: Number(finalArea.toFixed(2)),
         unit: "m²",
         note: `Yta ${formatNumber(area)} m², spill ${formatNumber(values.waste)} %`,
+        source: tool.title,
+      },
+    ];
+  }
+
+  if (tool.id === "screws") {
+    const result = calculateScrews(values);
+    const materialName = values.type === "golvspånskiva"
+      ? `Skruv till golvspånskiva ${values.floorBoardType === "custom" ? `${formatNumber(result.size.width)} x ${formatNumber(result.size.height)} mm` : values.floorBoardType}`
+      : values.type === "panel"
+        ? "Spik / skruv till panel / fasad"
+        : `Skruv ${values.type}`;
+
+    return [
+      {
+        name: materialName,
+        quantity: result.finalFasteners,
+        unit: "st",
+        note: `Yta ${formatNumber(result.area)} m², spill ${formatNumber(values.waste)} %`,
         source: tool.title,
       },
     ];
@@ -579,12 +760,35 @@ function calculateTool(toolId, values, unit = "m") {
   }
 
   if (toolId === "screws") {
-    const rate = screwRates[values.type] || screwRates.trall;
-    const screws = Math.ceil(surfaceArea(values) * rate);
+    const result = calculateScrews(values);
+
+    if (result.mode === "panel") {
+      return [
+        ["Yta", `${formatNumber(result.area)} m²`],
+        ["Löpmeter panel", `${formatNumber(result.panelLinearMeters)} lm`],
+        ["Antal korsningar", `${result.crossings} st`],
+        ["Infästningar före spill", `${result.baseFasteners} st`],
+        ["Spill %", `${formatNumber(values.waste)} %`],
+        ["Uppskattat antal spik/skruv", `${result.finalFasteners} st`],
+      ];
+    }
+
+    if (result.mode === "golvspånskiva") {
+      return [
+        ["Yta", `${formatNumber(result.area)} m²`],
+        ["Antal golvspånskivor", `${result.boards} st`],
+        ["Skruv per rad", `${result.screwsPerRow} st`],
+        ["Skruv per skiva", `${result.screwsPerBoard} st`],
+        ["Infästningar före spill", `${result.baseFasteners} st`],
+        ["Spill %", `${formatNumber(values.waste)} %`],
+        ["Uppskattat antal spik/skruv", `${result.finalFasteners} st`],
+      ];
+    }
 
     return [
-      ["Skruvåtgång", `${screws} st`],
-      ["Beräkning", `${rate} st/m²`],
+      ["Skruvåtgång", `${result.finalFasteners} st`],
+      ["Beräkning", `${result.rate} st/m²`],
+      ["Spill %", `${formatNumber(values.waste)} %`],
     ];
   }
 
@@ -615,12 +819,17 @@ function calculateTool(toolId, values, unit = "m") {
 
     return [
       ["Väggyta", `${formatNumber(result.wallArea)} m²`],
+      ["Total yta", `${formatNumber(result.totalArea)} m²`],
       ["Yta per skiva", `${formatNumber(result.boardArea)} m²`],
-      ["Antal gipsskivor", `${result.areaSheets} st`],
-      ["Optimerad skivläggning", `${result.layoutSheets} st`],
+      ["Teoretiskt minimum", `${result.theoreticalMinimum} st`],
+      ["Praktisk åtgång", `${result.practicalSheets} st`],
+      ["Spill", `${result.spillSheets} st (${formatNumber(values.waste)} %)`],
+      ["Antal skivor lager 1", `${result.layer1.finalSheets} st`],
+      ["Antal skivor lager 2", result.layer2 ? `${result.layer2.finalSheets} st` : "0 st"],
+      ["Total antal skivor", `${result.finalSheets} st`],
       ["CC mått", `cc${formatNumber(result.cc, 0)}`],
-      ["Skivmontage", result.boardOrientation],
-      ["Spill %", `${formatNumber(values.waste)} %`],
+      ["Lager 1 montage", result.layer1.orientation],
+      ["Lager 2 montage", result.layer2 ? result.layer2.orientation : "Inte angivet"],
       ["Finalt antal att köpa", `${result.finalSheets} st`],
     ];
   }
@@ -632,11 +841,11 @@ function calculateTool(toolId, values, unit = "m") {
       ["Material", values.material],
       ["Yta", `${formatNumber(result.area)} m²`],
       ["Yta per skiva", `${formatNumber(result.boardArea)} m²`],
-      ["Antal skivor", `${result.areaSheets} st`],
-      ["Optimerad skivläggning", `${result.layoutSheets} st`],
+      ["Teoretiskt minimum", `${result.theoreticalMinimum} st`],
+      ["Praktisk åtgång", `${result.practicalSheets} st`],
+      ["Spill", `${result.spillSheets} st (${formatNumber(values.waste)} %)`],
       ["CC mått", `cc${formatNumber(result.cc, 0)}`],
       ["Skivmontage", result.boardOrientation],
-      ["Spill %", `${formatNumber(values.waste)} %`],
       ["Finalt antal att köpa", `${result.finalSheets} st`],
     ];
   }
@@ -686,10 +895,10 @@ function calculateTool(toolId, values, unit = "m") {
   ];
 }
 
-export default function ToolsScreen({ goBack }) {
+export default function ToolsScreen({ goBack, defaultUnit = "m" }) {
   const { language, t } = useI18n();
   const [selectedTool, setSelectedTool] = useState(null);
-  const [unit, setUnit] = useState("m");
+  const [unit, setUnit] = useState(defaultUnit);
   const [values, setValues] = useState(defaultValues);
   const [shoppingItems, setShoppingItems] = useState(() => {
     try {
@@ -718,6 +927,7 @@ export default function ToolsScreen({ goBack }) {
     const items = shoppingItemsForTool(tool, values[tool.id]).map((item) => ({
       ...item,
       id: createLocalId(),
+      checked: false,
       createdAt: new Date().toISOString(),
     }));
 
@@ -734,6 +944,18 @@ export default function ToolsScreen({ goBack }) {
     setShoppingItems((currentItems) => currentItems.filter((item) => item.id !== id));
   };
 
+  const exportShoppingListPdf = (selectedOnly = false) => {
+    const itemsToExport = selectedOnly
+      ? shoppingItems.filter((item) => item.checked)
+      : shoppingItems;
+
+    if (itemsToExport.length === 0) {
+      return;
+    }
+
+    downloadShoppingListPdf(itemsToExport, selectedOnly ? "inkopslista-valda" : "inkopslista");
+  };
+
   if (selectedTool === "shopping-list") {
     return (
       <ShoppingListScreen
@@ -742,6 +964,7 @@ export default function ToolsScreen({ goBack }) {
         onUpdate={updateShoppingItem}
         onRemove={removeShoppingItem}
         onClear={() => setShoppingItems([])}
+        onExport={exportShoppingListPdf}
       />
     );
   }
@@ -781,15 +1004,11 @@ export default function ToolsScreen({ goBack }) {
           </p>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <LanguageToggle />
-
-          <img
-            src={marcinByggLogo}
-            alt="Marcin Bygg"
-            className="h-12 w-12 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
-          />
-        </div>
+        <img
+          src={marcinByggLogo}
+          alt="Marcin Bygg"
+          className="ml-auto h-12 w-12 shrink-0 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+        />
       </div>
 
       <div className="mt-6">
@@ -842,8 +1061,9 @@ export default function ToolsScreen({ goBack }) {
   );
 }
 
-function ShoppingListScreen({ items, onBack, onUpdate, onRemove, onClear }) {
+function ShoppingListScreen({ items, onBack, onUpdate, onRemove, onClear, onExport }) {
   const { language, t } = useI18n();
+  const selectedCount = items.filter((item) => item.checked).length;
 
   return (
     <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
@@ -865,15 +1085,11 @@ function ShoppingListScreen({ items, onBack, onUpdate, onRemove, onClear }) {
           </h1>
         </div>
 
-        {items.length > 0 && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="ml-auto min-h-12 touch-manipulation rounded-2xl border border-red-500/40 bg-red-500/10 px-4 text-sm font-black text-red-200"
-          >
-            {t("Rensa lista")}
-          </button>
-        )}
+        <img
+          src={marcinByggLogo}
+          alt="Marcin Bygg"
+          className="ml-auto h-12 w-12 shrink-0 rounded-2xl object-contain shadow-xl shadow-orange-500/20"
+        />
       </div>
 
       {items.length === 0 ? (
@@ -887,10 +1103,55 @@ function ShoppingListScreen({ items, onBack, onUpdate, onRemove, onClear }) {
           </p>
         </div>
       ) : (
-        <div className="mt-8 grid gap-4 xl:grid-cols-2">
-          {items.map((item) => (
-            <div key={item.id} className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-2xl shadow-black/20">
+        <div className="mt-8">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => onExport(false)}
+              className="flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 text-sm font-black text-black transition active:scale-[0.98]"
+            >
+              <FileDown size={18} />
+              {t("Exportera PDF")}
+            </button>
+            <button
+              type="button"
+              onClick={() => onExport(true)}
+              disabled={selectedCount === 0}
+              className="flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-2xl border border-orange-400/40 bg-orange-500/10 px-4 text-sm font-black text-orange-200 transition active:scale-[0.98] disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-600"
+            >
+              <FileDown size={18} />
+              {t("Exportera valda")}
+            </button>
+            <button
+              type="button"
+              onClick={onClear}
+              className="min-h-12 touch-manipulation rounded-2xl border border-red-500/40 bg-red-500/10 px-4 text-sm font-black text-red-200 transition active:scale-[0.98]"
+            >
+              {t("Rensa lista")}
+            </button>
+          </div>
+
+          <p className="mt-4 text-sm text-zinc-400">
+            {selectedCount} {t("markerade")} / {items.length} {t("poster")}
+          </p>
+
+          <div className="mt-4 grid gap-3">
+            {items.map((item) => (
+              <div key={item.id} className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 shadow-xl shadow-black/20">
               <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={() => onUpdate(item.id, { checked: !item.checked })}
+                  className={`mt-1 h-7 w-7 shrink-0 rounded-lg border text-sm font-black transition ${
+                    item.checked
+                      ? "border-orange-400 bg-orange-500 text-black"
+                      : "border-zinc-700 bg-black text-transparent"
+                  }`}
+                  aria-label={t("Markera")}
+                >
+                  ✓
+                </button>
+
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-400">
                     {translateText(item.source, language)}
@@ -899,7 +1160,7 @@ function ShoppingListScreen({ items, onBack, onUpdate, onRemove, onClear }) {
                     type="text"
                     value={item.name}
                     onChange={(event) => onUpdate(item.id, { name: event.target.value })}
-                    className="mt-2 w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-lg font-black text-white outline-none"
+                    className="mt-2 w-full rounded-xl border border-zinc-800 bg-black px-3 py-2 text-base font-black text-white outline-none"
                     aria-label={t("Namn")}
                   />
                 </div>
@@ -907,14 +1168,14 @@ function ShoppingListScreen({ items, onBack, onUpdate, onRemove, onClear }) {
                 <button
                   type="button"
                   onClick={() => onRemove(item.id)}
-                  className="min-h-12 min-w-12 touch-manipulation rounded-2xl border border-red-500/40 bg-red-500/10 text-red-200"
+                  className="min-h-10 min-w-10 touch-manipulation rounded-xl border border-red-500/40 bg-red-500/10 text-red-200"
                   aria-label={t("Ta bort")}
                 >
                   <Trash2 className="mx-auto" size={20} />
                 </button>
               </div>
 
-              <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_0.8fr]">
+              <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_0.8fr]">
                 <ToolNumber label="Antal" value={item.quantity} onChange={(quantity) => onUpdate(item.id, { quantity })} />
 
                 <label className="block text-sm text-zinc-400">
@@ -923,21 +1184,22 @@ function ShoppingListScreen({ items, onBack, onUpdate, onRemove, onClear }) {
                     type="text"
                     value={item.unit}
                     onChange={(event) => onUpdate(item.id, { unit: event.target.value })}
-                    className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+                    className="mt-2 min-h-14 w-full rounded-xl border border-zinc-800 bg-black px-3 text-base font-bold text-white outline-none"
                   />
                 </label>
               </div>
 
-              <label className="mt-4 block text-sm text-zinc-400">
+              <label className="mt-3 block text-sm text-zinc-400">
                 {t("Notatka")}
                 <textarea
                   value={item.note}
                   onChange={(event) => onUpdate(item.id, { note: event.target.value })}
-                  className="mt-2 min-h-24 w-full resize-none rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-base text-white outline-none"
+                  className="mt-2 min-h-20 w-full resize-none rounded-xl border border-zinc-800 bg-black px-3 py-2 text-base text-white outline-none"
                 />
               </label>
             </div>
           ))}
+          </div>
         </div>
       )}
     </div>
@@ -1070,8 +1332,35 @@ function ToolFields({ toolId, values, unit, onChange }) {
   if (toolId === "screws") {
     return (
       <div className="grid gap-4">
-        <ToolSelect label="Typ" value={values.type} onChange={(type) => onChange({ type })} options={["trall", "panel", "gips", "konstruktion"]} />
+        <ToolSelect label="Typ" value={values.type} onChange={(type) => onChange({ type })} options={["trall", "panel", "gips", "konstruktion", "golvspånskiva"]} optionLabels={["trall", "Panel / fasad", "gips", "konstruktion", "Golvspånskiva"]} />
         <SurfaceAreaFields values={values} unit={unit} onChange={onChange} modes={["manual", "floor", "wall"]} />
+        {values.type === "panel" && (
+          <ToolGrid>
+            <ToolLength label="Bredd panel" value={values.panelWidth} baseUnit="mm" unit={unit} onChange={(panelWidth) => onChange({ panelWidth })} />
+            <ToolLength label="CC mått bakomliggande reglar/läkt" value={values.panelCc} baseUnit="mm" unit={unit} onChange={(panelCc) => onChange({ panelCc })} />
+            <ToolNumber label="Antal infästningar per korsning" value={values.fastenersPerCrossing} onChange={(fastenersPerCrossing) => onChange({ fastenersPerCrossing })} step={1} />
+            <ToolNumber label="Spill %" value={values.waste} onChange={(waste) => onChange({ waste })} />
+          </ToolGrid>
+        )}
+        {values.type === "golvspånskiva" && (
+          <div className="grid gap-4">
+            <ToolGrid>
+              <ToolSelect label="Skivdimension" value={values.floorBoardType} onChange={(floorBoardType) => onChange({ floorBoardType })} options={Object.keys(floorChipboardSizes)} />
+              <ToolNumber label="Antal skruvrader" value={values.screwRows} onChange={(screwRows) => onChange({ screwRows })} step={1} />
+              <ToolLength label="Avstånd mellan skruv" value={values.screwSpacing} baseUnit="mm" unit={unit} onChange={(screwSpacing) => onChange({ screwSpacing })} />
+              <ToolNumber label="Spill %" value={values.waste} onChange={(waste) => onChange({ waste })} />
+            </ToolGrid>
+            {values.floorBoardType === "custom" && (
+              <ToolGrid>
+                <ToolLength label="Egen skivbredd" value={values.customFloorBoardWidth} baseUnit="mm" unit={unit} onChange={(customFloorBoardWidth) => onChange({ customFloorBoardWidth })} />
+                <ToolLength label="Egen skivlängd" value={values.customFloorBoardLength} baseUnit="mm" unit={unit} onChange={(customFloorBoardLength) => onChange({ customFloorBoardLength })} />
+              </ToolGrid>
+            )}
+          </div>
+        )}
+        {!["panel", "golvspånskiva"].includes(values.type) && (
+          <ToolNumber label="Spill %" value={values.waste} onChange={(waste) => onChange({ waste })} />
+        )}
       </div>
     );
   }
@@ -1120,7 +1409,15 @@ function ToolFields({ toolId, values, unit, onChange }) {
 
         <ToolGrid>
           <ToolSelect label="Typ av skiva" value={values.boardType} onChange={(boardType) => onChange({ boardType })} options={Object.keys(boardSizes)} />
-          <ToolSelect label="Skivmontage" value={values.boardOrientation} onChange={(boardOrientation) => onChange({ boardOrientation })} options={["vertical", "horizontal"]} optionLabels={["Stående montage", "Liggande montage"]} />
+          <ToolSelect label="Antal lager" value={values.layerCount} onChange={(layerCount) => onChange({ layerCount })} options={["one", "two"]} optionLabels={["Ett lager", "Två lager"]} />
+          {values.layerCount === "two" ? (
+            <>
+              <ToolSelect label="Lager 1 montage" value={values.layer1Orientation} onChange={(layer1Orientation) => onChange({ layer1Orientation })} options={["vertical", "horizontal"]} optionLabels={["Stående montage", "Liggande montage"]} />
+              <ToolSelect label="Lager 2 montage" value={values.layer2Orientation} onChange={(layer2Orientation) => onChange({ layer2Orientation })} options={["vertical", "horizontal"]} optionLabels={["Stående montage", "Liggande montage"]} />
+            </>
+          ) : (
+            <ToolSelect label="Skivmontage" value={values.layer1Orientation} onChange={(layer1Orientation) => onChange({ layer1Orientation })} options={["vertical", "horizontal"]} optionLabels={["Stående montage", "Liggande montage"]} />
+          )}
           <ToolSelect label="CC mått" value={values.boardCcMode} onChange={(boardCcMode) => onChange({ boardCcMode })} options={ccOptions} />
           <ToolNumber label="Spill %" value={values.waste} onChange={(waste) => onChange({ waste })} />
         </ToolGrid>
