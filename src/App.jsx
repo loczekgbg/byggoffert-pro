@@ -7,6 +7,7 @@ import {
   Hammer,
   Settings,
   Menu,
+  Ruler,
   ArrowLeft,
   Edit3,
   FileDown,
@@ -18,6 +19,7 @@ import Card from "./components/Card";
 import Option from "./components/Option";
 import PriceCard from "./components/PriceCard";
 import CategoriesScreen from "./screens/CategoriesScreen";
+import ToolsScreen from "./screens/ToolsScreen";
 import marcinByggLogo from "./assets/marcin-bygg-logo.png";
 import { I18nProvider, LanguageToggle, translateText, useI18n } from "./i18n";
 import { formatPrice } from "./utils/formatPrice";
@@ -159,11 +161,17 @@ function AppContent() {
     );
   }
 
+  if (screen === "tools") {
+    return (
+      <ToolsScreen goBack={() => setScreen("home")} />
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] overflow-x-hidden bg-black text-white">
 
       {/* HERO */}
-      <div className="relative h-[420px] overflow-hidden">
+      <div className="relative min-h-[450px] overflow-hidden sm:min-h-[520px] lg:min-h-[560px]">
 
         <img
           src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=1200&auto=format&fit=crop"
@@ -172,7 +180,7 @@ function AppContent() {
 
         <div className="pointer-events-none absolute inset-0 bg-black/70" />
 
-        <div className="relative z-10 p-6">
+        <div className="relative z-10 mx-auto flex min-h-[450px] max-w-6xl flex-col px-6 py-6 sm:min-h-[520px] sm:px-8 sm:py-8 lg:min-h-[560px]">
 
           <div className="flex justify-between items-center">
 
@@ -190,15 +198,15 @@ function AppContent() {
 
           </div>
 
-          <div className="mt-12">
+          <div className="mt-12 pb-20 sm:mt-16 sm:pb-24 lg:mt-20 lg:pb-28">
 
             <img
               src={marcinByggLogo}
               alt="Marcin Bygg"
-              className="h-40 w-40 rounded-[2rem] object-contain shadow-2xl shadow-orange-500/20 sm:h-44 sm:w-44"
+              className="h-40 w-40 rounded-[2rem] object-contain shadow-2xl shadow-orange-500/20 sm:h-48 sm:w-48 lg:h-52 lg:w-52"
             />
 
-            <p className="text-zinc-300 mt-8 max-w-xs leading-relaxed">
+            <p className="mt-8 max-w-sm text-zinc-300 leading-relaxed sm:text-lg lg:max-w-md">
               {t("Professionell snickarservice för hem och företag.")}
             </p>
 
@@ -207,9 +215,9 @@ function AppContent() {
       </div>
 
       {/* GRID */}
-      <div className="relative z-20 -mt-14 px-6">
+      <div className="relative z-20 -mt-8 px-6 sm:mx-auto sm:mt-10 sm:max-w-6xl sm:px-8 lg:mt-12">
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
 
           <Card
             onClick={() => {
@@ -234,6 +242,13 @@ function AppContent() {
             icon={<User size={34} />}
             title={t("Kunder")}
             text={t("Hantera kunder")}
+          />
+
+          <Card
+            onClick={() => setScreen("tools")}
+            icon={<Ruler size={34} />}
+            title={t("Kalkylator & Verktyg")}
+            text={t("Snabba byggverktyg")}
           />
 
           <Card
@@ -359,6 +374,7 @@ async function exportSavedOfferPdf(offer) {
       discountedWorkPrice: offer.prices?.workAfterDiscount ?? offer.prices?.work ?? 0,
       vvsNoticeActive: (offer.options || []).some((option) => option.vvsNotice || isVvsRelatedOption(option)),
       elNoticeActive: (offer.options || []).some((option) => option.elNotice || isElRelatedOption(option)),
+      demolitionNoticeActive: offer.demolitionNoticeActive || isDemolitionCategory(offer.displayCategory || offer.category),
       logoImage,
     });
   const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -999,9 +1015,15 @@ function calculateWeeklyAvailableHours(availability) {
 }
 
 function formatHours(hours) {
-  const roundedHours = Math.round(hours * 10) / 10;
+  const roundedHours = Math.round((Number(hours) || 0) * 100) / 100;
+  const formattedHours = roundedHours
+    .toLocaleString("sv-SE", {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+    })
+    .replace(",", ".");
 
-  return `${roundedHours.toLocaleString("sv-SE")} h`;
+  return `${formattedHours} h`;
 }
 
 function formatArea(area) {
@@ -1603,8 +1625,14 @@ const kitchenWardrobeDefaultPrices = {
 
 const safetyNoticeTitle = "VVS & ELINSTALLATION INGÅR EJ";
 const safetyNoticeText = "Anslutning av vatten, avlopp och fast elinstallation utförs av behörig installatör. Elektrisk anslutning utförs endast om färdigt eluttag och stickkontakt finns.";
+const demolitionSafetyNoticeTitle = "SÄKERHETSINFORMATION";
+const demolitionSafetyNoticeText = "Elinstallation, VVS och asbesthantering ingår ej. Vid misstanke om asbest avbryts arbetet och kund ansvarar för kontroll samt eventuell sanering av behörig firma.";
 
 const demolitionDefaultHourlyRate = 200;
+
+function isDemolitionCategory(category) {
+  return ["Rivning", "Rivning & Bilning"].includes(category);
+}
 
 function isDemolitionOption(option) {
   return String(option.title || "").toLowerCase().includes("rivning");
@@ -1617,7 +1645,7 @@ function normalizeCalculatorOption(option) {
 
   return {
     ...option,
-    pricingControl: "hourly",
+    pricingControl: option.pricingControl || "hourly",
     defaultHourlyRate: option.defaultHourlyRate ?? demolitionDefaultHourlyRate,
     hourlyRateLabel: option.hourlyRateLabel || "Timpris rivning",
     costType: option.costType || "work",
@@ -1880,6 +1908,10 @@ function getKitchenWardrobeDisplayCategory(options, isOptionActive) {
 }
 
 function getBaseCategory(category) {
+  if (isDemolitionCategory(category)) {
+    return "Rivning & Bilning";
+  }
+
   if (category === "Altan, Pergola & Staket") {
     return "Altan & Pergola";
   }
@@ -1930,6 +1962,10 @@ function getDisplayCategory(category, options, isOptionActive) {
     return getKitchenWardrobeDisplayCategory(options, isOptionActive);
   }
 
+  if (baseCategory === "Rivning & Bilning") {
+    return "Rivning & Bilning";
+  }
+
   if (baseCategory !== "Altan & Pergola") {
     return category;
   }
@@ -1975,6 +2011,892 @@ const calculatorConfigs = {
   default: {
     basePrice: (area) => area * 600,
     options: defaultCalculatorOptions,
+  },
+  "Rivning & Bilning": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Väggar & Konstruktion",
+        options: [
+          { id: "demolitionInteriorWall", title: "Rivning av innervägg", pricingControl: "work" },
+          { id: "demolitionLoadBearingWall", title: "Rivning av bärande vägg", pricingControl: "work" },
+          { id: "demolitionBrickWall", title: "Rivning av tegelvägg", pricingControl: "work" },
+          { id: "demolitionConcreteWall", title: "Rivning av betongvägg", pricingControl: "work" },
+          { id: "demolitionMasonry", title: "Rivning av mur", pricingControl: "work" },
+        ],
+      },
+      {
+        title: "Betong & Bilning",
+        options: [
+          { id: "concreteFloorChiseling", title: "Bilning av betonggolv", pricingControl: "work" },
+          { id: "drainChiseling", title: "Bilning för avlopp", pricingControl: "work" },
+          { id: "electricalPipeChiseling", title: "Bilning för el / rör", pricingControl: "work" },
+          { id: "concreteHoleCutting", title: "Håltagning i betong", pricingControl: "work" },
+          { id: "coreDrilling", title: "Kärnborrning", pricingControl: "work" },
+          { id: "doorHoleCutting", title: "Håltagning för dörr", pricingControl: "work" },
+          { id: "windowHoleCutting", title: "Håltagning för fönster", pricingControl: "work" },
+          { id: "loadBearingOpeningAdaptation", title: "Anpassning av bärande öppning", pricingControl: "work" },
+        ],
+      },
+      {
+        title: "Golv & Ytskikt",
+        options: [
+          { id: "demolitionParquet", title: "Rivning av parkett", pricingControl: "work" },
+          { id: "demolitionLaminateFloor", title: "Rivning av laminatgolv", pricingControl: "work" },
+          { id: "demolitionVinylFloor", title: "Rivning av plastmatta", pricingControl: "work" },
+          { id: "demolitionTiles", title: "Rivning av klinker", pricingControl: "work" },
+          { id: "removalGlueMortar", title: "Borttagning av lim / fix", pricingControl: "work" },
+        ],
+      },
+      {
+        title: "Tak & Innertak",
+        options: [
+          { id: "demolitionCeiling", title: "Rivning av innertak", pricingControl: "work" },
+          { id: "suspendedCeilingRemoval", title: "Demontering av undertak", pricingControl: "work" },
+        ],
+      },
+      {
+        title: "Takrivning",
+        options: [
+          { id: "roofTileDemolition", title: "Rivning av takpannor", pricingControl: "work" },
+          { id: "metalRoofDemolition", title: "Rivning av plåttak", pricingControl: "work" },
+          { id: "feltRoofDemolition", title: "Rivning av papptak", pricingControl: "work" },
+          { id: "roofDeckingDemolition", title: "Rivning av råspont", pricingControl: "work" },
+          { id: "roofBattenDemolition", title: "Rivning av takläkt", pricingControl: "work" },
+        ],
+      },
+      {
+        title: "Transport & Avfall",
+        options: [
+          { id: "demolitionWasteRemoval", title: "Bortforsling", pricingControl: "work", defaultHourlyRate: 250 },
+          { id: "wasteSorting", title: "Sortering av avfall", pricingControl: "work", defaultHourlyRate: 250 },
+          { id: "demolitionTrailer", title: "Släpvagn", pricingControl: "work", costType: "fixed", defaultHourlyRate: 250, excludeFromWorkHours: true },
+          { id: "container", title: "Container", pricingControl: "work", costType: "fixed", defaultHourlyRate: 250, excludeFromWorkHours: true },
+          { id: "heavyLifting", title: "Tunga lyft", pricingControl: "work", defaultHourlyRate: 250 },
+        ],
+      },
+      {
+        title: "Skydd & Säkerhet",
+        options: [
+          { id: "protectivePaper", title: "Skyddspapp", pricingControl: "work", defaultHourlyRate: 250 },
+          { id: "plasticDustWall", title: "Plastskydd / dammvägg", pricingControl: "work", defaultHourlyRate: 250 },
+          { id: "postDemolitionCleaning", title: "Städning efter rivning", pricingControl: "work", defaultHourlyRate: 250 },
+        ],
+      },
+    ],
+  },
+  "Konstruktion": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Balkar & Bärande Konstruktion",
+        options: [
+          {
+            id: "glulamBeamInstallation",
+            title: "Montering av limträbalk",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "steelBeamInstallation",
+            title: "Montering av stålbalk",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "loadBearingStructureReinforcement",
+            title: "Förstärkning av bärande konstruktion",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "temporaryPropping",
+            title: "Tillfällig stämpning",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Bjälklag & Förstärkning",
+        options: [
+          {
+            id: "joistReinforcement",
+            title: "Förstärkning av bjälklag",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "floorStructureReinforcement",
+            title: "Förstärkning av golvkonstruktion",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "structuralAdjustment",
+            title: "Justering av konstruktion",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Tak Konstruktion",
+        options: [
+          {
+            id: "roofStructureReinforcement",
+            title: "Förstärkning av takkonstruktion",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "loadBearingRoofWork",
+            title: "Bärande takarbete",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Extra",
+        options: [
+          {
+            id: "structuralHeavyLifting",
+            title: "Tunga lyft",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "structuralExtraStaffing",
+            title: "Extra bemanning",
+            pricingControl: "hourly",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "structuralMaterialHandling",
+            title: "Materialhantering",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "structuralTrailerTransport",
+            title: "Släpvagn / transport",
+            pricingControl: "work",
+            costType: "fixed",
+            defaultHourlyRate: 250,
+            excludeFromWorkHours: true,
+          },
+        ],
+      },
+    ],
+  },
+  "Tillbyggnad & Utebyggnader": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Tillbyggnad",
+        options: [
+          {
+            id: "houseExtension",
+            title: "Tillbyggnad av hus",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "entranceExtension",
+            title: "Utbyggnad av entré",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roomExtension",
+            title: "Förlängning av rum",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Garage",
+        options: [
+          {
+            id: "garageAssembly",
+            title: "Montering av garage",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "garageInsulation",
+            title: "Isolering av garage",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "garageInteriorBuild",
+            title: "Invändig garagebyggnation",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Attefallshus",
+        options: [
+          {
+            id: "attefallHouseAssembly",
+            title: "Montering av attefallshus",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "attefallInteriorCompletion",
+            title: "Invändig färdigställning",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "attefallInsulation",
+            title: "Isolering",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "attefallFloorInteriorWalls",
+            title: "Golv / innerväggar",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Utebyggnader",
+        options: [
+          {
+            id: "storageBuilding",
+            title: "Förråd",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "toolShed",
+            title: "Redskapsbod",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "carport",
+            title: "Carport",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Grund & Betong",
+        options: [
+          {
+            id: "concreteSlab",
+            title: "Betongplatta",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "concreteSlabPreparation",
+            title: "Förberedelse för betongplatta",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "reinforcement",
+            title: "Armering",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "formwork",
+            title: "Formarbete",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "slabInsulation",
+            title: "Isolering under platta",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "groundPreparationExtension",
+            title: "Markförberedelse",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "postFoundation",
+            title: "Plintgrund",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "groundAdjustmentExtension",
+            title: "Justering av mark",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Extra",
+        options: [
+          {
+            id: "drawingsAvailable",
+            title: "Ritningar finns",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "customerMaterialExtension",
+            title: "Material från kund",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "craneLiftExtension",
+            title: "Kran / lyft",
+            pricingControl: "work",
+            costType: "fixed",
+            defaultHourlyRate: 250,
+            excludeFromWorkHours: true,
+          },
+          {
+            id: "extensionExtraStaffing",
+            title: "Extra bemanning",
+            pricingControl: "hourly",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "extensionWasteRemoval",
+            title: "Bortforsling",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+    ],
+  },
+  "Fasad & Utvändig Renovering": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Panel & Underkonstruktion",
+        options: [
+          {
+            id: "facadePanelInstallation",
+            title: "Montering av fasadpanel",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "facadePanelReplacement",
+            title: "Byte av fasadpanel",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "coverBoardPanel",
+            title: "Lockpanel",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "facadeBattens",
+            title: "Läkt",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "sparseBattens",
+            title: "Glespanel / glesläkt",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "windProtectionInstallation",
+            title: "Montering av vindskydd",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Isolering",
+        options: [
+          {
+            id: "additionalFacadeInsulation",
+            title: "Tilläggsisolering",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "externalInsulation",
+            title: "Utvändig isolering",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Fönsterdetaljer Utvändigt",
+        options: [
+          {
+            id: "externalTrimInstallation",
+            title: "Montering av utvändigt foder",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "externalRevealsInstallation",
+            title: "Montering av utvändiga smygar",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "externalWindowSillInstallation",
+            title: "Montering av fönsterbleck",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Takfot & Fasaddetaljer",
+        options: [
+          {
+            id: "bargeboardInstallation",
+            title: "Montering av vindskivor",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "cornerBoardInstallation",
+            title: "Montering av knutbrädor",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "eavesInstallation",
+            title: "Montering av takfot",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Höjd & Säkerhet",
+        options: [
+          {
+            id: "scaffoldingFacade",
+            title: "Ställning",
+            pricingControl: "work",
+            costType: "fixed",
+            defaultHourlyRate: 250,
+            excludeFromWorkHours: true,
+          },
+          {
+            id: "skyliftFacade",
+            title: "Skylift",
+            pricingControl: "work",
+            costType: "fixed",
+            defaultHourlyRate: 250,
+            excludeFromWorkHours: true,
+          },
+          {
+            id: "highAltitudeWork",
+            title: "Arbete på hög höjd",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "facadeSafetyProtection",
+            title: "Säkring / skydd",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Transport & Extra",
+        options: [
+          {
+            id: "facadeWasteRemoval",
+            title: "Bortforsling",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "facadeMaterialHandling",
+            title: "Materialhantering",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "facadeExtraStaffing",
+            title: "Extra bemanning",
+            pricingControl: "hourly",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "groundProtectionFacade",
+            title: "Skydd av mark",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+    ],
+  },
+  "Tak & Yttertak": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Tak Konstruktion",
+        options: [
+          {
+            id: "roofTrussInstallation",
+            title: "Montering av takstolar",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofDeckingInstallation",
+            title: "Montering av råspont",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "airGapInstallation",
+            title: "Montering av luftspalt",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofStructureReinforcementOuter",
+            title: "Förstärkning av takkonstruktion",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Takläggning",
+        options: [
+          {
+            id: "roofTileInstallation",
+            title: "Montering av takpannor",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "metalRoofInstallation",
+            title: "Montering av plåttak",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "feltRoofInstallation",
+            title: "Montering av papptak",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Underlag & Isolering",
+        options: [
+          {
+            id: "roofUnderlayFelt",
+            title: "Underlagspapp",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofWindProtection",
+            title: "Montering av vindskydd",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofInsulation",
+            title: "Takisolering",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofBattens",
+            title: "Läkt",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Takdetaljer",
+        options: [
+          {
+            id: "roofBargeboardInstallation",
+            title: "Montering av vindskivor",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofEavesInstallation",
+            title: "Montering av takfot",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "ridgeInstallation",
+            title: "Montering av nock",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofLadderInstallation",
+            title: "Montering av takstege",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "snowGuardInstallation",
+            title: "Montering av snörasskydd",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Avvattning",
+        options: [
+          {
+            id: "gutterInstallation",
+            title: "Montering av hängrännor",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "downpipeInstallation",
+            title: "Montering av stuprör",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "drainageAdjustment",
+            title: "Justering av avvattning",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Reparation",
+        options: [
+          {
+            id: "roofRepair",
+            title: "Takreparation",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "damagedPartsReplacement",
+            title: "Byte av skadade delar",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofSealing",
+            title: "Tätning av tak",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Säkerhet & Höjd",
+        options: [
+          {
+            id: "roofScaffolding",
+            title: "Ställning",
+            pricingControl: "work",
+            costType: "fixed",
+            defaultHourlyRate: 250,
+            excludeFromWorkHours: true,
+          },
+          {
+            id: "roofSkylift",
+            title: "Skylift",
+            pricingControl: "work",
+            costType: "fixed",
+            defaultHourlyRate: 250,
+            excludeFromWorkHours: true,
+          },
+          {
+            id: "roofHighAltitudeWork",
+            title: "Arbete på hög höjd",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Extra",
+        options: [
+          {
+            id: "roofMaterialHandling",
+            title: "Materialhantering",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofWasteRemoval",
+            title: "Bortforsling",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "roofExtraStaffing",
+            title: "Extra bemanning",
+            pricingControl: "hourly",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+    ],
+  },
+  "Service & Småjobb": {
+    basePrice: () => 0,
+    usesCustomFixedCosts: true,
+    sections: [
+      {
+        title: "Montering",
+        options: [
+          {
+            id: "shelfInstallation",
+            title: "Montering av hyllor",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "curtainRailInstallation",
+            title: "Montering av gardinskenor",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "tvMountInstallation",
+            title: "Montering av TV-fäste",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "showerCabinInstallation",
+            title: "Montering av duschkabin",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "mirrorInstallation",
+            title: "Montering av spegel",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "furnitureAssembly",
+            title: "Montering av möbler",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Justering & Reparation",
+        options: [
+          {
+            id: "doorAdjustmentService",
+            title: "Justering av dörrar",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "cabinetAdjustmentService",
+            title: "Justering av skåp",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "hardwareReplacement",
+            title: "Byte av beslag",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "minorDamageRepair",
+            title: "Reparation av mindre skador",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Tätning & Finish",
+        options: [
+          {
+            id: "siliconeWork",
+            title: "Silikonarbete",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "groutingService",
+            title: "Fogning",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "minorFinishWork",
+            title: "Mindre finisharbete",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+      {
+        title: "Specialjobb",
+        options: [
+          {
+            id: "specialAdaptation",
+            title: "Specialanpassning",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "customerRequestInstallation",
+            title: "Montering enligt kundönskemål",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+          {
+            id: "miscSmallCarpentry",
+            title: "Diverse snickeriarbeten",
+            pricingControl: "work",
+            defaultHourlyRate: 250,
+          },
+        ],
+      },
+    ],
   },
   "Målning & Tapeter": {
     basePrice: () => 0,
@@ -3537,7 +4459,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
   const baseCategory = getBaseCategory(category);
   const calculatorConfig = calculatorConfigs[baseCategory] || calculatorConfigs.default;
   const usesDimensionArea = baseCategory === "Altan & Pergola";
-  const usesGlobalArea = !["Målning & Tapeter", "Innerväggar & Innertak", "Golv & Lister", "Fönster & Dörrar", "Kök & Garderob"].includes(baseCategory);
+  const usesGlobalArea = !["Målning & Tapeter", "Innerväggar & Innertak", "Golv & Lister", "Fönster & Dörrar", "Kök & Garderob", "Rivning & Bilning", "Konstruktion", "Tillbyggnad & Utebyggnader", "Fasad & Utvändig Renovering", "Tak & Yttertak", "Service & Småjobb"].includes(baseCategory);
   const calculatorSections = (calculatorConfig.sections || [
     {
       options: calculatorConfig.options,
@@ -3710,7 +4632,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
   };
 
   const calculateOptionHours = (option, active) => {
-    if (!active || !option.pricingControl) {
+    if (!active || !option.pricingControl || option.excludeFromWorkHours) {
       return 0;
     }
 
@@ -3895,7 +4817,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
     }] : []),
     ...(temporaryExtraStaff.active && temporaryExtraStaffCost > 0 ? [{
       id: "temporaryExtraStaff",
-      title: `Tillfällig extra personal (${temporaryExtraStaffPeople} × ${temporaryExtraStaffHours} timmar)`,
+      title: `Tillfällig extra personal (${temporaryExtraStaffPeople} × ${formatHours(temporaryExtraStaffHours)})`,
       sectionTitle: "Extra arbete",
       priceValue: temporaryExtraStaffCost,
       hoursValue: temporaryExtraStaffWorkHours,
@@ -3906,6 +4828,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
   const vvsNoticeActive = selectedOptionDetails.some((option) => option.vvsNotice);
   const elNoticeActive = selectedOptionDetails.some(isElRelatedOption);
   const safetyNoticeActive = vvsNoticeActive || elNoticeActive;
+  const demolitionNoticeActive = baseCategory === "Rivning & Bilning";
 
   const minPrice = Math.round((discountedWorkPrice * 0.85) + fixedCostsTotal);
 
@@ -3944,6 +4867,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       discountedWorkPrice,
       vvsNoticeActive,
       elNoticeActive,
+      demolitionNoticeActive,
       logoImage,
     });
     const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -4017,6 +4941,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
         vvsNotice: option.vvsNotice || false,
         elNotice: option.elNotice || false,
       })),
+      demolitionNoticeActive,
       prices: {
         work: Math.round(workPrice),
         workAfterDiscount: Math.round(discountedWorkPrice),
@@ -4303,6 +5228,18 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
           </div>
         )}
 
+        {demolitionNoticeActive && (
+          <div className="mt-6 rounded-3xl border border-orange-400/30 bg-orange-500/10 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
+              {t(demolitionSafetyNoticeTitle)}
+            </p>
+
+            <p className="mt-2 text-sm leading-relaxed text-zinc-200">
+              {t(demolitionSafetyNoticeText)}
+            </p>
+          </div>
+        )}
+
         {/* AVAILABILITY */}
         <div className="mt-8 border-t border-zinc-800 pt-8">
 
@@ -4435,7 +5372,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
                   hours: value,
                 })}
                 min={0}
-                step={1}
+                step={0.25}
               />
 
             </label>
@@ -5124,6 +6061,18 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
               </div>
             )}
 
+            {demolitionNoticeActive && (
+              <div className="mt-4 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
+                  {t(demolitionSafetyNoticeTitle)}
+                </p>
+
+                <p className="mt-2 text-sm leading-relaxed text-zinc-200">
+                  {t(demolitionSafetyNoticeText)}
+                </p>
+              </div>
+            )}
+
           </div>
 
         </div>
@@ -5578,6 +6527,15 @@ function getNumericStep(label) {
     return 50;
   }
 
+  if (
+    normalizedLabel.includes("timme")
+    || normalizedLabel.includes("timmar")
+    || normalizedLabel.includes("tid på plats")
+    || normalizedLabel.includes("uppskattad tid")
+  ) {
+    return 0.25;
+  }
+
   if (normalizedLabel.includes("m²") || normalizedLabel.includes("(m)")) {
     return 0.1;
   }
@@ -5614,7 +6572,7 @@ function AvailabilityInput({ label, value, onChange }) {
         value={value}
         onChange={onChange}
         min={0}
-        step={1}
+        step={getNumericStep(label)}
       />
 
     </label>
@@ -5682,6 +6640,7 @@ function createOfferPdfBlob({
   discountedWorkPrice,
   vvsNoticeActive,
   elNoticeActive,
+  demolitionNoticeActive,
   logoImage,
 }) {
   const customerRows = [
@@ -5698,6 +6657,11 @@ function createOfferPdfBlob({
   const showVvsNotice = vvsNoticeActive || selectedOptionDetails.some(isVvsRelatedOption);
   const showElNotice = elNoticeActive || selectedOptionDetails.some(isElRelatedOption);
   const showSafetyNotice = showVvsNotice || showElNotice;
+  const noticeBlocks = [
+    ...(showSafetyNotice ? [{ title: safetyNoticeTitle, text: safetyNoticeText }] : []),
+    ...(demolitionNoticeActive ? [{ title: demolitionSafetyNoticeTitle, text: demolitionSafetyNoticeText }] : []),
+  ];
+  const showNoticeBlock = noticeBlocks.length > 0;
   const content = [];
 
   const rect = (x, y, width, height, color) => {
@@ -5781,19 +6745,24 @@ function createOfferPdfBlob({
     text(lineText, 64, 458 - index * 14, 10, "0.9 0.9 0.92");
   });
 
-  if (showSafetyNotice) {
-    text(safetyNoticeTitle, 328, 492, 8, "0.98 0.57 0.24", "F2");
-    rect(328, 405, 219, 72, "0.1 0.08 0.05");
-    wrapPdfText(safetyNoticeText, 42, 5).forEach((lineText, index) => {
-      text(lineText, 344, 458 - index * 13, 8, "0.92 0.86 0.78");
+  if (showNoticeBlock) {
+    rect(328, 392, 219, 85, "0.1 0.08 0.05");
+    let noticeY = 458;
+
+    noticeBlocks.forEach((notice, noticeIndex) => {
+      text(notice.title, 344, noticeY + 18, 8, "0.98 0.57 0.24", "F2");
+      wrapPdfText(notice.text, 42, noticeIndex === 0 && noticeBlocks.length > 1 ? 3 : 4).forEach((lineText, index) => {
+        text(lineText, 344, noticeY - index * 11, 7, "0.92 0.86 0.78");
+      });
+      noticeY -= noticeBlocks.length > 1 ? 42 : 0;
     });
   }
 
-  const optionsTitleY = showSafetyNotice ? 370 : 400;
+  const optionsTitleY = showNoticeBlock ? 356 : 400;
   const firstOptionRowY = optionsTitleY - 32;
   const maxVisibleOptions = extraCostRows.length > 0
-    ? (showSafetyNotice ? 4 : 5)
-    : (showSafetyNotice ? 7 : 8);
+    ? (showNoticeBlock ? 4 : 5)
+    : (showNoticeBlock ? 6 : 8);
 
   text("VALDA ALTERNATIV", 48, optionsTitleY, 9, "0.98 0.57 0.24", "F2");
   const visibleOptionRows = optionRows.slice(0, maxVisibleOptions);
