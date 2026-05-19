@@ -5,6 +5,7 @@ import {
   Folder,
   User,
   Hammer,
+  Home,
   Settings,
   Menu,
   Ruler,
@@ -13,6 +14,8 @@ import {
   FileDown,
   Trash2,
   Plus,
+  Camera,
+  Images,
 } from "lucide-react";
 
 import Card from "./components/Card";
@@ -288,17 +291,18 @@ function AppContent() {
   }
 
   return (
-    <div className="premium-screen text-white">
+    <div className="premium-screen pb-[calc(5.5rem+env(safe-area-inset-bottom))] text-white">
 
       {/* HERO */}
       <div className="premium-hero">
 
         <img
-          src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=1200&auto=format&fit=crop"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-35"
+          src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1200&auto=format&fit=crop"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
         />
 
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(245,162,11,0.18),transparent_28rem),linear-gradient(90deg,rgba(0,0,0,0.96),rgba(0,0,0,0.72),rgba(0,0,0,0.9))]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_18%,rgba(245,162,11,0.14),transparent_22rem),linear-gradient(90deg,rgba(0,0,0,0.98),rgba(0,0,0,0.72)_48%,rgba(0,0,0,0.94))]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black via-black/80 to-transparent" />
 
         <div className="premium-shell premium-hero-grid">
 
@@ -309,9 +313,6 @@ function AppContent() {
             </button>
 
             <div className="ml-auto flex items-center gap-2">
-              <span className="hidden rounded-full border border-orange-400/25 bg-orange-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-orange-200 sm:inline-flex">
-                {t("Premium byggapp")}
-              </span>
               <button
                 type="button"
                 onClick={() => setScreen("settings")}
@@ -324,69 +325,49 @@ function AppContent() {
 
           </div>
 
-          <div className="premium-hero-copy flex flex-col justify-center">
+          <div className="premium-hero-copy flex flex-col justify-end pb-4">
 
-            <img
-              src={marcinByggLogo}
-              alt="Marcin Bygg"
-              className="premium-logo-mark"
-            />
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="premium-brand-title">MARCIN BYGG</p>
+                <p className="premium-script mt-1">{t("Med kvalitet i varje detalj")}</p>
+                <div className="mt-4 h-1 w-36 rounded-full bg-orange-500" />
+                <p className="mt-5 max-w-[17rem] text-sm font-black uppercase leading-snug text-zinc-100 sm:max-w-sm sm:text-base">
+                  {t("Professionell snickarservice för hem och företag.")}
+                </p>
+              </div>
 
-            <p className="premium-kicker mt-7">
-              Marcin Bygg
-            </p>
-
-            <h1 className="mt-2 max-w-xl text-4xl font-black uppercase leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
-              {t("Offert & projekt i fickan")}
-            </h1>
-
-            <p className="mt-5 max-w-sm text-base leading-relaxed text-zinc-300 sm:text-lg lg:max-w-md">
-              {t("Professionell snickarservice för hem och företag.")}
-            </p>
-
-            <div className="mt-7 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setQuoteCustomerDraft(null);
-                  setEditingOffer(null);
-                  setScreen("categories");
-                }}
-                className="premium-cta min-h-13 rounded-2xl px-6 text-sm font-black uppercase"
-              >
-                {t("Ny offert")}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setScreen("history")}
-                className="min-h-13 rounded-2xl border border-white/10 bg-white/[0.04] px-6 text-sm font-black uppercase text-white"
-              >
-                {t("Historik")}
-              </button>
+              <img
+                src={marcinByggLogo}
+                alt="Marcin Bygg"
+                className="premium-logo-mark shrink-0"
+              />
             </div>
 
-          </div>
+            <div className="mt-7 grid gap-3">
+              {[
+                [Home, "Nybyggnation", "Från grund till färdigt resultat"],
+                [Hammer, "Renovering", "Vi förvandlar idéer till verklighet"],
+                [Ruler, "Tillbyggnader", "Mer plats, rätt byggt"],
+              ].map(([Icon, title, text]) => (
+                <div key={title} className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center text-orange-400">
+                    <Icon size={28} strokeWidth={2.2} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black uppercase text-white">{t(title)}</p>
+                    <p className="text-xs text-zinc-400">{t(text)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-          <div className="premium-info-strip">
-            <div className="premium-card-compact p-4">
-              <p className="premium-kicker">{t("Standard timpris")}</p>
-              <p className="mt-2 text-xl font-black">{formatPrice(appSettings.standardHourlyRate)}/h</p>
-            </div>
-            <div className="premium-card-compact p-4">
-              <p className="premium-kicker">{t("Projekt & CRM Lite")}</p>
-              <p className="mt-2 text-xl font-black">{savedOffers.length} {t("Sparade offerter")}</p>
-            </div>
-            <div className="premium-card-compact p-4">
-              <p className="premium-kicker">{t("Kunder")}</p>
-              <p className="mt-2 text-xl font-black">{clients.length} {t("Kunder")}</p>
-            </div>
           </div>
         </div>
       </div>
 
       {/* GRID */}
-      <div className="premium-shell relative z-20 -mt-8 sm:-mt-12">
+      <div className="premium-shell relative z-20 -mt-20 sm:-mt-16">
 
         <div className="premium-home-grid">
 
@@ -428,21 +409,27 @@ function AppContent() {
             text={t("Priser & material")}
           />
 
+          <Card
+            onClick={() => setScreen("settings")}
+            icon={<Settings size={34} />}
+            title={t("Inställningar")}
+            text={t("Appinställningar")}
+          />
+
         </div>
 
       </div>
 
       {/* CONTACT */}
-      <div className="premium-shell mt-8 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+      <div className="premium-shell mt-5">
 
-        <div className="premium-cta relative overflow-hidden p-5 sm:p-6">
-          <span className="pointer-events-none absolute -left-10 top-1/2 h-28 w-64 -translate-y-1/2 rotate-[-8deg] bg-black/10 blur-xl" />
+        <div className="premium-brush-cta">
 
-          <p className="relative text-xs font-black uppercase tracking-[0.18em] text-black/70">
+          <p className="relative text-[0.65rem] font-black uppercase tracking-[0.12em] text-black/70">
             {t("KONTAKTA MIG IDAG")}
           </p>
 
-          <h2 className="relative mt-2 text-4xl font-black sm:text-5xl">
+          <h2 className="relative mt-1 text-4xl font-black leading-none sm:text-5xl">
             076 320 5125
           </h2>
 
@@ -450,7 +437,69 @@ function AppContent() {
 
       </div>
 
+      <div className="premium-shell mt-5">
+        <div className="premium-status-strip">
+          <div>
+            <p className="premium-kicker">{t("Standard timpris")}</p>
+            <p className="mt-1 text-lg font-black">{formatPrice(appSettings.standardHourlyRate)}/h</p>
+          </div>
+          <div>
+            <p className="premium-kicker">{t("Projekt")}</p>
+            <p className="mt-1 text-lg font-black">{savedOffers.length}</p>
+          </div>
+          <div>
+            <p className="premium-kicker">{t("Kunder")}</p>
+            <p className="mt-1 text-lg font-black">{clients.length}</p>
+          </div>
+        </div>
+      </div>
+
+      <MobileBottomNav
+        active="home"
+        onHome={() => setScreen("home")}
+        onNew={() => {
+          setQuoteCustomerDraft(null);
+          setEditingOffer(null);
+          setScreen("categories");
+        }}
+        onHistory={() => setScreen("history")}
+        onTools={() => setScreen("tools")}
+        onClients={() => setScreen("clients")}
+      />
+
     </div>
+  );
+}
+
+function MobileBottomNav({ active, onHome, onNew, onHistory, onTools, onClients }) {
+  const { t } = useI18n();
+  const items = [
+    { id: "home", label: "Start", icon: Home, onClick: onHome },
+    { id: "new", label: "Ny offert", icon: Calculator, onClick: onNew },
+    { id: "history", label: "Historik", icon: Folder, onClick: onHistory },
+    { id: "tools", label: "Kalkylator", icon: Ruler, onClick: onTools },
+    { id: "clients", label: "Kunder", icon: User, onClick: onClients },
+  ];
+
+  return (
+    <nav className="premium-bottom-nav" aria-label="Mobile navigation">
+      {items.map((item) => {
+        const Icon = item.icon;
+        const isActive = active === item.id;
+
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={item.onClick}
+            className={`premium-bottom-item ${isActive ? "is-active" : ""}`}
+          >
+            <Icon size={20} />
+            <span>{t(item.label)}</span>
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -691,6 +740,7 @@ function ProjectCrmPanel({
   setProjectPhotos,
 }) {
   const { language, t } = useI18n();
+  const [previewPhoto, setPreviewPhoto] = useState(null);
 
   const toggleTag = (tag) => {
     setCustomerTags((currentTags) => (
@@ -700,27 +750,55 @@ function ProjectCrmPanel({
     ));
   };
 
-  const addPhotos = (event) => {
-    const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
-
-    files.slice(0, 6).forEach((file) => {
+  const normalizePhotoFile = (file) => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
 
       reader.onload = () => {
-        setProjectPhotos((currentPhotos) => [
-          ...currentPhotos,
-          {
+        const image = new Image();
+
+        image.onload = () => {
+          const maxSize = 1400;
+          const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+          const canvas = document.createElement("canvas");
+
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+
+          resolve({
             id: crypto.randomUUID(),
             name: file.name,
-            dataUrl: reader.result || "",
-          },
-        ].slice(-8));
+            dataUrl: canvas.toDataURL("image/jpeg", 0.82),
+            note: "",
+            includeInPdf: false,
+          });
+        };
+
+        image.onerror = () => resolve(null);
+        image.src = reader.result || "";
       };
 
+      reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     });
+  };
+
+  const addPhotos = async (event) => {
+    const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
+    const photos = (await Promise.all(files.slice(0, 6).map(normalizePhotoFile))).filter(Boolean);
+
+    if (photos.length > 0) {
+      setProjectPhotos((currentPhotos) => [...currentPhotos, ...photos].slice(-12));
+    }
 
     event.target.value = "";
+  };
+
+  const updateProjectPhoto = (photoId, values) => {
+    setProjectPhotos((currentPhotos) => currentPhotos.map((photo) => (
+      photo.id === photoId ? { ...photo, ...values } : photo
+    )));
   };
 
   return (
@@ -787,32 +865,73 @@ function ProjectCrmPanel({
         <div>
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-zinc-400">{t("Projektbilder")}</p>
-            <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 text-sm font-black text-orange-200">
-              <Plus size={16} />
-              {t("Lägg till bilder")}
-              <input type="file" accept="image/*" multiple onChange={addPhotos} className="hidden" />
-            </label>
+            <div className="flex flex-wrap justify-end gap-2">
+              <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 text-sm font-black text-orange-200">
+                <Images size={16} />
+                {t("Välj från galleri")}
+                <input type="file" accept="image/*" multiple onChange={addPhotos} className="hidden" />
+              </label>
+              <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 text-sm font-black text-orange-200">
+                <Camera size={16} />
+                {t("Ta foto")}
+                <input type="file" accept="image/*" capture="environment" onChange={addPhotos} className="hidden" />
+              </label>
+            </div>
           </div>
 
           {projectPhotos.length > 0 && (
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {projectPhotos.map((photo) => (
                 <div key={photo.id} className="overflow-hidden rounded-2xl border border-white/10 bg-black">
-                  <img src={photo.dataUrl} alt={photo.name} className="h-28 w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setProjectPhotos((currentPhotos) => currentPhotos.filter((currentPhoto) => currentPhoto.id !== photo.id))}
-                    className="flex min-h-10 w-full items-center justify-center gap-2 bg-red-500/10 text-xs font-black text-red-200"
-                  >
-                    <Trash2 size={14} />
-                    {t("Ta bort")}
+                  <button type="button" onClick={() => setPreviewPhoto(photo)} className="block w-full">
+                    <img src={photo.dataUrl} alt={photo.name} className="h-28 w-full object-cover" />
                   </button>
+                  <div className="grid gap-2 p-3">
+                    <label className="flex items-center gap-2 text-xs font-bold text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={photo.includeInPdf || false}
+                        onChange={(event) => updateProjectPhoto(photo.id, { includeInPdf: event.target.checked })}
+                        className="h-4 w-4 accent-orange-500"
+                      />
+                      {t("Visa i PDF")}
+                    </label>
+                    <textarea
+                      value={photo.note || ""}
+                      onChange={(event) => updateProjectPhoto(photo.id, { note: event.target.value })}
+                      placeholder={t("Fotokommentar")}
+                      className="min-h-16 w-full resize-none rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setProjectPhotos((currentPhotos) => currentPhotos.filter((currentPhoto) => currentPhoto.id !== photo.id))}
+                      className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-red-500/10 text-xs font-black text-red-200"
+                    >
+                      <Trash2 size={14} />
+                      {t("Ta bort")}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {previewPhoto && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm" onClick={() => setPreviewPhoto(null)}>
+          <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950" onClick={(event) => event.stopPropagation()}>
+            <img src={previewPhoto.dataUrl} alt={previewPhoto.name} className="max-h-[70dvh] w-full object-contain bg-black" />
+            <div className="p-4">
+              <p className="text-sm font-black text-white">{previewPhoto.name}</p>
+              {previewPhoto.note && <p className="mt-2 text-sm text-zinc-400">{previewPhoto.note}</p>}
+              <button type="button" onClick={() => setPreviewPhoto(null)} className="mt-4 min-h-12 w-full rounded-2xl bg-orange-500 px-4 font-black text-black">
+                {t("Stäng")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -826,32 +945,95 @@ function getMultiCategoryServices(category) {
     id: option.id,
     title: formatOptionTitle(option.title),
     sectionTitle: section.title || "Tjänster",
+    vvsNotice: option.vvsNotice || false,
+    elNotice: option.elNotice || false,
+    demolitionNotice: isDemolitionOption(option),
   })));
 }
 
-function getSectionServices(section) {
+function normalizeMultiServiceState(service, storedService = {}, appSettings = defaultAppSettings) {
+  const defaultPeople = Math.max(1, Number(appSettings.standardPeopleCount) || 2);
+  const defaultRate = service.demolitionNotice ? demolitionDefaultHourlyRate : Math.max(0, Number(appSettings.standardHourlyRate) || 250);
+  const legacyPrice = Math.max(0, Number(storedService.price) || 0);
+  const legacyHours = Math.max(0, Number(storedService.hours) || 0);
+
+  return {
+    ...service,
+    active: storedService.active || false,
+    pricingMode: storedService.pricingMode || (legacyHours > 0 && legacyPrice === 0 ? "hourly" : "fast"),
+    fastPrice: storedService.fastPrice ?? legacyPrice,
+    peopleCount: storedService.peopleCount ?? defaultPeople,
+    hours: storedService.hours ?? 0,
+    hourlyRate: storedService.hourlyRate ?? defaultRate,
+    notes: storedService.notes ?? "",
+    extraCosts: storedService.extraCosts || [],
+  };
+}
+
+function getSectionServices(section, appSettings = defaultAppSettings) {
   const availableServices = getMultiCategoryServices(section.category);
   const existingServices = section.services || {};
 
-  return availableServices.map((service) => ({
-    ...service,
-    active: existingServices[service.id]?.active || false,
-    price: existingServices[service.id]?.price ?? 0,
-    hours: existingServices[service.id]?.hours ?? 0,
-    notes: existingServices[service.id]?.notes ?? "",
-  }));
+  return availableServices.map((service) => normalizeMultiServiceState(service, existingServices[service.id], appSettings));
 }
 
-function getActiveMultiCategoryServices(section) {
-  return getSectionServices(section).filter((service) => service.active);
+function calculateMultiServiceWorkPrice(service) {
+  if (!service.active) {
+    return 0;
+  }
+
+  if (service.pricingMode === "hourly") {
+    return Math.max(0, Number(service.hours) || 0)
+      * Math.max(1, Number(service.peopleCount) || 1)
+      * Math.max(0, Number(service.hourlyRate) || 0);
+  }
+
+  return Math.max(0, Number(service.fastPrice) || 0);
 }
 
-function calculateMultiSectionTotal(section) {
-  return getActiveMultiCategoryServices(section).reduce((total, service) => total + Math.max(0, Number(service.price) || 0), 0);
+function calculateMultiServiceExtraCosts(service) {
+  return (service.extraCosts || []).reduce((total, cost) => total + Math.max(0, Number(cost.price) || 0), 0);
 }
 
-function calculateMultiSectionHours(section) {
-  return getActiveMultiCategoryServices(section).reduce((total, service) => total + Math.max(0, Number(service.hours) || 0), 0);
+function calculateMultiServiceTotal(service) {
+  return calculateMultiServiceWorkPrice(service) + calculateMultiServiceExtraCosts(service);
+}
+
+function getActiveMultiCategoryServices(section, appSettings = defaultAppSettings) {
+  return getSectionServices(section, appSettings).filter((service) => service.active);
+}
+
+function calculateMultiSectionTotal(section, appSettings = defaultAppSettings) {
+  return getActiveMultiCategoryServices(section, appSettings).reduce((total, service) => total + calculateMultiServiceTotal(service), 0);
+}
+
+function calculateMultiSectionWorkTotal(section, appSettings = defaultAppSettings) {
+  return getActiveMultiCategoryServices(section, appSettings).reduce((total, service) => total + calculateMultiServiceWorkPrice(service), 0);
+}
+
+function calculateMultiSectionExtraTotal(section, appSettings = defaultAppSettings) {
+  return getActiveMultiCategoryServices(section, appSettings).reduce((total, service) => total + calculateMultiServiceExtraCosts(service), 0);
+}
+
+function calculateMultiSectionHours(section, appSettings = defaultAppSettings) {
+  return getActiveMultiCategoryServices(section, appSettings).reduce((total, service) => total + Math.max(0, Number(service.hours) || 0), 0);
+}
+
+function formatMultiHourlyRateSummary(options) {
+  const rates = options
+    .map((option) => Math.max(0, Number(option.hourlyRate) || 0))
+    .filter((rate) => rate > 0);
+  const uniqueRates = [...new Set(rates)];
+
+  if (uniqueRates.length === 0) {
+    return "";
+  }
+
+  if (uniqueRates.length === 1) {
+    return `${formatPrice(uniqueRates[0])}/h`;
+  }
+
+  return `${formatPrice(Math.min(...uniqueRates))}/h - ${formatPrice(Math.max(...uniqueRates))}/h`;
 }
 
 function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSaveOffer, appSettings }) {
@@ -870,8 +1052,10 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
   const [privateNotes, setPrivateNotes] = useState(initialOffer?.privateNotes || "");
   const [customerTags, setCustomerTags] = useState(initialOffer?.customerTags || []);
   const [projectPhotos, setProjectPhotos] = useState(initialOffer?.projectPhotos || []);
-  const totalPrice = sections.reduce((total, section) => total + calculateMultiSectionTotal(section), 0);
-  const totalHours = sections.reduce((total, section) => total + calculateMultiSectionHours(section), 0);
+  const totalWorkPrice = sections.reduce((total, section) => total + calculateMultiSectionWorkTotal(section, appSettings), 0);
+  const totalExtraCosts = sections.reduce((total, section) => total + calculateMultiSectionExtraTotal(section, appSettings), 0);
+  const totalPrice = totalWorkPrice + totalExtraCosts;
+  const totalHours = sections.reduce((total, section) => total + calculateMultiSectionHours(section, appSettings), 0);
 
   const addSection = () => {
     const id = crypto.randomUUID();
@@ -912,6 +1096,43 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
     }));
   };
 
+  const addServiceExtraCost = (sectionId, serviceId) => {
+    const currentSection = sections.find((section) => section.id === sectionId);
+    const currentService = getSectionServices(currentSection || {}, appSettings).find((service) => service.id === serviceId);
+
+    updateSectionService(sectionId, serviceId, {
+      extraCosts: [
+        ...(currentService?.extraCosts || []),
+        {
+          id: crypto.randomUUID(),
+          name: "",
+          description: "",
+          price: 0,
+        },
+      ],
+    });
+  };
+
+  const updateServiceExtraCost = (sectionId, serviceId, costId, values) => {
+    const currentSection = sections.find((section) => section.id === sectionId);
+    const currentService = getSectionServices(currentSection || {}, appSettings).find((service) => service.id === serviceId);
+
+    updateSectionService(sectionId, serviceId, {
+      extraCosts: (currentService?.extraCosts || []).map((cost) => (
+        cost.id === costId ? { ...cost, ...values } : cost
+      )),
+    });
+  };
+
+  const removeServiceExtraCost = (sectionId, serviceId, costId) => {
+    const currentSection = sections.find((section) => section.id === sectionId);
+    const currentService = getSectionServices(currentSection || {}, appSettings).find((service) => service.id === serviceId);
+
+    updateSectionService(sectionId, serviceId, {
+      extraCosts: (currentService?.extraCosts || []).filter((cost) => cost.id !== costId),
+    });
+  };
+
   const removeSection = (id) => {
     setSections((currentSections) => currentSections.filter((section) => section.id !== id));
     if (expandedSectionId === id) {
@@ -919,14 +1140,37 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
     }
   };
 
-  const selectedMultiOptions = sections.flatMap((section) => getActiveMultiCategoryServices(section).map((service) => ({
-    id: `${section.id}-${service.id}`,
-    title: service.title,
-    sectionTitle: `${section.category} / ${service.sectionTitle}`,
-    detailText: service.notes,
-    priceValue: Math.max(0, Number(service.price) || 0),
-    hoursValue: Math.max(0, Number(service.hours) || 0),
-  })));
+  const selectedMultiOptions = sections.flatMap((section) => getActiveMultiCategoryServices(section, appSettings).map((service) => {
+    const workPrice = calculateMultiServiceWorkPrice(service);
+    const extraCostTotal = calculateMultiServiceExtraCosts(service);
+    const pricingText = service.pricingMode === "hourly"
+      ? `Timpris · Antal personer: ${service.peopleCount} · Tid på plats: ${formatHours(service.hours)} · Timpris per person: ${formatPrice(service.hourlyRate)}/h`
+      : `Fast pris: ${formatPrice(service.fastPrice)} · Antal personer: ${service.peopleCount} · Tid på plats: ${formatHours(service.hours)}`;
+
+    return {
+      id: `${section.id}-${service.id}`,
+      title: service.title,
+      sectionTitle: `${section.category} / ${service.sectionTitle}`,
+      detailText: [pricingText, extraCostTotal > 0 ? `Extra kostnader: ${formatPrice(extraCostTotal)}` : "", service.notes].filter(Boolean).join(" · "),
+      priceValue: workPrice,
+      hoursValue: Math.max(0, Number(service.hours) || 0),
+      hourlyRate: service.pricingMode === "hourly" ? service.hourlyRate : 0,
+      vvsNotice: service.vvsNotice,
+      elNotice: service.elNotice,
+      demolitionNotice: service.demolitionNotice,
+    };
+  }));
+
+  const selectedMultiExtraCosts = sections.flatMap((section) => getActiveMultiCategoryServices(section, appSettings).flatMap((service) => (
+    (service.extraCosts || [])
+      .filter((cost) => cost.name || cost.description || Math.max(0, Number(cost.price) || 0) > 0)
+      .map((cost) => ({
+        id: `${section.id}-${service.id}-${cost.id}`,
+        name: cost.name || "Extra kostnad",
+        description: [section.category, service.title, cost.description].filter(Boolean).join(" · "),
+        priceValue: Math.max(0, Number(cost.price) || 0),
+      }))
+  )));
 
   const buildOffer = () => ({
     id: initialOffer?.id || crypto.randomUUID(),
@@ -945,11 +1189,11 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
     peopleCount: appSettings.standardPeopleCount,
     schedule: {
       totalWorkHours: totalHours,
-      hourlyRateSummary: `${formatPrice(appSettings.standardHourlyRate)}/h`,
+      hourlyRateSummary: formatMultiHourlyRateSummary(selectedMultiOptions),
       estimatedCalendarTime: totalHours > 0 ? formatEstimatedCalendarTime(totalHours, 36) : "",
     },
     options: selectedMultiOptions,
-    extraCosts: [],
+    extraCosts: selectedMultiExtraCosts,
     discount: {
       active: false,
       percent: 0,
@@ -957,10 +1201,10 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
     },
     companySettings: appSettings,
     prices: {
-      work: totalPrice,
-      workAfterDiscount: totalPrice,
-      fixed: 0,
-      extraCosts: 0,
+      work: totalWorkPrice,
+      workAfterDiscount: totalWorkPrice,
+      fixed: totalExtraCosts,
+      extraCosts: totalExtraCosts,
       min: totalPrice,
       normal: totalPrice,
       premium: totalPrice,
@@ -980,12 +1224,13 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
       displayCategory: offer.displayCategory,
       customer,
       projectStatus,
+      selectedPriceVariant: "normal",
       selectedOfferPrice: totalPrice,
       selectedOptionDetails: selectedMultiOptions,
-      extraCostDetails: [],
-      extraCostsTotal: 0,
-      fixedCostsTotal: 0,
-      workPrice: totalPrice,
+      extraCostDetails: selectedMultiExtraCosts,
+      extraCostsTotal: totalExtraCosts,
+      fixedCostsTotal: totalExtraCosts,
+      workPrice: totalWorkPrice,
       peopleCount: appSettings.standardPeopleCount,
       totalWorkHours: totalHours,
       hourlyRateSummary: offer.schedule.hourlyRateSummary,
@@ -995,10 +1240,11 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
       discountActive: false,
       discountAmount: 0,
       discountPercent: 0,
-      discountedWorkPrice: totalPrice,
-      vvsNoticeActive: false,
-      elNoticeActive: false,
-      demolitionNoticeActive: sections.some((section) => isDemolitionCategory(section.category)),
+      discountedWorkPrice: totalWorkPrice,
+      vvsNoticeActive: selectedMultiOptions.some((option) => option.vvsNotice || isVvsRelatedOption(option)),
+      elNoticeActive: selectedMultiOptions.some((option) => option.elNotice || isElRelatedOption(option)),
+      demolitionNoticeActive: sections.some((section) => isDemolitionCategory(section.category)) || selectedMultiOptions.some((option) => option.demolitionNotice),
+      projectPhotos,
       companySettings: appSettings,
       logoImage,
     });
@@ -1079,10 +1325,10 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
       <div className="mt-5 grid gap-4">
         {sections.map((section, index) => {
           const expanded = expandedSectionId === section.id;
-          const services = getSectionServices(section);
+          const services = getSectionServices(section, appSettings);
           const activeServices = services.filter((service) => service.active);
-          const sectionPrice = calculateMultiSectionTotal(section);
-          const sectionHours = calculateMultiSectionHours(section);
+          const sectionPrice = calculateMultiSectionTotal(section, appSettings);
+          const sectionHours = calculateMultiSectionHours(section, appSettings);
 
           return (
             <section key={section.id} className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-4">
@@ -1129,14 +1375,78 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
 
                         {service.active && (
                           <div className="mt-4 grid gap-3">
+                            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-zinc-800 bg-black p-1">
+                              {[
+                                ["fast", "Fast pris"],
+                                ["hourly", "Timpris"],
+                              ].map(([mode, label]) => (
+                                <button
+                                  key={mode}
+                                  type="button"
+                                  onClick={() => updateSectionService(section.id, service.id, { pricingMode: mode })}
+                                  className={`min-h-12 rounded-xl px-3 text-sm font-black transition ${service.pricingMode === mode ? "bg-orange-500 text-black" : "text-zinc-400"}`}
+                                >
+                                  {t(label)}
+                                </button>
+                              ))}
+                            </div>
+
                             <SettingsGrid>
-                              <SettingsInput type="number" label={t("Pris")} value={service.price} onChange={(value) => updateSectionService(section.id, service.id, { price: Number(value) || 0 })} />
-                              <SettingsInput type="number" label={t("Tid på plats")} value={service.hours} onChange={(value) => updateSectionService(section.id, service.id, { hours: Number(value) || 0 })} />
+                              {service.pricingMode === "fast" ? (
+                                <SettingsInput type="number" label={t("Fast pris")} value={service.fastPrice} onChange={(value) => updateSectionService(section.id, service.id, { fastPrice: Number(value) || 0 })} />
+                              ) : (
+                                <SettingsInput type="number" label={t("Timpris per person")} value={service.hourlyRate} onChange={(value) => updateSectionService(section.id, service.id, { hourlyRate: Number(value) || 0 })} />
+                              )}
+                              <SettingsInput type="number" label={t("Antal personer")} value={service.peopleCount} onChange={(value) => updateSectionService(section.id, service.id, { peopleCount: Math.max(1, Number(value) || 1) })} />
+                              <SettingsInput type="number" label={t("Tid på plats")} value={service.hours} onChange={(value) => updateSectionService(section.id, service.id, { hours: Math.max(0, Number(value) || 0) })} />
+                              {service.pricingMode === "hourly" && (
+                                <div className="rounded-2xl border border-orange-400/20 bg-black/50 px-4 py-3">
+                                  <p className="text-xs font-black uppercase tracking-[0.14em] text-zinc-500">{t("Arbetskostnad")}</p>
+                                  <p className="mt-1 text-lg font-black text-orange-400">{formatPrice(calculateMultiServiceWorkPrice(service))}</p>
+                                </div>
+                              )}
                             </SettingsGrid>
+
                             <label className="block text-sm text-zinc-400">
                               {t("Anteckningar")}
                               <textarea value={service.notes} onChange={(event) => updateSectionService(section.id, service.id, { notes: event.target.value })} className="mt-2 min-h-20 w-full resize-none rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-base text-white outline-none" />
                             </label>
+
+                            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-black text-white">{t("Extra kostnader")}</p>
+                                  <p className="mt-1 text-xs text-zinc-500">{t("Fasta kostnader utan rabatt")}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => addServiceExtraCost(section.id, service.id)}
+                                  className="min-h-11 rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 text-sm font-black text-orange-200"
+                                >
+                                  {t("Lägg till kostnad")}
+                                </button>
+                              </div>
+
+                              {(service.extraCosts || []).length > 0 && (
+                                <div className="mt-4 grid gap-3">
+                                  {service.extraCosts.map((cost) => (
+                                    <div key={cost.id} className="grid gap-3 rounded-2xl border border-white/10 bg-zinc-950 p-3">
+                                      <SettingsGrid>
+                                        <SettingsInput label={t("Namn")} value={cost.name} onChange={(value) => updateServiceExtraCost(section.id, service.id, cost.id, { name: value })} />
+                                        <SettingsInput type="number" label={t("Pris")} value={cost.price} onChange={(value) => updateServiceExtraCost(section.id, service.id, cost.id, { price: Number(value) || 0 })} />
+                                      </SettingsGrid>
+                                      <label className="block text-sm text-zinc-400">
+                                        {t("Beskrivning")}
+                                        <textarea value={cost.description} onChange={(event) => updateServiceExtraCost(section.id, service.id, cost.id, { description: event.target.value })} className="mt-2 min-h-16 w-full resize-none rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-base text-white outline-none" />
+                                      </label>
+                                      <button type="button" onClick={() => removeServiceExtraCost(section.id, service.id, cost.id)} className="min-h-11 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 text-sm font-black text-red-200">
+                                        {t("Ta bort")}
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1174,6 +1484,7 @@ async function exportSavedOfferPdf(offer) {
     displayCategory: offer.displayCategory || offer.category,
     customer: offer.customer || {},
     projectStatus: offer.projectStatus || "Ny förfrågan",
+    selectedPriceVariant: offer.prices?.selectedVariant || "normal",
     selectedOfferPrice: offer.prices?.selectedOffer ?? offer.prices?.normal ?? 0,
       selectedOptionDetails: (offer.options || []).map((option) => ({
         ...option,
@@ -1199,6 +1510,7 @@ async function exportSavedOfferPdf(offer) {
       vvsNoticeActive: (offer.options || []).some((option) => option.vvsNotice || isVvsRelatedOption(option)),
       elNoticeActive: (offer.options || []).some((option) => option.elNotice || isElRelatedOption(option)),
       demolitionNoticeActive: offer.demolitionNoticeActive || isDemolitionCategory(offer.displayCategory || offer.category),
+      projectPhotos: offer.projectPhotos || [],
       companySettings,
       logoImage,
     });
@@ -5769,6 +6081,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       displayCategory,
       customer,
       projectStatus,
+      selectedPriceVariant,
       selectedOfferPrice,
       selectedOptionDetails,
       extraCostDetails,
@@ -5788,6 +6101,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
       vvsNoticeActive,
       elNoticeActive,
       demolitionNoticeActive,
+      projectPhotos,
       logoImage,
       companySettings: appSettings,
     });
@@ -5862,6 +6176,7 @@ function CategoryCalculator({ category, initialOffer, initialCustomer, goBack, o
         sectionTitle: option.sectionTitle || "",
         priceValue: option.priceValue,
         hoursValue: option.hoursValue || 0,
+        costType: option.costType || "work",
         detailText: option.detailText || "",
         vvsNotice: option.vvsNotice || false,
         elNotice: option.elNotice || false,
@@ -7566,6 +7881,7 @@ function createOfferPdfBlob({
   displayCategory,
   customer,
   projectStatus = "Ny förfrågan",
+  selectedPriceVariant = "normal",
   selectedOfferPrice,
   selectedOptionDetails,
   extraCostDetails,
@@ -7585,6 +7901,7 @@ function createOfferPdfBlob({
   vvsNoticeActive,
   elNoticeActive,
   demolitionNoticeActive,
+  projectPhotos = [],
   companySettings = loadAppSettings(),
   logoImage,
 }) {
@@ -7612,6 +7929,14 @@ function createOfferPdfBlob({
   ].filter(([, value]) => isPdfValueFilled(value));
   const optionRows = (selectedOptionDetails || []).filter((option) => isPdfValueFilled(option.title));
   const extraCostRows = (extraCostDetails || []).filter((cost) => isPdfValueFilled(cost.name) || isPdfValueFilled(cost.description) || Number(cost.priceValue) > 0);
+  const projectPdfImages = (projectPhotos || [])
+    .filter((photo) => photo.includeInPdf && photo.dataUrl)
+    .map((photo) => ({
+      ...photo,
+      image: parseImageForPdf(dataUrlToBytes(photo.dataUrl)),
+    }))
+    .filter((photo) => photo.image)
+    .slice(0, 2);
   const fixedCostsDisplayTotal = Math.max(0, fixedCostsTotal - extraCostsTotal);
   const showVvsNotice = vvsNoticeActive || selectedOptionDetails.some(isVvsRelatedOption);
   const showElNotice = elNoticeActive || selectedOptionDetails.some(isElRelatedOption);
@@ -7641,6 +7966,13 @@ function createOfferPdfBlob({
   };
 
   const money = (value) => formatPrice(value);
+  const selectedPackageWorkPrice = Math.max(0, selectedOfferPrice - fixedCostsTotal);
+  const packageMultiplier = discountedWorkPrice > 0
+    ? selectedPackageWorkPrice / discountedWorkPrice
+    : 1;
+  const showDetailedDiscount = selectedPriceVariant === "normal" && discountActive;
+  const displayedWorkPrice = showDetailedDiscount ? workPrice : selectedPackageWorkPrice;
+  const displayedDiscountedWorkPrice = showDetailedDiscount ? discountedWorkPrice : selectedPackageWorkPrice;
   const companyDetails = companyRows.slice(1).map(([label, value]) => `${label}: ${value}`);
   const projectRows = [
     ["Kategori", displayCategory],
@@ -7659,9 +7991,9 @@ function createOfferPdfBlob({
     ...(startDate && estimatedEndDate ? [
       ["Beräknat slutdatum", estimatedEndDate],
     ] : []),
-    ["Arbetskostnad", money(workPrice)],
-    ...(discountActive ? [["Rabatt", `-${money(discountAmount)} (${discountPercent}%)`]] : []),
-    ["Arbete efter rabatt", money(discountedWorkPrice)],
+    ["Arbetskostnad", money(displayedWorkPrice)],
+    ...(showDetailedDiscount ? [["Rabatt", `-${money(discountAmount)} (${discountPercent}%)`]] : []),
+    ...(showDetailedDiscount ? [["Arbete efter rabatt", money(displayedDiscountedWorkPrice)]] : []),
     ...(extraCostsTotal > 0 ? [["Extra kostnader", money(extraCostsTotal)]] : []),
     ...(fixedCostsDisplayTotal > 0 ? [["Fasta kostnader", money(fixedCostsDisplayTotal)]] : []),
     ["Offertpris", money(selectedOfferPrice)],
@@ -7714,6 +8046,16 @@ function createOfferPdfBlob({
     });
   };
 
+  const getPdfOptionPrice = (option) => {
+    const optionPrice = Math.max(0, Number(option.priceValue) || 0);
+
+    if (selectedPriceVariant === "normal" || option.costType === "fixed") {
+      return optionPrice;
+    }
+
+    return Math.round(optionPrice * packageMultiplier);
+  };
+
   rect(0, 0, 595, 842, "0.015 0.015 0.018");
   rect(26, 26, 543, 790, "0.055 0.055 0.06");
   rect(26, 708, 543, 108, "0.12 0.055 0.018");
@@ -7732,7 +8074,11 @@ function createOfferPdfBlob({
   text(new Date().toLocaleDateString("sv-SE"), 455, 768, 8.5, "0.82 0.82 0.86");
 
   text(displayCategory, 48, 675, 22, "1 1 1", "F2");
-  text(`${showArea ? `${formatArea(area)} · ` : ""}${peopleCount} ${peopleCount === 1 ? "person" : "personer"} · ${estimatedCalendarTime}`, 48, 654, 9.5, "0.72 0.72 0.76");
+  text([
+    showArea ? formatArea(area) : "",
+    `${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`,
+    estimatedCalendarTime,
+  ].filter(Boolean).join(" · "), 48, 654, 9.5, "0.72 0.72 0.76");
   rect(375, 632, 172, 54, "0.98 0.45 0.08");
   text("OFFERTPRIS", 392, 666, 8, "0 0 0", "F2");
   text(money(selectedOfferPrice), 392, 646, 17, "0 0 0", "F2");
@@ -7755,8 +8101,10 @@ function createOfferPdfBlob({
   cursorY = 470 - Math.min(pricingRows.length, 8) * 24 - 20;
   const optionTableRows = optionRows.slice(0, 7).map((option) => ({
     label: formatOptionTitle(option.title),
-    value: option.priceValue > 0 ? `+${money(option.priceValue)}` : "Ingår",
-    detail: [option.sectionTitle, option.detailText].filter(Boolean).join(" · "),
+    value: getPdfOptionPrice(option) > 0 ? `+${money(getPdfOptionPrice(option))}` : "Ingår",
+    detail: selectedPriceVariant === "normal"
+      ? [option.sectionTitle, option.detailText].filter(Boolean).join(" · ")
+      : [option.sectionTitle, option.hoursValue > 0 ? `Tid på plats: ${formatHours(option.hoursValue)}` : ""].filter(Boolean).join(" · "),
   }));
   if (optionTableRows.length > 0 && cursorY > 180) {
     sectionTitle("Valda alternativ", cursorY);
@@ -7780,6 +8128,26 @@ function createOfferPdfBlob({
       text(lineText, 64, cursorY - 40 - index * 12, 8.5, "0.9 0.9 0.92");
     });
     cursorY -= 84;
+  }
+
+  if (projectPdfImages.length > 0 && cursorY > 170) {
+    sectionTitle("Projektbilder", cursorY);
+    projectPdfImages.forEach((photo, index) => {
+      const x = index === 0 ? 48 : 302;
+      const y = cursorY - 118;
+      const boxWidth = 245;
+      const boxHeight = 86;
+      const ratio = Math.min(boxWidth / photo.image.width, boxHeight / photo.image.height);
+      const width = Math.round(photo.image.width * ratio);
+      const height = Math.round(photo.image.height * ratio);
+
+      rect(x, y - 6, boxWidth, boxHeight + 22, "0.08 0.08 0.085");
+      image(`Photo${index + 1}`, x + 8, y + 14 + Math.round((boxHeight - height) / 2), width, height);
+      if (photo.note) {
+        text(wrapPdfText(photo.note, 34, 1)[0] || "", x + 8, y + 2, 6.5, "0.75 0.75 0.78");
+      }
+    });
+    cursorY -= 142;
   }
 
   if (showNoticeBlock && cursorY > 126) {
@@ -7808,7 +8176,10 @@ function createOfferPdfBlob({
     text(rightLabel, 360, 38, 7, "0.68 0.68 0.72");
   });
 
-  return buildPdf(content.join("\n"), logoImage);
+  return buildPdf(content.join("\n"), logoImage, projectPdfImages.map((photo, index) => ({
+    name: `Photo${index + 1}`,
+    image: photo.image,
+  })));
 }
 
 async function loadPdfLogoImage(companySettings = loadAppSettings()) {
@@ -7838,6 +8209,10 @@ async function loadPdfLogoImage(companySettings = loadAppSettings()) {
 }
 
 function parsePngForPdf(bytes) {
+  if (!bytes) {
+    return null;
+  }
+
   const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
   if (!pngSignature.every((byte, index) => bytes[index] === byte)) {
@@ -7889,10 +8264,50 @@ function parsePngForPdf(bytes) {
   });
 
   return {
+    format: "png",
     width,
     height,
     data,
   };
+}
+
+function parseJpegForPdf(bytes) {
+  if (!bytes || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    return null;
+  }
+
+  let offset = 2;
+
+  while (offset < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+
+    const marker = bytes[offset + 1];
+    const length = (bytes[offset + 2] << 8) + bytes[offset + 3];
+
+    if ([0xc0, 0xc1, 0xc2].includes(marker)) {
+      return {
+        format: "jpeg",
+        width: (bytes[offset + 7] << 8) + bytes[offset + 8],
+        height: (bytes[offset + 5] << 8) + bytes[offset + 6],
+        data: bytes,
+      };
+    }
+
+    if (!length || length < 2) {
+      break;
+    }
+
+    offset += 2 + length;
+  }
+
+  return null;
+}
+
+function parseImageForPdf(bytes) {
+  return parseJpegForPdf(bytes) || parsePngForPdf(bytes);
 }
 
 function dataUrlToBytes(dataUrl) {
@@ -7916,13 +8331,17 @@ function readPngUint32(bytes, offset) {
   return ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
 }
 
-function buildPdf(contentStream, logoImage) {
+function buildPdf(contentStream, logoImage, extraImages = []) {
   const encoder = new TextEncoder();
   const streamLength = encoder.encode(contentStream).length;
-  const hasLogo = Boolean(logoImage);
-  const logoObjectNumber = 6;
-  const contentObjectNumber = hasLogo ? 7 : 6;
-  const xObjectResources = hasLogo ? ` /XObject << /Logo ${logoObjectNumber} 0 R >>` : "";
+  const pdfImages = [
+    ...(logoImage ? [{ name: "Logo", image: logoImage }] : []),
+    ...extraImages,
+  ];
+  const contentObjectNumber = 6 + pdfImages.length;
+  const xObjectResources = pdfImages.length > 0
+    ? ` /XObject << ${pdfImages.map((item, index) => `/${item.name} ${6 + index} 0 R`).join(" ")} >>`
+    : "";
   const objects = [
     [`<< /Type /Catalog /Pages 2 0 R >>`],
     [`<< /Type /Pages /Kids [3 0 R] /Count 1 >>`],
@@ -7931,13 +8350,17 @@ function buildPdf(contentStream, logoImage) {
     [`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`],
   ];
 
-  if (hasLogo) {
+  pdfImages.forEach(({ image: pdfImage }) => {
+    const imageHeader = pdfImage.format === "jpeg"
+      ? `<< /Type /XObject /Subtype /Image /Width ${pdfImage.width} /Height ${pdfImage.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pdfImage.data.length} >>\nstream\n`
+      : `<< /Type /XObject /Subtype /Image /Width ${pdfImage.width} /Height ${pdfImage.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors 3 /BitsPerComponent 8 /Columns ${pdfImage.width} >> /Length ${pdfImage.data.length} >>\nstream\n`;
+
     objects.push([
-      `<< /Type /XObject /Subtype /Image /Width ${logoImage.width} /Height ${logoImage.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors 3 /BitsPerComponent 8 /Columns ${logoImage.width} >> /Length ${logoImage.data.length} >>\nstream\n`,
-      logoImage.data,
+      imageHeader,
+      pdfImage.data,
       "\nendstream",
     ]);
-  }
+  });
 
   objects.push([`<< /Length ${streamLength} >>\nstream\n${contentStream}\nendstream`]);
 
