@@ -605,7 +605,7 @@ function SettingsScreen({ goBack, settings, onChange }) {
         </button>
 
         <div className="min-w-0">
-          <h1 className="break-words text-3xl font-black">
+          <h1 className="text-3xl font-black">
             {t("Inställningar")}
           </h1>
           <p className="text-orange-400">
@@ -942,7 +942,8 @@ function getMultiCategoryServices(category) {
   const sections = config.sections || [{ title: "Tjänster", options: config.options || [] }];
 
   return sections.flatMap((section) => (section.options || []).map(normalizeCalculatorOption).map((option) => ({
-    id: option.id,
+    ...option,
+    areaControl: option.areaControl || (option.defaultFastPrice?.length > 0 ? "surface" : undefined),
     title: formatOptionTitle(option.title),
     sectionTitle: section.title || "Tjänster",
     vvsNotice: option.vvsNotice || false,
@@ -951,20 +952,79 @@ function getMultiCategoryServices(category) {
   })));
 }
 
+function getDefaultMultiServiceMeasurement(storedMeasurement = {}) {
+  return {
+    mode: storedMeasurement.mode || "manual",
+    area: storedMeasurement.area ?? 0,
+    length: storedMeasurement.length ?? "",
+    height: storedMeasurement.height ?? "",
+  };
+}
+
+function getMultiServiceArea(service) {
+  if (!service.areaControl) {
+    return 0;
+  }
+
+  return Math.max(0, Number(service.measurement?.area) || 0);
+}
+
+function getDefaultMultiServicePricing(service, storedPricing = {}, appSettings = defaultAppSettings, legacyValues = {}) {
+  const pricingArea = getMultiServiceArea({ ...service, measurement: legacyValues.measurement || service.measurement });
+  const stepTier = storedPricing.stepTier || "standard";
+  const defaultStepPrice = stepTier === "premium"
+    ? service.premiumStepPrice
+    : service.defaultStepPrice?.();
+  const defaultRate = service.demolitionNotice
+    ? demolitionDefaultHourlyRate
+    : service.defaultHourlyRate ?? Math.max(0, Number(appSettings.standardHourlyRate) || 250);
+  const legacyPrice = legacyValues.price === undefined ? undefined : Math.max(0, Number(legacyValues.price) || 0);
+  const legacyHours = Math.max(0, Number(legacyValues.hours) || 0);
+
+  return {
+    mode: storedPricing.mode || legacyValues.pricingMode || (service.pricingControl === "hourly" ? "hourly" : service.lengthControl ? "meter" : service.quantityControl ? "unit" : "fast"),
+    fastPrice: storedPricing.fastPrice ?? legacyValues.fastPrice ?? legacyPrice ?? service.defaultFastPrice?.(pricingArea) ?? 0,
+    meterPrice: storedPricing.meterPrice ?? service.defaultMeterPrice?.(pricingArea) ?? 0,
+    quantity: storedPricing.quantity ?? 0,
+    unitPrice: storedPricing.unitPrice ?? service.defaultUnitPrice?.(pricingArea) ?? 0,
+    stepTier,
+    steps: storedPricing.steps ?? 0,
+    stepPrice: storedPricing.stepPrice ?? defaultStepPrice ?? 0,
+    estimatedHours: storedPricing.estimatedHours ?? service.defaultEstimatedHours?.(pricingArea) ?? 0,
+    hours: storedPricing.hours ?? legacyHours,
+    hourlyRate: storedPricing.hourlyRate ?? legacyValues.hourlyRate ?? defaultRate,
+  };
+}
+
 function normalizeMultiServiceState(service, storedService = {}, appSettings = defaultAppSettings) {
   const defaultPeople = Math.max(1, Number(appSettings.standardPeopleCount) || 2);
-  const defaultRate = service.demolitionNotice ? demolitionDefaultHourlyRate : Math.max(0, Number(appSettings.standardHourlyRate) || 250);
-  const legacyPrice = Math.max(0, Number(storedService.price) || 0);
+  const legacyPrice = storedService.price === undefined ? undefined : Math.max(0, Number(storedService.price) || 0);
   const legacyHours = Math.max(0, Number(storedService.hours) || 0);
+  const measurement = getDefaultMultiServiceMeasurement(storedService.measurement);
+  const serviceWithMeasurement = { ...service, measurement };
+  const storedPricing = storedService.pricing || {};
+  const legacyPricing = storedService.pricing ? storedPricing : {
+    ...(storedService.pricingMode ? { mode: storedService.pricingMode } : {}),
+    ...(storedService.fastPrice !== undefined ? { fastPrice: storedService.fastPrice } : {}),
+    ...(storedService.hours !== undefined ? { hours: legacyHours } : {}),
+    ...(storedService.hourlyRate !== undefined ? { hourlyRate: storedService.hourlyRate } : {}),
+  };
+  const pricing = getDefaultMultiServicePricing(serviceWithMeasurement, legacyPricing, appSettings, {
+    price: legacyPrice,
+    pricingMode: storedService.pricingMode || (legacyHours > 0 && legacyPrice === 0 ? "hourly" : ""),
+    measurement,
+  });
 
   return {
     ...service,
     active: storedService.active || false,
-    pricingMode: storedService.pricingMode || (legacyHours > 0 && legacyPrice === 0 ? "hourly" : "fast"),
-    fastPrice: storedService.fastPrice ?? legacyPrice,
     peopleCount: storedService.peopleCount ?? defaultPeople,
-    hours: storedService.hours ?? 0,
-    hourlyRate: storedService.hourlyRate ?? defaultRate,
+    measurement,
+    pricing: legacyPricing,
+    pricingMode: pricing.mode,
+    fastPrice: pricing.fastPrice,
+    hours: pricing.hours,
+    hourlyRate: pricing.hourlyRate,
     notes: storedService.notes ?? "",
     extraCosts: storedService.extraCosts || [],
   };
@@ -982,13 +1042,94 @@ function calculateMultiServiceWorkPrice(service) {
     return 0;
   }
 
-  if (service.pricingMode === "hourly") {
-    return Math.max(0, Number(service.hours) || 0)
-      * Math.max(1, Number(service.peopleCount) || 1)
-      * Math.max(0, Number(service.hourlyRate) || 0);
+  if (!service.pricingControl && typeof service.price === "function") {
+    return service.price({
+      area: getMultiServiceArea(service),
+      active: true,
+    });
   }
 
-  return Math.max(0, Number(service.fastPrice) || 0);
+  const pricing = getDefaultMultiServicePricing(service, service.pricing);
+
+  if (service.pricingControl === "steps") {
+    return Math.max(0, Number(pricing.steps) || 0) * Math.max(0, Number(pricing.stepPrice) || 0);
+  }
+
+  if (pricing.mode === "hourly" || service.pricingControl === "hourly") {
+    return Math.max(0, Number(pricing.hours) || 0)
+      * Math.max(1, Number(service.peopleCount) || 1)
+      * Math.max(0, Number(pricing.hourlyRate) || 0);
+  }
+
+  if (pricing.mode === "meter" && service.lengthControl) {
+    return Math.max(0, Number(service.measurement?.length) || 0) * Math.max(0, Number(pricing.meterPrice) || 0);
+  }
+
+  if (pricing.mode === "unit" && service.quantityControl) {
+    return Math.max(0, Number(pricing.quantity) || 0) * Math.max(0, Number(pricing.unitPrice) || 0);
+  }
+
+  return Math.max(0, Number(pricing.fastPrice) || 0);
+}
+
+function calculateMultiServiceHours(service) {
+  if (!service.active || !service.pricingControl || service.excludeFromWorkHours) {
+    return 0;
+  }
+
+  const pricing = getDefaultMultiServicePricing(service, service.pricing);
+
+  if (service.pricingControl === "steps") {
+    const hoursPerStep = pricing.stepTier === "premium"
+      ? service.premiumHoursPerStep
+      : service.standardHoursPerStep;
+
+    return Math.max(0, Number(pricing.steps) || 0) * Math.max(0, Number(hoursPerStep) || 0);
+  }
+
+  if (pricing.mode === "hourly" || service.pricingControl === "hourly") {
+    return Math.max(0, Number(pricing.hours) || 0);
+  }
+
+  return Math.max(0, Number(pricing.estimatedHours) || 0);
+}
+
+function getMultiServicePricingText(service) {
+  const pricing = getDefaultMultiServicePricing(service, service.pricing);
+  const parts = [];
+
+  if (service.pricingControl === "steps") {
+    parts.push(`Antal steg: ${pricing.steps}`);
+    parts.push(`Pris per steg: ${formatPrice(pricing.stepPrice)}`);
+  } else if (pricing.mode === "hourly" || service.pricingControl === "hourly") {
+    parts.push("Timpris");
+    parts.push(`Antal personer: ${service.peopleCount}`);
+    parts.push(`Tid på plats: ${formatHours(pricing.hours)}`);
+    parts.push(`Timpris per person: ${formatPrice(pricing.hourlyRate)}/h`);
+  } else if (pricing.mode === "meter" && service.lengthControl) {
+    parts.push(`Längd: ${formatLength(service.measurement?.length)}`);
+    parts.push(`Pris per löpmeter: ${formatPrice(pricing.meterPrice)}`);
+    if (Math.max(0, Number(pricing.estimatedHours) || 0) > 0) {
+      parts.push(`Tid på plats: ${formatHours(pricing.estimatedHours)}`);
+    }
+  } else if (pricing.mode === "unit" && service.quantityControl) {
+    parts.push(`${service.quantityLabel || "Antal stycken"}: ${pricing.quantity}`);
+    parts.push(`${service.unitPriceLabel || "Pris per styck"}: ${formatPrice(pricing.unitPrice)}`);
+    if (Math.max(0, Number(pricing.estimatedHours) || 0) > 0) {
+      parts.push(`Tid på plats: ${formatHours(pricing.estimatedHours)}`);
+    }
+  } else {
+    parts.push(`Fast pris: ${formatPrice(pricing.fastPrice)}`);
+    if (Math.max(0, Number(pricing.estimatedHours) || 0) > 0) {
+      parts.push(`Tid på plats: ${formatHours(pricing.estimatedHours)}`);
+    }
+  }
+
+  if (service.areaControl && getMultiServiceArea(service) > 0) {
+    parts.unshift(`Yta: ${formatArea(getMultiServiceArea(service))}`);
+  }
+
+  return parts.filter(Boolean).join(" · ");
 }
 
 function calculateMultiServiceExtraCosts(service) {
@@ -1016,7 +1157,7 @@ function calculateMultiSectionExtraTotal(section, appSettings = defaultAppSettin
 }
 
 function calculateMultiSectionHours(section, appSettings = defaultAppSettings) {
-  return getActiveMultiCategoryServices(section, appSettings).reduce((total, service) => total + Math.max(0, Number(service.hours) || 0), 0);
+  return getActiveMultiCategoryServices(section, appSettings).reduce((total, service) => total + calculateMultiServiceHours(service), 0);
 }
 
 function formatMultiHourlyRateSummary(options) {
@@ -1096,6 +1237,37 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
     }));
   };
 
+  const updateServicePricing = (sectionId, service, values) => {
+    updateSectionService(sectionId, service.id, {
+      pricing: {
+        ...(service.pricing || {}),
+        ...values,
+      },
+    });
+  };
+
+  const updateServiceMeasurement = (sectionId, service, values) => {
+    const nextMeasurement = {
+      mode: "manual",
+      area: 0,
+      length: "",
+      height: "",
+      ...(service.measurement || {}),
+      ...values,
+    };
+
+    if (nextMeasurement.mode === "dimensions" || values.length !== undefined || values.height !== undefined) {
+      const length = Math.max(0, Number(nextMeasurement.length) || 0);
+      const height = Math.max(0, Number(nextMeasurement.height) || 0);
+
+      nextMeasurement.area = Math.round(length * height * 10) / 10;
+    }
+
+    updateSectionService(sectionId, service.id, {
+      measurement: nextMeasurement,
+    });
+  };
+
   const addServiceExtraCost = (sectionId, serviceId) => {
     const currentSection = sections.find((section) => section.id === sectionId);
     const currentService = getSectionServices(currentSection || {}, appSettings).find((service) => service.id === serviceId);
@@ -1143,18 +1315,18 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
   const selectedMultiOptions = sections.flatMap((section) => getActiveMultiCategoryServices(section, appSettings).map((service) => {
     const workPrice = calculateMultiServiceWorkPrice(service);
     const extraCostTotal = calculateMultiServiceExtraCosts(service);
-    const pricingText = service.pricingMode === "hourly"
-      ? `Timpris · Antal personer: ${service.peopleCount} · Tid på plats: ${formatHours(service.hours)} · Timpris per person: ${formatPrice(service.hourlyRate)}/h`
-      : `Fast pris: ${formatPrice(service.fastPrice)} · Antal personer: ${service.peopleCount} · Tid på plats: ${formatHours(service.hours)}`;
+    const pricing = getDefaultMultiServicePricing(service, service.pricing, appSettings);
+    const pricingText = getMultiServicePricingText(service);
+    const noteText = service.notes?.trim() ? `Anteckningar: ${service.notes.trim()}` : "";
 
     return {
       id: `${section.id}-${service.id}`,
       title: service.title,
       sectionTitle: `${section.category} / ${service.sectionTitle}`,
-      detailText: [pricingText, extraCostTotal > 0 ? `Extra kostnader: ${formatPrice(extraCostTotal)}` : "", service.notes].filter(Boolean).join(" · "),
+      detailText: [pricingText, extraCostTotal > 0 ? `Extra kostnader: ${formatPrice(extraCostTotal)}` : "", noteText].filter(Boolean).join(" · "),
       priceValue: workPrice,
-      hoursValue: Math.max(0, Number(service.hours) || 0),
-      hourlyRate: service.pricingMode === "hourly" ? service.hourlyRate : 0,
+      hoursValue: calculateMultiServiceHours(service),
+      hourlyRate: pricing.mode === "hourly" || service.pricingControl === "hourly" ? pricing.hourlyRate : 0,
       vvsNotice: service.vvsNotice,
       elNotice: service.elNotice,
       demolitionNotice: service.demolitionNotice,
@@ -1266,7 +1438,7 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
           <ArrowLeft size={22} />
         </button>
         <div className="min-w-0">
-          <h1 className="break-words text-3xl font-black">
+          <h1 className="text-3xl font-black">
             {t("Multi-category offert")}
           </h1>
           <p className="text-orange-400">
@@ -1375,37 +1547,21 @@ function MultiCategoryOfferScreen({ initialOffer, initialCustomer, goBack, onSav
 
                         {service.active && (
                           <div className="mt-4 grid gap-3">
-                            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-zinc-800 bg-black p-1">
-                              {[
-                                ["fast", "Fast pris"],
-                                ["hourly", "Timpris"],
-                              ].map(([mode, label]) => (
-                                <button
-                                  key={mode}
-                                  type="button"
-                                  onClick={() => updateSectionService(section.id, service.id, { pricingMode: mode })}
-                                  className={`min-h-12 rounded-xl px-3 text-sm font-black transition ${service.pricingMode === mode ? "bg-orange-500 text-black" : "text-zinc-400"}`}
-                                >
-                                  {t(label)}
-                                </button>
-                              ))}
-                            </div>
-
                             <SettingsGrid>
-                              {service.pricingMode === "fast" ? (
-                                <SettingsInput type="number" label={t("Fast pris")} value={service.fastPrice} onChange={(value) => updateSectionService(section.id, service.id, { fastPrice: Number(value) || 0 })} />
-                              ) : (
-                                <SettingsInput type="number" label={t("Timpris per person")} value={service.hourlyRate} onChange={(value) => updateSectionService(section.id, service.id, { hourlyRate: Number(value) || 0 })} />
-                              )}
                               <SettingsInput type="number" label={t("Antal personer")} value={service.peopleCount} onChange={(value) => updateSectionService(section.id, service.id, { peopleCount: Math.max(1, Number(value) || 1) })} />
-                              <SettingsInput type="number" label={t("Tid på plats")} value={service.hours} onChange={(value) => updateSectionService(section.id, service.id, { hours: Math.max(0, Number(value) || 0) })} />
-                              {service.pricingMode === "hourly" && (
-                                <div className="rounded-2xl border border-orange-400/20 bg-black/50 px-4 py-3">
-                                  <p className="text-xs font-black uppercase tracking-[0.14em] text-zinc-500">{t("Arbetskostnad")}</p>
-                                  <p className="mt-1 text-lg font-black text-orange-400">{formatPrice(calculateMultiServiceWorkPrice(service))}</p>
-                                </div>
-                              )}
+                              <div className="rounded-2xl border border-orange-400/20 bg-black/50 px-4 py-3">
+                                <p className="text-xs font-black uppercase tracking-[0.14em] text-zinc-500">{t("Arbetskostnad")}</p>
+                                <p className="mt-1 text-lg font-black text-orange-400">{formatPrice(calculateMultiServiceWorkPrice(service))}</p>
+                              </div>
                             </SettingsGrid>
+
+                            <OptionPricingFields
+                              option={service}
+                              pricing={getDefaultMultiServicePricing(service, service.pricing, appSettings)}
+                              onChange={(values) => updateServicePricing(section.id, service, values)}
+                              measurement={service.measurement || getDefaultMultiServiceMeasurement()}
+                              onMeasurementChange={(values) => updateServiceMeasurement(section.id, service, values)}
+                            />
 
                             <label className="block text-sm text-zinc-400">
                               {t("Anteckningar")}
@@ -7890,7 +8046,6 @@ function createOfferPdfBlob({
   workPrice,
   peopleCount,
   totalWorkHours,
-  hourlyRateSummary,
   estimatedCalendarTime,
   startDate,
   estimatedEndDate,
@@ -7946,7 +8101,8 @@ function createOfferPdfBlob({
     ...(demolitionNoticeActive ? [{ title: demolitionSafetyNoticeTitle, text: demolitionSafetyNoticeText }] : []),
   ];
   const showNoticeBlock = noticeBlocks.length > 0;
-  const content = [];
+  const pages = [[]];
+  let content = pages[0];
   let cursorY = 0;
 
   const rect = (x, y, width, height, color) => {
@@ -7965,7 +8121,26 @@ function createOfferPdfBlob({
     content.push(`q ${width} 0 0 ${height} ${x} ${y} cm /${name} Do Q`);
   };
 
+  const drawPageBackground = () => {
+    rect(0, 0, 595, 842, "0.015 0.015 0.018");
+    rect(26, 26, 543, 790, "0.055 0.055 0.06");
+  };
+
+  const addPage = () => {
+    pages.push([]);
+    content = pages[pages.length - 1];
+    drawPageBackground();
+    cursorY = 770;
+  };
+
+  const ensureSpace = (height) => {
+    if (cursorY - height < 132) {
+      addPage();
+    }
+  };
+
   const money = (value) => formatPrice(value);
+  const isPackagePriceVariant = selectedPriceVariant !== "normal";
   const selectedPackageWorkPrice = Math.max(0, selectedOfferPrice - fixedCostsTotal);
   const packageMultiplier = discountedWorkPrice > 0
     ? selectedPackageWorkPrice / discountedWorkPrice
@@ -7983,7 +8158,6 @@ function createOfferPdfBlob({
     ] : []),
     ["Antal personer", `${peopleCount} ${peopleCount === 1 ? "person" : "personer"}`],
     ["Arbetstid", formatHours(totalWorkHours)],
-    ["Timpris/person", hourlyRateSummary],
     ["Uppskattad tid", estimatedCalendarTime],
     ...(startDate ? [
       ["Startdatum", formatLongDate(parseLocalDate(startDate))],
@@ -8034,16 +8208,33 @@ function createOfferPdfBlob({
     return nextY;
   };
 
-  const tableRows = (rows, startY, maxRows = 7) => {
-    rows.slice(0, maxRows).forEach((row, index) => {
-      const y = startY - index * 24;
-      rect(48, y - 8, 499, 19, index % 2 === 0 ? "0.085 0.085 0.09" : "0.11 0.11 0.115");
-      text(wrapPdfText(row.label, 40, 1)[0] || "", 62, y, 8, "0.68 0.68 0.72");
-      text(wrapPdfText(row.value, 26, 1)[0] || "", 390, y, 8.5, "1 1 1", "F2");
-      if (row.detail) {
-        text(wrapPdfText(row.detail, 92, 1)[0] || "", 62, y - 9, 6.5, "0.45 0.45 0.5");
-      }
+  const tableRow = (row, y, index) => {
+    rect(48, y - 8, 499, 19, index % 2 === 0 ? "0.085 0.085 0.09" : "0.11 0.11 0.115");
+    text(wrapPdfText(row.label, 40, 1)[0] || "", 62, y, 8, "0.68 0.68 0.72");
+    text(wrapPdfText(row.value, 26, 1)[0] || "", 390, y, 8.5, "1 1 1", "F2");
+    if (row.detail) {
+      text(wrapPdfText(row.detail, 92, 1)[0] || "", 62, y - 9, 6.5, "0.45 0.45 0.5");
+    }
+  };
+
+  const renderTableSection = (titleValue, rows) => {
+    if (rows.length === 0) {
+      return;
+    }
+
+    const sectionHeight = 42 + (rows.length * 24);
+    if (cursorY - sectionHeight < 132 && sectionHeight < 620) {
+      addPage();
+    }
+    ensureSpace(46);
+    sectionTitle(titleValue, cursorY);
+    cursorY -= 22;
+    rows.forEach((row, index) => {
+      ensureSpace(30);
+      tableRow(row, cursorY, index);
+      cursorY -= 24;
     });
+    cursorY -= 16;
   };
 
   const getPdfOptionPrice = (option) => {
@@ -8056,8 +8247,31 @@ function createOfferPdfBlob({
     return Math.round(optionPrice * packageMultiplier);
   };
 
-  rect(0, 0, 595, 842, "0.015 0.015 0.018");
-  rect(26, 26, 543, 790, "0.055 0.055 0.06");
+  const getPdfOptionDetail = (option) => {
+    const detailParts = [option.sectionTitle];
+
+    if (isPackagePriceVariant) {
+      if (option.hoursValue > 0) {
+        detailParts.push(`Tid på plats: ${formatHours(option.hoursValue)}`);
+      }
+
+      const noteMatch = String(option.detailText || "").match(/Anteckningar:\s*(.*)$/);
+      if (noteMatch?.[1]) {
+        detailParts.push(`Anteckningar: ${noteMatch[1]}`);
+      }
+
+      return detailParts.filter(Boolean).join(" · ");
+    }
+
+    detailParts.push(option.detailText);
+    if (!option.detailText && option.hoursValue > 0) {
+      detailParts.push(`Tid på plats: ${formatHours(option.hoursValue)}`);
+    }
+
+    return detailParts.filter(Boolean).join(" · ");
+  };
+
+  drawPageBackground();
   rect(26, 708, 543, 108, "0.12 0.055 0.018");
   rect(26, 705, 543, 3, "0.98 0.45 0.08");
 
@@ -8094,34 +8308,25 @@ function createOfferPdfBlob({
     detailRows(companyRows, 328, 586, 185);
   }
 
-  sectionTitle("Projekt & pris", 492);
+  cursorY = 492;
   const pricingRows = projectRows.map(([label, value]) => ({ label, value }));
-  tableRows(pricingRows, 470, 8);
+  renderTableSection("Projekt & pris", pricingRows);
 
-  cursorY = 470 - Math.min(pricingRows.length, 8) * 24 - 20;
-  const optionTableRows = optionRows.slice(0, 7).map((option) => ({
+  const optionTableRows = optionRows.map((option) => ({
     label: formatOptionTitle(option.title),
     value: getPdfOptionPrice(option) > 0 ? `+${money(getPdfOptionPrice(option))}` : "Ingår",
-    detail: selectedPriceVariant === "normal"
-      ? [option.sectionTitle, option.detailText].filter(Boolean).join(" · ")
-      : [option.sectionTitle, option.hoursValue > 0 ? `Tid på plats: ${formatHours(option.hoursValue)}` : ""].filter(Boolean).join(" · "),
+    detail: getPdfOptionDetail(option),
   }));
-  if (optionTableRows.length > 0 && cursorY > 180) {
-    sectionTitle("Valda alternativ", cursorY);
-    tableRows(optionTableRows, cursorY - 22, 7);
-    cursorY = cursorY - 22 - Math.min(optionTableRows.length, 7) * 24 - 16;
-  }
-  if (extraCostRows.length > 0 && cursorY > 178) {
-    sectionTitle("Extra kostnader", cursorY);
-    tableRows(extraCostRows.slice(0, 3).map((cost) => ({
+  renderTableSection("Valda alternativ", optionTableRows);
+
+  renderTableSection("Extra kostnader", extraCostRows.map((cost) => ({
       label: cost.name || "Extra kostnad",
       value: `+${money(cost.priceValue)}`,
       detail: cost.description,
-    })), cursorY - 22, 3);
-    cursorY -= 98;
-  }
+  })));
 
-  if (customer.notes && cursorY > 150) {
+  if (customer.notes) {
+    ensureSpace(92);
     sectionTitle("Anteckningar", cursorY);
     rect(48, cursorY - 66, 499, 43, "0.08 0.08 0.085");
     wrapPdfText(customer.notes, 95, 3).forEach((lineText, index) => {
@@ -8130,7 +8335,8 @@ function createOfferPdfBlob({
     cursorY -= 84;
   }
 
-  if (projectPdfImages.length > 0 && cursorY > 170) {
+  if (projectPdfImages.length > 0) {
+    ensureSpace(150);
     sectionTitle("Projektbilder", cursorY);
     projectPdfImages.forEach((photo, index) => {
       const x = index === 0 ? 48 : 302;
@@ -8150,7 +8356,8 @@ function createOfferPdfBlob({
     cursorY -= 142;
   }
 
-  if (showNoticeBlock && cursorY > 126) {
+  if (showNoticeBlock) {
+    ensureSpace(102);
     sectionTitle("Viktig information", cursorY);
     noticeBlocks.slice(0, 2).forEach((notice, noticeIndex) => {
       const y = cursorY - 24 - noticeIndex * 34;
@@ -8159,8 +8366,10 @@ function createOfferPdfBlob({
         text(lineText, 64, y - 11 - index * 10, 6.5, "0.78 0.76 0.72");
       });
     });
+    cursorY -= 94;
   }
 
+  ensureSpace(116);
   rect(48, 76, 499, 44, "0.08 0.08 0.085");
   termsRows.forEach((term, index) => {
     text(term, 64, 104 - index * 10, 6.5, "0.68 0.68 0.72");
@@ -8176,7 +8385,7 @@ function createOfferPdfBlob({
     text(rightLabel, 360, 38, 7, "0.68 0.68 0.72");
   });
 
-  return buildPdf(content.join("\n"), logoImage, projectPdfImages.map((photo, index) => ({
+  return buildPdf(pages.map((pageContent) => pageContent.join("\n")), logoImage, projectPdfImages.map((photo, index) => ({
     name: `Photo${index + 1}`,
     image: photo.image,
   })));
@@ -8333,19 +8542,19 @@ function readPngUint32(bytes, offset) {
 
 function buildPdf(contentStream, logoImage, extraImages = []) {
   const encoder = new TextEncoder();
-  const streamLength = encoder.encode(contentStream).length;
+  const contentStreams = Array.isArray(contentStream) ? contentStream : [contentStream];
   const pdfImages = [
     ...(logoImage ? [{ name: "Logo", image: logoImage }] : []),
     ...extraImages,
   ];
-  const contentObjectNumber = 6 + pdfImages.length;
   const xObjectResources = pdfImages.length > 0
-    ? ` /XObject << ${pdfImages.map((item, index) => `/${item.name} ${6 + index} 0 R`).join(" ")} >>`
+    ? ` /XObject << ${pdfImages.map((item, index) => `/${item.name} ${5 + index} 0 R`).join(" ")} >>`
     : "";
+  const firstPageObjectNumber = 5 + pdfImages.length;
+  const pageObjectNumbers = contentStreams.map((_, index) => firstPageObjectNumber + (index * 2));
   const objects = [
     [`<< /Type /Catalog /Pages 2 0 R >>`],
-    [`<< /Type /Pages /Kids [3 0 R] /Count 1 >>`],
-    [`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >>${xObjectResources} >> /Contents ${contentObjectNumber} 0 R >>`],
+    [`<< /Type /Pages /Kids [${pageObjectNumbers.map((objectNumber) => `${objectNumber} 0 R`).join(" ")}] /Count ${contentStreams.length} >>`],
     [`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`],
     [`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`],
   ];
@@ -8362,7 +8571,13 @@ function buildPdf(contentStream, logoImage, extraImages = []) {
     ]);
   });
 
-  objects.push([`<< /Length ${streamLength} >>\nstream\n${contentStream}\nendstream`]);
+  contentStreams.forEach((stream) => {
+    const contentObjectNumber = objects.length + 2;
+    const streamLength = encoder.encode(stream).length;
+
+    objects.push([`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>${xObjectResources} >> /Contents ${contentObjectNumber} 0 R >>`]);
+    objects.push([`<< /Length ${streamLength} >>\nstream\n${stream}\nendstream`]);
+  });
 
   const pdfParts = ["%PDF-1.4\n"];
   const offsets = [0];

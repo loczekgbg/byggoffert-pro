@@ -97,7 +97,7 @@ export default function CategoriesScreen({ goBack, openCategory, openMultiCatego
           </button>
 
           <div className="min-w-0 text-center">
-            <h1 className="truncate text-2xl font-black uppercase tracking-wide sm:text-4xl">
+            <h1 className="text-2xl font-black uppercase tracking-wide sm:text-4xl">
               {t("Ny offert")}
             </h1>
             <p className="text-sm font-black text-orange-400">
@@ -121,10 +121,10 @@ export default function CategoriesScreen({ goBack, openCategory, openMultiCatego
             <Blocks size={24} />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-black uppercase text-orange-100">
+            <h2 className="text-base font-black uppercase text-orange-100">
               {t("Multi-category offert")}
             </h2>
-            <p className="mt-0.5 truncate text-xs text-zinc-400">
+            <p className="mt-0.5 text-xs text-zinc-400">
               {t("Lägg flera kategorier i samma offert")}
             </p>
           </div>
@@ -147,11 +147,11 @@ export default function CategoriesScreen({ goBack, openCategory, openMultiCatego
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-black uppercase text-white sm:text-base">
+                  <h2 className="text-sm font-black uppercase text-white sm:text-base">
                     {translateText(category.title, language)}
                   </h2>
 
-                  <p className="mt-0.5 truncate text-xs text-zinc-400">
+                  <p className="mt-0.5 text-xs text-zinc-400">
                     {translateText(category.text, language)}
                   </p>
                 </div>

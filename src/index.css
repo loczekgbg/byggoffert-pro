@@ -63,12 +63,16 @@ h2,
 h3,
 button {
   hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 p,
 span,
 label {
-  overflow-wrap: break-word;
+  hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 button:active {
@@ -289,6 +293,28 @@ select:focus {
     #111112;
   padding: 0.85rem 0.55rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 18px 45px rgba(0, 0, 0, 0.48);
+}
+
+.premium-dashboard-card h2,
+.premium-dashboard-card p,
+.premium-category-row h2,
+.premium-category-row p,
+.premium-card h2,
+.premium-card p,
+.premium-card-compact h2,
+.premium-card-compact p,
+.premium-bottom-item span {
+  hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.premium-dashboard-card h2 {
+  text-wrap: balance;
+}
+
+.premium-dashboard-card p {
+  text-wrap: pretty;
 }
 
 .premium-brush-cta {

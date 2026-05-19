@@ -15,7 +15,7 @@ export default function Card({ icon, title, text, onClick }) {
         {icon}
       </div>
 
-      <h2 className="mt-4 break-normal text-[0.78rem] font-black uppercase tracking-wide text-white sm:text-base">
+      <h2 className="mt-4 text-[0.72rem] font-black uppercase tracking-normal text-white sm:text-base">
         {translateText(title, language)}
       </h2>
 
