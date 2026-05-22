@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 
 import {
   Calculator,
@@ -73,7 +73,7 @@ const projectStatuses = [
 
 const premiumCustomerTags = [
   "Premiumkund",
-  "Återkommande kund",
+  "Aterkommande kund",
   "Prioritet",
   "B2B",
   "ROT",
@@ -147,6 +147,21 @@ function AppContent() {
     localStorage.setItem("snickareOffers", JSON.stringify(nextOffers));
   };
 
+  const updateOfferStatus = (offerId, projectStatus) => {
+    const nextOffers = savedOffers.map((offer) => (
+      offer.id === offerId
+        ? {
+          ...offer,
+          projectStatus,
+          updatedAt: new Date().toISOString(),
+        }
+        : offer
+    ));
+
+    setSavedOffers(nextOffers);
+    localStorage.setItem("snickareOffers", JSON.stringify(nextOffers));
+  };
+
   const updateAppSettings = (nextSettings) => {
     setAppSettings(nextSettings);
     saveAppSettings(nextSettings);
@@ -214,6 +229,7 @@ function AppContent() {
         goBack={() => setScreen("home")}
         offers={savedOffers}
         onDeleteOffer={deleteOffer}
+        onUpdateOfferStatus={updateOfferStatus}
         onEditOffer={(offer) => {
           setEditingOffer(offer);
           setQuoteCustomerDraft(null);
@@ -234,6 +250,7 @@ function AppContent() {
       <ClientsScreen
         clients={clients}
         goBack={() => setScreen("home")}
+        onUpdateOfferStatus={updateOfferStatus}
         onOpenClient={(client) => {
           setSelectedClientKey(client.key);
           setScreen("clientDetail");
@@ -255,6 +272,7 @@ function AppContent() {
         client={selectedClient}
         goBack={() => setScreen("clients")}
         onDeleteOffer={deleteOffer}
+        onUpdateOfferStatus={updateOfferStatus}
         onEditOffer={(offer) => {
           setEditingOffer(offer);
           setQuoteCustomerDraft(null);
@@ -674,6 +692,7 @@ function SettingsScreen({ goBack, settings, onChange }) {
               <select value={settings.language} onChange={(event) => updateSetting("language", event.target.value)} className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none">
                 <option value="pl">PL</option>
                 <option value="sv">SV</option>
+                <option value="en">EN</option>
               </select>
             </label>
             <label className="block text-sm text-zinc-400">
@@ -1684,8 +1703,31 @@ async function exportSavedOfferPdf(offer) {
   }, 1000);
 }
 
-function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
+function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer, onUpdateOfferStatus }) {
   const { language, t } = useI18n();
+  const [statusFilter, setStatusFilter] = useState("Alla statusar");
+  const [clientQuery, setClientQuery] = useState("");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
+  const normalizedClientQuery = clientQuery.trim().toLowerCase();
+  const filteredClients = clients.filter((client) => {
+    const queryMatches = !normalizedClientQuery || [
+      client.customer.name,
+      client.customer.phone,
+      client.customer.email,
+      client.customer.address,
+    ].filter(Boolean).join(" ").toLowerCase().includes(normalizedClientQuery);
+    const statusMatches = statusFilter === "Alla statusar" || client.offers.some((offer) => (offer.projectStatus || "Ny förfrågan") === statusFilter);
+    const fromDate = dateFromFilter ? parseLocalDate(dateFromFilter) : null;
+    const toDate = dateToFilter ? new Date(parseLocalDate(dateToFilter).getTime() + 86_399_999) : null;
+    const dateMatches = client.offers.some((offer) => {
+      const offerDate = new Date(offer.date);
+
+      return (!fromDate || offerDate >= fromDate) && (!toDate || offerDate <= toDate);
+    });
+
+    return queryMatches && statusMatches && dateMatches;
+  });
 
   return (
     <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
@@ -1720,6 +1762,42 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
 
       </div>
 
+      {clients.length > 0 && (
+        <div className="mt-8 grid gap-3 rounded-3xl border border-white/10 bg-zinc-950 p-4 md:grid-cols-[1fr_220px_180px_180px]">
+          <label className="block text-sm text-zinc-400">
+            {t("Sök klient")}
+            <input
+              type="search"
+              value={clientQuery}
+              onChange={(event) => setClientQuery(event.target.value)}
+              placeholder={t("Namn, telefon eller adress")}
+              className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+            />
+          </label>
+          <label className="block text-sm text-zinc-400">
+            {t("Projektstatus")}
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+            >
+              <option value="Alla statusar">{t("Alla statusar")}</option>
+              {projectStatuses.map((status) => (
+                <option key={status} value={status}>{translateText(status, language)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm text-zinc-400">
+            {t("Från datum")}
+            <input type="date" value={dateFromFilter} onChange={(event) => setDateFromFilter(event.target.value)} className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none" />
+          </label>
+          <label className="block text-sm text-zinc-400">
+            {t("Till datum")}
+            <input type="date" value={dateToFilter} onChange={(event) => setDateToFilter(event.target.value)} className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none" />
+          </label>
+        </div>
+      )}
+
       {clients.length === 0 ? (
         <div className="mt-10 rounded-3xl border border-orange-400/30 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-8 text-center shadow-2xl shadow-orange-500/10">
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-400">
@@ -1736,7 +1814,10 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
         </div>
       ) : (
         <div className="mt-10 flex flex-col gap-5">
-          {clients.map((client) => (
+          {filteredClients.map((client) => {
+            const latestOffer = client.offers[0];
+
+            return (
             <article
               key={client.key}
               className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl shadow-black/30"
@@ -1775,6 +1856,11 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
                         ))}
                       </div>
                     )}
+                    {latestOffer && (
+                      <div className="mt-3">
+                        <StatusBadge status={latestOffer.projectStatus || "Ny förfrågan"} />
+                      </div>
+                    )}
                   </div>
 
                   <div className="text-right">
@@ -1801,11 +1887,18 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
                 </div>
 
                 <HistoryActionButton onClick={() => onNewOffer(client)} icon={<Plus size={18} />}>
-                  Ny offert
+                  {t("Ny offert")}
                 </HistoryActionButton>
+                {latestOffer && (
+                  <StatusQuickSelect
+                    status={latestOffer.projectStatus || "Ny förfrågan"}
+                    onChange={(nextStatus) => onUpdateOfferStatus(latestOffer.id, nextStatus)}
+                  />
+                )}
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -1813,7 +1906,7 @@ function ClientsScreen({ clients, goBack, onOpenClient, onNewOffer }) {
   );
 }
 
-function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewOffer }) {
+function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewOffer, onUpdateOfferStatus }) {
   const { language, t } = useI18n();
   const [offerToDelete, setOfferToDelete] = useState(null);
 
@@ -1906,9 +1999,7 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-orange-400/30 bg-orange-500/10 px-3 py-1.5 text-xs font-black text-orange-200">
-                        {t(offer.projectStatus || "Ny förfrågan")}
-                      </span>
+                      <StatusBadge status={offer.projectStatus || "Ny förfrågan"} />
                       {(offer.customerTags || []).map((tag) => (
                         <span key={`${offer.id}-${tag}`} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-zinc-200">
                           {t(tag)}
@@ -1950,6 +2041,11 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
                       : "Inte angivet"}
                   />
                 </div>
+
+                <StatusQuickSelect
+                  status={offer.projectStatus || "Ny förfrågan"}
+                  onChange={(nextStatus) => onUpdateOfferStatus(offer.id, nextStatus)}
+                />
 
                 <div className="flex flex-wrap gap-2">
                   {(offer.options || []).slice(0, 8).map((option) => (
@@ -2028,16 +2124,24 @@ function ClientDetailScreen({ client, goBack, onEditOffer, onDeleteOffer, onNewO
   );
 }
 
-function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
+function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer, onUpdateOfferStatus }) {
   const { language, t } = useI18n();
   const [offerToDelete, setOfferToDelete] = useState(null);
   const [statusFilter, setStatusFilter] = useState("Alla statusar");
+  const [clientFilter, setClientFilter] = useState("Alla kunder");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const normalizedQuery = searchQuery.trim().toLowerCase();
+  const clientFilterOptions = [...new Set(offers.map((offer) => offer.customer?.name).filter(Boolean))].sort((first, second) => first.localeCompare(second, "sv"));
   const filteredOffers = offers.filter((offer) => {
     const statusMatches = statusFilter === "Alla statusar" || (offer.projectStatus || "Ny förfrågan") === statusFilter;
+    const clientMatches = clientFilter === "Alla kunder" || offer.customer?.name === clientFilter;
+    const offerDate = new Date(offer.date);
+    const fromMatches = !dateFromFilter || offerDate >= parseLocalDate(dateFromFilter);
+    const toMatches = !dateToFilter || offerDate <= new Date(parseLocalDate(dateToFilter).getTime() + 86_399_999);
 
-    if (!statusMatches) {
+    if (!statusMatches || !clientMatches || !fromMatches || !toMatches) {
       return false;
     }
 
@@ -2092,7 +2196,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
       </div>
 
       {offers.length > 0 && (
-        <div className="mt-8 grid gap-3 rounded-3xl border border-white/10 bg-zinc-950 p-4 sm:grid-cols-[1fr_220px]">
+        <div className="mt-8 grid gap-3 rounded-3xl border border-white/10 bg-zinc-950 p-4 md:grid-cols-[1fr_220px_220px]">
           <label className="block text-sm text-zinc-400">
             {t("Sök projekt")}
             <input
@@ -2116,6 +2220,40 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                 <option key={status} value={status}>{translateText(status, language)}</option>
               ))}
             </select>
+          </label>
+
+          <label className="block text-sm text-zinc-400">
+            {t("Kund")}
+            <select
+              value={clientFilter}
+              onChange={(event) => setClientFilter(event.target.value)}
+              className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+            >
+              <option value="Alla kunder">{t("Alla kunder")}</option>
+              {clientFilterOptions.map((clientName) => (
+                <option key={clientName} value={clientName}>{translateText(clientName, language)}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-sm text-zinc-400">
+            {t("Från datum")}
+            <input
+              type="date"
+              value={dateFromFilter}
+              onChange={(event) => setDateFromFilter(event.target.value)}
+              className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+            />
+          </label>
+
+          <label className="block text-sm text-zinc-400">
+            {t("Till datum")}
+            <input
+              type="date"
+              value={dateToFilter}
+              onChange={(event) => setDateToFilter(event.target.value)}
+              className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+            />
           </label>
         </div>
       )}
@@ -2172,9 +2310,7 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-orange-400/30 bg-orange-500/10 px-3 py-1.5 text-xs font-black text-orange-200">
-                        {t(offer.projectStatus || "Ny förfrågan")}
-                      </span>
+                      <StatusBadge status={offer.projectStatus || "Ny förfrågan"} />
                       {(offer.customerTags || []).map((tag) => (
                         <span key={`${offer.id}-${tag}`} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-zinc-200">
                           {t(tag)}
@@ -2200,7 +2336,11 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
 
               </div>
 
-              <div className="grid gap-4 p-5">
+                <div className="grid gap-4 p-5">
+                <StatusQuickSelect
+                  status={offer.projectStatus || "Ny förfrågan"}
+                  onChange={(nextStatus) => onUpdateOfferStatus(offer.id, nextStatus)}
+                />
 
                 <div className="grid gap-3 text-sm sm:grid-cols-3">
 
@@ -2350,6 +2490,54 @@ function HistoryScreen({ offers, goBack, onEditOffer, onDeleteOffer }) {
   );
 }
 
+function statusColorClass(status) {
+  const statusClassMap = {
+    "Ny förfrågan": "border-sky-400/35 bg-sky-500/10 text-sky-200",
+    "Offert skickad": "border-orange-400/35 bg-orange-500/10 text-orange-200",
+    "Väntar svar": "border-amber-400/35 bg-amber-500/10 text-amber-200",
+    Accepterad: "border-emerald-400/35 bg-emerald-500/10 text-emerald-200",
+    "Pågående": "border-blue-400/35 bg-blue-500/10 text-blue-200",
+    Slutförd: "border-zinc-300/30 bg-white/10 text-zinc-100",
+    Nekad: "border-red-400/35 bg-red-500/10 text-red-200",
+  };
+
+  return statusClassMap[status] || statusClassMap["Ny förfrågan"];
+}
+
+function StatusBadge({ status }) {
+  const { t } = useI18n();
+
+  return (
+    <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${statusColorClass(status)}`}>
+      {t(status)}
+    </span>
+  );
+}
+
+function StatusQuickSelect({ status, onChange }) {
+  const { language, t } = useI18n();
+
+  return (
+    <label className="block rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-zinc-400">
+      <span className="mb-2 flex items-center justify-between gap-3">
+        <span className="font-bold">{t("Snabb status")}</span>
+        <StatusBadge status={status} />
+      </span>
+      <select
+        value={status}
+        onChange={(event) => onChange(event.target.value)}
+        className={`min-h-12 w-full rounded-xl border px-3 text-sm font-black outline-none ${statusColorClass(status)} bg-black`}
+      >
+        {projectStatuses.map((projectStatus) => (
+          <option key={projectStatus} value={projectStatus}>
+            {translateText(projectStatus, language)}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function HistoryActionButton({ children, icon, onClick, variant = "default" }) {
   const { language } = useI18n();
   const className = variant === "danger"
@@ -2369,7 +2557,9 @@ function HistoryActionButton({ children, icon, onClick, variant = "default" }) {
 }
 
 function formatOfferDate(date, language = "sv") {
-  return new Date(date).toLocaleDateString(language === "pl" ? "pl-PL" : "sv-SE", {
+  const locale = language === "pl" ? "pl-PL" : language === "en" ? "en-US" : "sv-SE";
+
+  return new Date(date).toLocaleDateString(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -2709,7 +2899,9 @@ function parseLocalDate(dateValue) {
 }
 
 function formatLongDate(date, language = "sv") {
-  return date.toLocaleDateString(language === "pl" ? "pl-PL" : "sv-SE", {
+  const locale = language === "pl" ? "pl-PL" : language === "en" ? "en-US" : "sv-SE";
+
+  return date.toLocaleDateString(locale, {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -3010,7 +3202,7 @@ const kitchenWardrobeDefaultPrices = {
   ventilationSealingFixed: 700,
 };
 
-const safetyNoticeTitle = "VVS & ELINSTALLATION INGÅR EJ";
+const safetyNoticeTitle = "VVS & ELINSTALLATION INGAR EJ";
 const safetyNoticeText = "Anslutning av vatten, avlopp och fast elinstallation utförs av behörig installatör. Elektrisk anslutning utförs endast om färdigt eluttag och stickkontakt finns.";
 const demolitionSafetyNoticeTitle = "SÄKERHETSINFORMATION";
 const demolitionSafetyNoticeText = "Elinstallation, VVS och asbesthantering ingår ej. Vid misstanke om asbest avbryts arbetet och kund ansvarar för kontroll samt eventuell sanering av behörig firma.";
@@ -8701,4 +8893,3 @@ function ActionButton({ children, onClick, variant = "secondary" }) {
     </button>
   );
 }
-
