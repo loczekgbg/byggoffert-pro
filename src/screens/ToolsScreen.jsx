@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Box, Calculator, ChevronRight, FileDown, Ruler, ShoppingCart, Trash2 } from "lucide-react";
 import marcinByggLogo from "../assets/marcin-bygg-logo.png";
+import { fastenerService, packageCalculatorService, replacementService, usageCalculatorService } from "../data/fasteners";
 import { translateText, useI18n } from "../i18n";
 
 const legacyTools = [
@@ -31,7 +32,7 @@ const legacyTools = [
   {
     id: "screws",
     group: "Skruv & Spikåtgång",
-    title: "Skruv & Spikåtgång",
+    title: "Infästning / Spik & Skruv",
     description: "Trall, panel, gips och konstruktion",
   },
   {
@@ -99,7 +100,7 @@ const tools = [
   { id: "rafter", group: "Kalkulator", title: "Taksparre", description: "Förberedd modul för takmått" },
   { id: "decklayout", group: "Kalkulator", title: "Trallläggning", description: "Förberedd modul för trallriktning" },
   { id: "parquetlayout", group: "Kalkulator", title: "Parkettläggning", description: "Förberedd modul för läggmönster" },
-  { id: "screws", group: "Åtgång", title: "Skruv & Spikåtgång", description: "Trall, panel, gips och konstruktion", ready: true },
+  { id: "screws", group: "Åtgång", title: "Infästning / Spik & Skruv", description: "Trall, panel, gips och konstruktion", ready: true },
   { id: "decking", group: "Åtgång", title: "Trallåtgång", description: "Brädor, löpmeter och spill", ready: true },
   { id: "flooring", group: "Åtgång", title: "Klickgolv / Golvåtgång", description: "Paket och total yta", ready: true },
   { id: "drywall", group: "Åtgång", title: "Gipsåtgång", description: "Antal gipsskivor", ready: true },
@@ -194,10 +195,10 @@ const defaultValues = {
     boardWidth: 180,
   },
   screws: {
-    scope: "outdoor",
-    subcategory: "deckFence",
-    materialKey: "deckingScrew",
-    calculationMode: "perM2",
+    environment: "infastning.interior",
+    category: "infastning.floor",
+    materialId: "fastener-1",
+    fastenerType: "original",
     areaMode: "manual",
     area: 20,
     wallLength: 8,
@@ -205,11 +206,10 @@ const defaultValues = {
     length: 4,
     width: 5,
     linearMeters: 20,
-    supportPoints: 80,
-    customRate: 35,
+    points: 80,
+    crossingPoints: 80,
     panelWidth: 120,
     panelCc: 600,
-    fastenersPerCrossing: 1,
     floorBoardType: "600 x 1800 mm",
     customFloorBoardWidth: 600,
     customFloorBoardLength: 1800,
@@ -332,110 +332,6 @@ const defaultValues = {
   },
 };
 
-const fasteningAreas = [
-  { id: "indoor", title: "Invändigt" },
-  { id: "outdoor", title: "Utvändigt" },
-];
-
-const fasteningSubcategories = {
-  indoor: [
-    { id: "floor", title: "Golv" },
-    { id: "wall", title: "Vägg" },
-    { id: "ceiling", title: "Tak" },
-  ],
-  outdoor: [
-    { id: "deckFence", title: "Altan och staket" },
-    { id: "facadePanel", title: "Fasad / panel" },
-  ],
-};
-
-const fasteningMaterials = [
-  {
-    key: "floorChipboard",
-    area: "indoor",
-    subcategory: "floor",
-    material: "Golvspånskiva",
-    dimension: "600 x 1800 / 2400 mm",
-    recommended: "Spånskiveskruv 4,2 x 55 mm",
-    alternatives: "Golvvinkel / konstruktionsskruv vid förstärkning",
-    coating: "Elförzinkad / inomhus",
-    unit: "st",
-    defaultMode: "perM2",
-    rates: { perM2: 45, perLinearMeter: 8, perSupportPoint: 3 },
-    comments: "Räkna tätare vid skarvar och bjälklag med hög belastning.",
-  },
-  {
-    key: "drywallWall",
-    area: "indoor",
-    subcategory: "wall",
-    material: "Gipsskiva vägg",
-    dimension: "900 / 1200 mm skiva",
-    recommended: "Gipsskruv 3,9 x 30/41 mm",
-    alternatives: "Bandad gipsskruv vid större ytor",
-    coating: "Fosfaterad / inomhus",
-    unit: "st",
-    defaultMode: "perM2",
-    rates: { perM2: 18, perLinearMeter: 6, perSupportPoint: 1 },
-    comments: "CC och antal lager påverkar verklig åtgång.",
-  },
-  {
-    key: "ceilingBoard",
-    area: "indoor",
-    subcategory: "ceiling",
-    material: "Innertak / panel",
-    dimension: "Panel eller gipsskiva",
-    recommended: "Gipsskruv / dyckert beroende på material",
-    alternatives: "Panelclips eller spikpistol vid panel",
-    coating: "Inomhus",
-    unit: "st",
-    defaultMode: "perM2",
-    rates: { perM2: 24, perLinearMeter: 8, perSupportPoint: 2 },
-    comments: "Tak kräver ofta tätare infästning än vägg.",
-  },
-  {
-    key: "deckingScrew",
-    area: "outdoor",
-    subcategory: "deckFence",
-    material: "Trall",
-    dimension: "28 mm trall",
-    recommended: "Trallskruv A2 4,8 x 55 mm",
-    alternatives: "C4 trallskruv eller dold infästning",
-    coating: "A2 / C4 utomhus",
-    unit: "st",
-    defaultMode: "perM2",
-    rates: { perM2: 35, perLinearMeter: 6, perSupportPoint: 2 },
-    comments: "Använd rostfri A4 nära vatten eller utsatta miljöer.",
-  },
-  {
-    key: "fenceBoard",
-    area: "outdoor",
-    subcategory: "deckFence",
-    material: "Staketbräda",
-    dimension: "22-28 mm",
-    recommended: "Utomhusskruv C4 4,8 x 55/75 mm",
-    alternatives: "Varmförzinkad trådspik vid traditionellt montage",
-    coating: "C4 / varmförzinkad",
-    unit: "st",
-    defaultMode: "perLinearMeter",
-    rates: { perM2: 30, perLinearMeter: 10, perSupportPoint: 2 },
-    comments: "Räkna efter antal reglar/stöd bakom staketet för bäst precision.",
-  },
-  {
-    key: "facadePanel",
-    area: "outdoor",
-    subcategory: "facadePanel",
-    material: "Fasadpanel",
-    dimension: "Lockpanel / liggande panel",
-    recommended: "Panelspik / panelskruv varmförzinkad",
-    alternatives: "Rostfri A2 vid utsatt fasad",
-    coating: "Varmförzinkad / A2",
-    unit: "st",
-    defaultMode: "perSupportPoint",
-    rates: { perM2: 25, perLinearMeter: 7, perSupportPoint: 1 },
-    comments: "Per stödpunkt ger bäst resultat: panelbräda × bakomliggande läkt/reglar.",
-  },
-];
-
 const boardSizes = {
   "900 x 2200 mm": { width: 900, height: 2200 },
   "900 x 2400 mm": { width: 900, height: 2400 },
@@ -470,6 +366,23 @@ function formatNumber(value, maximumFractionDigits = 2) {
     maximumFractionDigits,
     minimumFractionDigits: 0,
   });
+}
+
+function formatQuantityRange(range, suffix = "") {
+  const min = range?.min ?? range?.value ?? 0;
+  const max = range?.max ?? range?.value ?? min;
+  const isRange = range?.isRange || min !== max;
+
+  if (!isRange) {
+    return `${formatNumber(max, 0)}${suffix}`;
+  }
+
+  return `${formatNumber(min, 0)}-${formatNumber(max, 0)}${suffix}`;
+}
+
+function formatPackages(packages) {
+  if (!Array.isArray(packages) || packages.length === 0) return "0";
+  return packages.map((item) => `${item.count} x ${item.size}`).join(", ");
 }
 
 function createLocalId() {
@@ -596,22 +509,6 @@ function surfaceArea(values) {
   }
 
   return numberValue(values.area);
-}
-
-function fasteningOptionsFor(values) {
-  return fasteningMaterials.filter((item) => item.area === values.scope && item.subcategory === values.subcategory);
-}
-
-function selectedFasteningMaterial(values) {
-  const options = fasteningOptionsFor(values);
-
-  return options.find((item) => item.key === values.materialKey) || options[0] || fasteningMaterials[0];
-}
-
-function fasteningModeLabel(mode) {
-  if (mode === "perLinearMeter") return "Per löpmeter";
-  if (mode === "perSupportPoint") return "Per stödpunkt / korsningspunkt";
-  return "Per m²";
 }
 
 function selectedCc(values) {
@@ -980,39 +877,29 @@ function calculateSheet(values) {
 }
 
 function calculateScrews(values) {
-  const material = selectedFasteningMaterial(values);
-  const calculationMode = values.calculationMode || material.defaultMode || "perM2";
-  const wasteMultiplier = 1 + numberValue(values.waste) / 100;
-  const recommendedRate = material.rates?.[calculationMode] ?? 0;
-  const rate = numberValue(values.customRate) > 0 ? numberValue(values.customRate) : recommendedRate;
-  let baseQuantity;
-  let quantityLabel;
-
-  if (calculationMode === "perLinearMeter") {
-    baseQuantity = numberValue(values.linearMeters) * rate;
-    quantityLabel = `${formatNumber(values.linearMeters)} lm × ${formatNumber(rate)} st/lm`;
-  } else if (calculationMode === "perSupportPoint") {
-    const fastenersPerPoint = Math.max(1, numberValue(values.fastenersPerCrossing));
-
-    baseQuantity = numberValue(values.supportPoints) * fastenersPerPoint;
-    quantityLabel = `${formatNumber(values.supportPoints, 0)} punkter × ${formatNumber(fastenersPerPoint)} st`;
-  } else {
-    const area = surfaceArea(values);
-
-    baseQuantity = area * rate;
-    quantityLabel = `${formatNumber(area)} m² × ${formatNumber(rate)} st/m²`;
-  }
+  const material = fastenerService.find(values.materialId);
+  const usageResult = usageCalculatorService.calculate(material, {
+    ...values,
+    area: material.unit === "st/m2" ? surfaceArea(values) : values.area,
+  });
+  const packageResult = packageCalculatorService.calculate(usageResult.final.max);
+  const fasteners = replacementService.resolveFasteners(material, values.fastenerType);
 
   return {
     ...material,
-    calculationMode,
-    modeLabel: fasteningModeLabel(calculationMode),
-    recommendedRate,
-    rate,
-    quantityLabel,
-    baseFasteners: Math.ceil(baseQuantity),
-    finalFasteners: Math.ceil(baseQuantity * wasteMultiplier),
-    waste: numberValue(values.waste),
+    fasteners,
+    usageResult,
+    packageResult,
+    inputLabel: material.unit === "st/lm"
+      ? `${formatNumber(values.linearMeters)} lm`
+      : material.unit === "st/punkt"
+        ? `${formatNumber(values.points, 0)} punkt`
+        : material.unit === "st/korsningspunkt"
+          ? `${formatNumber(values.crossingPoints, 0)} korsningspunkt`
+          : `${formatNumber(surfaceArea(values))} m²`,
+    finalFasteners: usageResult.final.max,
+    baseFasteners: usageResult.needed.max,
+    waste: usageResult.waste,
     mode: "fastening",
   };
 }
@@ -1109,10 +996,10 @@ function shoppingItemsForTool(tool, values) {
 
     return [
       {
-        name: result.recommended,
-        quantity: result.finalFasteners,
-        unit: result.unit || "st",
-        note: `${result.material} · ${result.dimension} · ${result.modeLabel} · ${result.quantityLabel} · ${result.coating} · spill ${formatNumber(result.waste)} %`,
+        name: result.fasteners.join(" / "),
+        quantity: result.packageResult.purchased,
+        unit: "st",
+        note: `${result.material} · ${formatQuantityRange(result.usageResult.final)} st · ${formatPackages(result.packageResult.packages)} · ${result.surfaceTreatment} · spill ${formatNumber(result.waste)} %`,
         source: tool.title,
       },
     ];
@@ -1311,17 +1198,24 @@ function calculateTool(toolId, values, unit = "m") {
     const result = calculateScrews(values);
 
     return [
+      ["infastning.viewTitle", "Infästning / Spik & Skruv"],
+      ["infastning.environment", result.environment],
+      ["infastning.category", result.category],
       ["Material", result.material],
-      ["Dimension", result.dimension],
-      ["Rekommenderad infästning", result.recommended],
-      ["Alternativ", result.alternatives],
-      ["Coating", result.coating],
-      ["Beräkning", result.modeLabel],
-      ["Åtgång", result.quantityLabel],
-      ["Infästningar före spill", `${result.baseFasteners} ${result.unit}`],
+      ["Tjocklek", result.thickness || "Ej angivet"],
+      ["infastning.fastenerType", result.fasteners.join(" / ")],
+      ["infastning.surfaceTreatment", result.surfaceTreatment],
+      ["infastning.ccMax", result.ccMax || "Ej angivet"],
+      ["Åtgång", `${formatQuantityRange(result.usageResult.usage, ` ${result.unit}`)}`],
+      ["infastning.input", result.inputLabel],
+      ["infastning.neededQuantity", `${formatQuantityRange(result.usageResult.needed)} st`],
       ["Spill %", `${formatNumber(result.waste)} %`],
-      ["Final åtgång", `${result.finalFasteners} ${result.unit}`],
-      ["Kommentar", result.comments],
+      ["infastning.finalWithWaste", `${formatQuantityRange(result.usageResult.final)} st`],
+      ["infastning.packages", formatPackages(result.packageResult.packages)],
+      ["infastning.packageCount", `${formatNumber(result.packageResult.packageCount, 0)} st`],
+      ["infastning.purchasedQuantity", `${formatNumber(result.packageResult.purchased, 0)} st`],
+      ["infastning.surplus", `${formatNumber(result.packageResult.surplus, 0)} st`],
+      ["Kommentar", result.notes || "Ej angivet"],
     ];
   }
 
@@ -2861,107 +2755,85 @@ function ToolFields({ toolId, values, unit, onChange }) {
   }
 
   if (toolId === "screws") {
-    const subcategories = fasteningSubcategories[values.scope] || [];
-    const materialOptions = fasteningOptionsFor(values);
-    const selectedMaterial = selectedFasteningMaterial(values);
-    const calculationMode = values.calculationMode || selectedMaterial.defaultMode || "perM2";
+    const environments = fastenerService.environments();
+    const categories = fastenerService.categoriesForEnvironment(values.environment);
+    const materials = fastenerService.materialsFor(values.environment, values.category);
+    const selectedMaterial = fastenerService.find(values.materialId);
+    const calculationType = selectedMaterial.calculationType;
 
     return (
       <div className="grid gap-4">
         <ToolGrid>
           <ToolSelect
-            label="Miljö"
-            value={values.scope}
-            onChange={(scope) => {
-              const nextSubcategory = fasteningSubcategories[scope]?.[0]?.id || "";
-              const nextMaterial = fasteningMaterials.find((item) => item.area === scope && item.subcategory === nextSubcategory) || selectedMaterial;
+            label="infastning.environment"
+            value={values.environment}
+            onChange={(environment) => {
+              const nextCategory = fastenerService.categoriesForEnvironment(environment)[0] || "";
+              const nextMaterial = fastenerService.materialsFor(environment, nextCategory)[0] || selectedMaterial;
 
               onChange({
-                scope,
-                subcategory: nextSubcategory,
-                materialKey: nextMaterial.key,
-                calculationMode: nextMaterial.defaultMode,
-                customRate: nextMaterial.rates?.[nextMaterial.defaultMode] || values.customRate,
+                environment,
+                category: nextCategory,
+                materialId: nextMaterial.id,
               });
             }}
-            options={fasteningAreas.map((item) => item.id)}
-            optionLabels={fasteningAreas.map((item) => item.title)}
+            options={environments.map((item) => item.id)}
           />
           <ToolSelect
-            label="Podkategori"
-            value={values.subcategory}
-            onChange={(subcategory) => {
-              const nextMaterial = fasteningMaterials.find((item) => item.area === values.scope && item.subcategory === subcategory) || selectedMaterial;
+            label="infastning.category"
+            value={values.category}
+            onChange={(category) => {
+              const nextMaterial = fastenerService.materialsFor(values.environment, category)[0] || selectedMaterial;
 
               onChange({
-                subcategory,
-                materialKey: nextMaterial.key,
-                calculationMode: nextMaterial.defaultMode,
-                customRate: nextMaterial.rates?.[nextMaterial.defaultMode] || values.customRate,
+                category,
+                materialId: nextMaterial.id,
               });
             }}
-            options={subcategories.map((item) => item.id)}
-            optionLabels={subcategories.map((item) => item.title)}
+            options={categories}
           />
           <ToolSelect
             label="Material"
-            value={selectedMaterial.key}
-            onChange={(materialKey) => {
-              const nextMaterial = fasteningMaterials.find((item) => item.key === materialKey) || selectedMaterial;
-
-              onChange({
-                materialKey,
-                calculationMode: nextMaterial.defaultMode,
-                customRate: nextMaterial.rates?.[nextMaterial.defaultMode] || values.customRate,
-              });
-            }}
-            options={materialOptions.map((item) => item.key)}
-            optionLabels={materialOptions.map((item) => item.material)}
+            value={selectedMaterial.id}
+            onChange={(materialId) => onChange({ materialId })}
+            options={materials.map((item) => item.id)}
+            optionLabels={materials.map((item) => item.material)}
           />
           <ToolSelect
-            label="Beräkningssätt"
-            value={calculationMode}
-            onChange={(nextMode) => onChange({
-              calculationMode: nextMode,
-              customRate: selectedMaterial.rates?.[nextMode] || values.customRate,
-            })}
-            options={["perM2", "perLinearMeter", "perSupportPoint"]}
-            optionLabels={["Per m²", "Per löpmeter", "Per stödpunkt / korsningspunkt"]}
+            label="infastning.fastenerType"
+            value={values.fastenerType}
+            onChange={(fastenerType) => onChange({ fastenerType })}
+            options={["original", "spik", "skruv"]}
+            optionLabels={["infastning.original", "Spik", "Skruv"]}
           />
         </ToolGrid>
 
-        {calculationMode === "perM2" && (
+        {calculationType === "perM2" && (
           <SurfaceAreaFields values={values} unit={unit} onChange={onChange} modes={["manual", "floor", "wall"]} />
         )}
 
-        {calculationMode === "perLinearMeter" && (
+        {calculationType === "perLinearMeter" && (
           <ToolLength label="Löpmeter" value={values.linearMeters} baseUnit="m" unit={unit} onChange={(linearMeters) => onChange({ linearMeters })} />
         )}
 
-        {calculationMode === "perSupportPoint" && (
-          <ToolGrid>
-            <ToolNumber label="Antal stöd-/korsningspunkter" value={values.supportPoints} onChange={(supportPoints) => onChange({ supportPoints })} step={1} />
-            <ToolNumber label="Infästningar per punkt" value={values.fastenersPerCrossing} onChange={(fastenersPerCrossing) => onChange({ fastenersPerCrossing })} step={1} />
-          </ToolGrid>
+        {selectedMaterial.unit === "st/punkt" && (
+          <ToolNumber label="infastning.points" value={values.points} onChange={(points) => onChange({ points })} step={1} />
+        )}
+
+        {selectedMaterial.unit === "st/korsningspunkt" && (
+          <ToolNumber label="infastning.crossingPoints" value={values.crossingPoints} onChange={(crossingPoints) => onChange({ crossingPoints })} step={1} />
         )}
 
         <ToolGrid>
-          {calculationMode !== "perSupportPoint" && (
-            <ToolNumber
-              label={calculationMode === "perLinearMeter" ? "Åtgång st/lm" : "Åtgång st/m²"}
-              value={values.customRate}
-              onChange={(customRate) => onChange({ customRate })}
-            />
-          )}
           <ToolNumber label="Spill %" value={values.waste} onChange={(waste) => onChange({ waste })} />
         </ToolGrid>
 
         <div className="rounded-2xl border border-orange-400/20 bg-black/50 p-4 text-sm text-zinc-300">
-          <p className="font-black text-white">{selectedMaterial.recommended}</p>
-          <p className="mt-2">{selectedMaterial.dimension}</p>
-          <p className="mt-1">{selectedMaterial.alternatives}</p>
-          <p className="mt-1 text-orange-300">{selectedMaterial.coating}</p>
-          <p className="mt-2 text-zinc-500">{selectedMaterial.comments}</p>
+          <p className="font-black text-white">{replacementService.resolveFasteners(selectedMaterial, values.fastenerType).join(" / ")}</p>
+          <p className="mt-2">{translateText("infastning.surfaceTreatment", language)}: {selectedMaterial.surfaceTreatment}</p>
+          <p className="mt-1">{translateText("infastning.ccMax", language)}: {selectedMaterial.ccMax || translateText("Ej angivet", language)}</p>
+          <p className="mt-1 text-orange-300">{translateText("Åtgång", language)}: {formatQuantityRange(selectedMaterial.usage, ` ${selectedMaterial.unit}`)}</p>
+          {selectedMaterial.notes && <p className="mt-2 text-zinc-500">{selectedMaterial.notes}</p>}
         </div>
       </div>
     );
