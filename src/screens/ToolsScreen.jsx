@@ -1198,24 +1198,24 @@ function calculateTool(toolId, values, unit = "m") {
     const result = calculateScrews(values);
 
     return [
-      ["infastning.viewTitle", "Infästning / Spik & Skruv"],
-      ["infastning.environment", result.environment],
-      ["infastning.category", result.category],
-      ["Material", result.material],
-      ["Tjocklek", result.thickness || "Ej angivet"],
-      ["infastning.fastenerType", result.fasteners.join(" / ")],
-      ["infastning.surfaceTreatment", result.surfaceTreatment],
-      ["infastning.ccMax", result.ccMax || "Ej angivet"],
-      ["Åtgång", `${formatQuantityRange(result.usageResult.usage, ` ${result.unit}`)}`],
+      ["infastning.viewTitle", "infastning.viewTitle"],
+      ["environment", result.environment],
+      ["category", result.category],
+      ["material", result.material],
+      ["thickness", result.thickness || "Ej angivet"],
+      ["fastenerType", result.fasteners.join(" / ")],
+      ["surfaceTreatment", result.surfaceTreatment],
+      ["ccMax", result.ccMax || "Ej angivet"],
+      ["usage", `${formatQuantityRange(result.usageResult.usage, ` ${result.unit}`)}`],
       ["infastning.input", result.inputLabel],
       ["infastning.neededQuantity", `${formatQuantityRange(result.usageResult.needed)} st`],
-      ["Spill %", `${formatNumber(result.waste)} %`],
+      ["wastePercent", `${formatNumber(result.waste)} %`],
       ["infastning.finalWithWaste", `${formatQuantityRange(result.usageResult.final)} st`],
       ["infastning.packages", formatPackages(result.packageResult.packages)],
       ["infastning.packageCount", `${formatNumber(result.packageResult.packageCount, 0)} st`],
       ["infastning.purchasedQuantity", `${formatNumber(result.packageResult.purchased, 0)} st`],
       ["infastning.surplus", `${formatNumber(result.packageResult.surplus, 0)} st`],
-      ["Kommentar", result.notes || "Ej angivet"],
+      ["notes", result.notes || "Ej angivet"],
     ];
   }
 
@@ -2765,7 +2765,7 @@ function ToolFields({ toolId, values, unit, onChange }) {
       <div className="grid gap-4">
         <ToolGrid>
           <ToolSelect
-            label="infastning.environment"
+            label="environment"
             value={values.environment}
             onChange={(environment) => {
               const nextCategory = fastenerService.categoriesForEnvironment(environment)[0] || "";
@@ -2780,7 +2780,7 @@ function ToolFields({ toolId, values, unit, onChange }) {
             options={environments.map((item) => item.id)}
           />
           <ToolSelect
-            label="infastning.category"
+            label="category"
             value={values.category}
             onChange={(category) => {
               const nextMaterial = fastenerService.materialsFor(values.environment, category)[0] || selectedMaterial;
@@ -2793,18 +2793,18 @@ function ToolFields({ toolId, values, unit, onChange }) {
             options={categories}
           />
           <ToolSelect
-            label="Material"
+            label="material"
             value={selectedMaterial.id}
             onChange={(materialId) => onChange({ materialId })}
             options={materials.map((item) => item.id)}
             optionLabels={materials.map((item) => item.material)}
           />
           <ToolSelect
-            label="infastning.fastenerType"
+            label="fastenerType"
             value={values.fastenerType}
             onChange={(fastenerType) => onChange({ fastenerType })}
             options={["original", "spik", "skruv"]}
-            optionLabels={["infastning.original", "Spik", "Skruv"]}
+            optionLabels={["infastning.original", "nail", "screw"]}
           />
         </ToolGrid>
 
@@ -2813,7 +2813,7 @@ function ToolFields({ toolId, values, unit, onChange }) {
         )}
 
         {calculationType === "perLinearMeter" && (
-          <ToolLength label="Löpmeter" value={values.linearMeters} baseUnit="m" unit={unit} onChange={(linearMeters) => onChange({ linearMeters })} />
+          <ToolLength label="linearMeters" value={values.linearMeters} baseUnit="m" unit={unit} onChange={(linearMeters) => onChange({ linearMeters })} />
         )}
 
         {selectedMaterial.unit === "st/punkt" && (
@@ -2825,14 +2825,14 @@ function ToolFields({ toolId, values, unit, onChange }) {
         )}
 
         <ToolGrid>
-          <ToolNumber label="Spill %" value={values.waste} onChange={(waste) => onChange({ waste })} />
+          <ToolNumber label="wastePercent" value={values.waste} onChange={(waste) => onChange({ waste })} />
         </ToolGrid>
 
         <div className="rounded-2xl border border-orange-400/20 bg-black/50 p-4 text-sm text-zinc-300">
           <p className="font-black text-white">{replacementService.resolveFasteners(selectedMaterial, values.fastenerType).join(" / ")}</p>
-          <p className="mt-2">{translateText("infastning.surfaceTreatment", language)}: {selectedMaterial.surfaceTreatment}</p>
-          <p className="mt-1">{translateText("infastning.ccMax", language)}: {selectedMaterial.ccMax || translateText("Ej angivet", language)}</p>
-          <p className="mt-1 text-orange-300">{translateText("Åtgång", language)}: {formatQuantityRange(selectedMaterial.usage, ` ${selectedMaterial.unit}`)}</p>
+          <p className="mt-2">{translateText("surfaceTreatment", language)}: {selectedMaterial.surfaceTreatment}</p>
+          <p className="mt-1">{translateText("ccMax", language)}: {selectedMaterial.ccMax || translateText("Ej angivet", language)}</p>
+          <p className="mt-1 text-orange-300">{translateText("usage", language)}: {formatQuantityRange(selectedMaterial.usage, ` ${selectedMaterial.unit}`)}</p>
           {selectedMaterial.notes && <p className="mt-2 text-zinc-500">{selectedMaterial.notes}</p>}
         </div>
       </div>
