@@ -16,6 +16,7 @@ import {
   Plus,
   Camera,
   Images,
+  Sparkles,
 } from "lucide-react";
 
 import Card from "./components/Card";
@@ -24,6 +25,7 @@ import PriceCard from "./components/PriceCard";
 import CategoriesScreen from "./screens/CategoriesScreen";
 import ToolsScreen from "./screens/ToolsScreen";
 import MaterialGuideScreen from "./screens/MaterialGuideScreen";
+import AIBeforeAfterScreen from "./screens/AIBeforeAfterScreen";
 import marcinByggLogo from "./assets/marcin-bygg-logo.png";
 import { I18nProvider, translateText, useI18n } from "./i18n";
 import { formatPrice } from "./utils/formatPrice";
@@ -305,6 +307,12 @@ function AppContent() {
     );
   }
 
+  if (screen === "aiBeforeAfter") {
+    return (
+      <AIBeforeAfterScreen goBack={() => setScreen("home")} />
+    );
+  }
+
   if (screen === "settings") {
     return (
       <SettingsScreen
@@ -433,6 +441,13 @@ function AppContent() {
             icon={<Hammer size={34} />}
             title={t("Material")}
             text={t("Priser & material")}
+          />
+
+          <Card
+            onClick={() => setScreen("aiBeforeAfter")}
+            icon={<Sparkles size={34} />}
+            title={t("AI Before / After")}
+            text={t("aiBeforeAfter.cardText")}
           />
 
           <Card
