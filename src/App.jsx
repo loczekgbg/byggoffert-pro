@@ -23,6 +23,7 @@ import Option from "./components/Option";
 import PriceCard from "./components/PriceCard";
 import CategoriesScreen from "./screens/CategoriesScreen";
 import ToolsScreen from "./screens/ToolsScreen";
+import MaterialGuideScreen from "./screens/MaterialGuideScreen";
 import marcinByggLogo from "./assets/marcin-bygg-logo.png";
 import { I18nProvider, translateText, useI18n } from "./i18n";
 import { formatPrice } from "./utils/formatPrice";
@@ -298,6 +299,12 @@ function AppContent() {
     );
   }
 
+  if (screen === "materials") {
+    return (
+      <MaterialGuideScreen goBack={() => setScreen("home")} />
+    );
+  }
+
   if (screen === "settings") {
     return (
       <SettingsScreen
@@ -422,6 +429,7 @@ function AppContent() {
           />
 
           <Card
+            onClick={() => setScreen("materials")}
             icon={<Hammer size={34} />}
             title={t("Material")}
             text={t("Priser & material")}
