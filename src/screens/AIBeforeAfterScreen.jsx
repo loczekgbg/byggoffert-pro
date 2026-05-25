@@ -126,12 +126,16 @@ export default function AIBeforeAfterScreen({ goBack }) {
   const { language, t } = useI18n();
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
+  const afterInputRef = useRef(null);
   const [beforeImage, setBeforeImage] = useState("");
+  const [afterReferenceImage, setAfterReferenceImage] = useState("");
   const [fileName, setFileName] = useState("");
+  const [afterFileName, setAfterFileName] = useState("");
   const [projectType, setProjectType] = useState(projectTypes[0]);
   const [customProjectType, setCustomProjectType] = useState("");
   const [styleType, setStyleType] = useState(styleTypes[0]);
   const [customStyleType, setCustomStyleType] = useState("");
+  const [customerWishes, setCustomerWishes] = useState("");
   const [woodColor, setWoodColor] = useState("");
   const [wallColor, setWallColor] = useState("");
   const [brightness, setBrightness] = useState(62);
@@ -155,23 +159,29 @@ export default function AIBeforeAfterScreen({ goBack }) {
     ["aiBeforeAfter.woodColor", woodColor || t("Ej angivet")],
     ["aiBeforeAfter.wallColor", wallColor || t("Ej angivet")],
     ["aiBeforeAfter.finishType", finishType || t("Ej angivet")],
-  ], [finishType, selectedChangeLevel, selectedProjectType, selectedStyle, t, wallColor, woodColor]);
+    ["aiBeforeAfter.customerWishes", customerWishes.trim() || t("aiBeforeAfter.noCustomerWishes")],
+  ], [customerWishes, finishType, selectedChangeLevel, selectedProjectType, selectedStyle, t, wallColor, woodColor]);
 
-  const handleFile = (file) => {
+  const handleFile = (file, target = "before") => {
     if (!file || !file.type.startsWith("image/")) return;
 
     const reader = new FileReader();
     reader.onload = () => {
-      setBeforeImage(reader.result || "");
-      setFileName(file.name);
+      if (target === "after") {
+        setAfterReferenceImage(reader.result || "");
+        setAfterFileName(file.name);
+      } else {
+        setBeforeImage(reader.result || "");
+        setFileName(file.name);
+      }
       setResult(null);
       setMessage("");
     };
     reader.readAsDataURL(file);
   };
 
-  const handleInput = (event) => {
-    handleFile(event.target.files?.[0]);
+  const handleInput = (event, target = "before") => {
+    handleFile(event.target.files?.[0], target);
     event.target.value = "";
   };
 
@@ -189,8 +199,10 @@ export default function AIBeforeAfterScreen({ goBack }) {
 
     const nextResult = await aiBeforeAfterService.analyzeAndGenerate({
       beforeImage,
+      afterImage: afterReferenceImage,
       projectType: selectedProjectType,
       style: selectedStyle,
+      customerWishes: customerWishes.trim(),
       woodColor,
       wallColor,
       brightness,
@@ -207,9 +219,24 @@ export default function AIBeforeAfterScreen({ goBack }) {
     id: result?.id || createLocalId(),
     createdAt: result?.createdAt || new Date().toISOString(),
     beforeImage,
+    afterReferenceImage,
     afterImage: result?.afterImage || "",
     projectType: selectedProjectType,
     style: selectedStyle,
+    customerWishes: customerWishes.trim(),
+    aiPrompt: {
+      projectType: selectedProjectType,
+      style: selectedStyle,
+      customerWishes: customerWishes.trim(),
+      settings: {
+        woodColor,
+        wallColor,
+        brightness,
+        woodAmount,
+        finishType,
+        changeLevel: selectedChangeLevel,
+      },
+    },
     settings: {
       woodColor,
       wallColor,
@@ -265,7 +292,10 @@ export default function AIBeforeAfterScreen({ goBack }) {
 
     const sharePayload = {
       title: "AI Before / After",
-      text: `${selectedProjectType} · ${selectedStyle}`,
+      text: [
+        `${selectedProjectType} - ${selectedStyle}`,
+        customerWishes.trim() ? `${t("aiBeforeAfter.customerWishes")}: ${customerWishes.trim()}` : "",
+      ].filter(Boolean).join("\n"),
     };
 
     if (navigator.share) {
@@ -333,6 +363,7 @@ export default function AIBeforeAfterScreen({ goBack }) {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleInput} />
               <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleInput} />
+              <input ref={afterInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleInput(event, "after")} />
               <button type="button" onClick={() => cameraInputRef.current?.click()} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-orange-400/40 bg-orange-500/10 px-4 text-sm font-black text-orange-200">
                 <Camera size={18} />
                 {t("aiBeforeAfter.camera")}
@@ -341,6 +372,29 @@ export default function AIBeforeAfterScreen({ goBack }) {
                 <ImagePlus size={18} />
                 {t("aiBeforeAfter.gallery")}
               </button>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/35 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-white">{t("aiBeforeAfter.addAfterPhoto")}</p>
+                  <p className="mt-1 text-xs text-zinc-500">{t("aiBeforeAfter.addAfterPhotoHint")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => afterInputRef.current?.click()}
+                  className="flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-black text-white"
+                >
+                  <ImagePlus size={16} />
+                  {t("aiBeforeAfter.gallery")}
+                </button>
+              </div>
+              {afterReferenceImage && (
+                <div className="mt-3">
+                  <img src={afterReferenceImage} alt={t("aiBeforeAfter.after")} className="aspect-[4/3] w-full rounded-2xl object-cover" />
+                  {afterFileName && <p className="mt-2 truncate text-xs text-zinc-500">{afterFileName}</p>}
+                </div>
+              )}
             </div>
           </section>
 
@@ -356,6 +410,15 @@ export default function AIBeforeAfterScreen({ goBack }) {
             {styleType === "aiBeforeAfter.custom" && (
               <TextInput label={t("aiBeforeAfter.customStyle")} value={customStyleType} onChange={setCustomStyleType} />
             )}
+          </ChoiceSection>
+
+          <ChoiceSection title={t("aiBeforeAfter.customerWishes")}>
+            <TextAreaInput
+              label={t("aiBeforeAfter.customerWishesHint")}
+              value={customerWishes}
+              onChange={setCustomerWishes}
+              placeholder={t("aiBeforeAfter.customerWishesPlaceholder")}
+            />
           </ChoiceSection>
 
           <ChoiceSection title={t("aiBeforeAfter.optionalSettings")}>
@@ -431,11 +494,13 @@ export default function AIBeforeAfterScreen({ goBack }) {
                   type="button"
                   onClick={() => {
                     setBeforeImage(item.beforeImage);
+                    setAfterReferenceImage(item.afterReferenceImage || "");
                     setResult({ id: item.id, createdAt: item.createdAt, afterImage: item.afterImage });
                     setProjectType("aiBeforeAfter.custom");
                     setCustomProjectType(item.projectType);
                     setStyleType("aiBeforeAfter.custom");
                     setCustomStyleType(item.style);
+                    setCustomerWishes(item.customerWishes || "");
                   }}
                   className="grid grid-cols-[4.5rem_1fr] gap-3 rounded-2xl border border-white/10 bg-black/35 p-3 text-left transition active:scale-[0.99]"
                 >
@@ -443,6 +508,7 @@ export default function AIBeforeAfterScreen({ goBack }) {
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-black text-white">{item.projectType}</span>
                     <span className="block truncate text-xs text-orange-300">{item.style}</span>
+                    {item.customerWishes && <span className="mt-1 line-clamp-2 block text-xs text-zinc-400">{item.customerWishes}</span>}
                     <span className="mt-1 block text-xs text-zinc-500">{formatDate(item.createdAt, language)}</span>
                   </span>
                 </button>
@@ -498,6 +564,21 @@ function TextInput({ label, value, onChange }) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-black px-4 text-base font-bold text-white outline-none"
+      />
+    </label>
+  );
+}
+
+function TextAreaInput({ label, value, onChange, placeholder }) {
+  return (
+    <label className="block text-sm font-bold text-zinc-400">
+      {label}
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={5}
+        className="mt-2 min-h-36 w-full resize-y rounded-2xl border border-white/10 bg-black px-4 py-3 text-base font-bold text-white outline-none placeholder:text-zinc-600"
       />
     </label>
   );

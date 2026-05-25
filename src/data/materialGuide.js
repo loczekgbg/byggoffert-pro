@@ -7,6 +7,7 @@ const lathundenImages = {
   hattlakt: "/lathunden/88F3D465-8259-4367-9CBE-EDF01C0603D8.png",
   "spontad-ytterpanel": "/lathunden/73F9F28B-8A28-4728-A01C-68E48A843E48.jpeg",
   "falsad-sparpanel-raka-kanter": "/lathunden/EDCD7BB6-8732-4249-8269-378CB4E3816A.jpeg",
+  "falsad-sparpanel-fasade-kanter": "/material-guide/card/falsad-sparpanel-fasade-kanter.jpeg",
   dubbelfasspont: "/lathunden/E31B6DCD-6086-4217-B280-6F9DA505E44B.jpeg",
   "falsad-dubbelfas": "/lathunden/0A0D70F8-3074-46F8-A8DA-DBCE443FD3A8.jpeg",
   fjallpanel: "/lathunden/55B7FEDE-14DC-4D20-A4D5-64E58E4CD9A1.jpeg",
@@ -32,6 +33,7 @@ const lathundenImages = {
   kvartslist: "/lathunden/F5C24188-B284-4771-82DB-107A80D43323.png",
   allmogetaklist: "/lathunden/900E49E5-16AA-4382-B146-137BAED3B945.png",
   planhyvlat: "/lathunden/2F46074B-E78F-4FA2-BFD5-4D0539B566BC.png",
+  "allmoge-locklakt": "/material-guide/card/allmoge-locklakt.jpeg",
   "foder-slata": "/prolist/foder-slata.jpeg",
   "foder-profilerade": "/prolist/foder-profilerade.jpeg",
   "mdf-lister-foder": "/prolist/mdf-lister-foder.jpeg",
@@ -60,6 +62,29 @@ const lathundenImages = {
   glaslist: "/prolist/glaslist.jpeg",
 };
 
+const cardCropIds = [
+  "ytterpanelbrada", "ytterpanellakt", "locklakt", "allmoge-locklakt", "hattlakt", "spontad-ytterpanel", "falsad-sparpanel-raka-kanter",
+  "dubbelfasspont", "falsad-dubbelfas", "fjallpanel", "staende-limtraytterpanel", "liggande-limtraytterpanel", "trall",
+  "rillad-trall", "staketregel", "sparpanel-raka-kanter", "perlspont", "allmogepanel", "liksidig-foderlist", "klackfoder",
+  "sockellist", "allmogefoderlist", "allmogesockellist", "skugglist-21", "skugglist-33", "halkalslist", "hornlist",
+  "smyglist", "trekantlist", "kvartslist", "allmogetaklist", "planhyvlat",
+];
+
+const cardCropImages = Object.fromEntries(cardCropIds.map((id) => [id, `/material-guide/card/${id}.png`]));
+cardCropImages["allmoge-locklakt"] = "/material-guide/card/allmoge-locklakt.jpeg";
+cardCropImages["falsad-sparpanel-fasade-kanter"] = "/material-guide/card/falsad-sparpanel-fasade-kanter.jpeg";
+
+const storeScanIds = [
+  "foder-slata", "foder-profilerade", "mdf-lister-foder", "salningslist", "falsad-fonstersmyg-furu",
+  "sparad-fonstersmyg-mdf", "falsad-fonstersmyg-mdf", "dorromfattning-mdf", "u-list", "simsalabimlist",
+  "sockel-slata", "sockel-profilerade", "mdf-lister-sockel", "taklist", "taklist-profilerade",
+  "mdf-lister-taklist", "klossar", "brostlist", "flexilist-mdf", "foglist", "kakellist", "bastuartiklar",
+  "rundstav", "kvartstav", "dekorlist", "glaslist",
+];
+
+const storeScanSourceImage = "/material-guide/store/prolist-source.jpeg";
+const storeScanImages = Object.fromEntries(storeScanIds.map((id) => [id, storeScanSourceImage]));
+
 function names(sv, pl = missing, en = missing) {
   return { sv, pl, en };
 }
@@ -68,6 +93,7 @@ function material({
   id,
   group,
   section = "",
+  subcategory = section,
   name,
   dimensions = [],
   lengths = [],
@@ -79,12 +105,17 @@ function material({
   packages = [],
   profile = "rect",
   mounting = "",
+  source = "lathunden",
   status = "complete",
 }) {
+  const isStoreScan = source === "storeScan";
+  const image = isStoreScan ? storeScanImages[id] : cardCropImages[id];
+
   return {
     id,
     group,
     section,
+    subcategory,
     category: name.sv,
     name,
     dimensions,
@@ -97,22 +128,25 @@ function material({
     packages,
     profile,
     mounting,
-    lathundenImage: lathundenImages[id] || "",
+    source,
+    sourceImage: isStoreScan ? storeScanSourceImage : lathundenImages[id] || "",
+    combinedImage: image || "",
+    drawing2d: "",
+    render3d: "",
     status,
   };
 }
 
 export const materialGroups = [
-  { id: "utvandigt", name: names("Utvändigt") },
-  { id: "invandigt", name: names("Invändigt") },
-  { id: "arbetsomrade", name: names("Arbetsområde") },
+  { id: "invandigt", name: names("Invändigt", "Wewnętrzne", "Interior") },
+  { id: "utvandigt", name: names("Utvändigt", "Zewnętrzne", "Exterior") },
 ];
 
 export const materialGuide = [
   material({
     id: "ytterpanelbrada",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Fasadpanel",
     name: names("Ytterpanelbräda", "Deska elewacyjna"),
     description: names(
       "En finsågad framsida. En hyvlad baksida. Kanterna är rillade. Två rundade eller fasade hörn. Stående eller liggande montering rekommenderas.",
@@ -125,7 +159,7 @@ export const materialGuide = [
   material({
     id: "ytterpanellakt",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Läkt",
     name: names("Ytterpanelläkt", "Łata elewacyjna"),
     description: names(
       "En finsågad framsida. En hyvlad baksida. Kanterna är finsågade eller rillade. Faserna är rillade. Stående montering rekommenderas.",
@@ -138,7 +172,7 @@ export const materialGuide = [
   material({
     id: "locklakt",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Lockläkt",
     name: names("Lockläkt", "Listwa kryjąca elewacyjna"),
     description: names(
       "En finsågad framsida. En hyvlad baksida. Kanterna är finsågade eller rillade. Faserna är rillade. Stående montering rekommenderas.",
@@ -151,7 +185,7 @@ export const materialGuide = [
   material({
     id: "allmoge-locklakt",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Lockläkt",
     name: names("Allmoge lockläkt", "Klasyczna listwa kryjąca elewacyjna"),
     description: names(
       "En finsågad framsida. En hyvlad baksida. Kälorna är rillade. Kanterna är finsågade eller rillade. Stående montering rekommenderas.",
@@ -164,7 +198,7 @@ export const materialGuide = [
   material({
     id: "hattlakt",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Lockläkt",
     name: names("Hattläkt", "Listwa kapeluszowa elewacyjna"),
     description: names(
       "En rillad framsida. En hyvlad baksida. Kanterna är finsågade eller rillade. Faserna är rillade. Stående montering rekommenderas.",
@@ -177,7 +211,7 @@ export const materialGuide = [
   material({
     id: "spontad-ytterpanel",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Fasadpanel",
     name: names("Spontad ytterpanel", "Pióro-wpust elewacyjny"),
     description: names(
       "En finsågad framsida. Tre hyvlade sidor. Två rundade eller fasade hörn med rillning. Stående montering rekommenderas.",
@@ -191,8 +225,8 @@ export const materialGuide = [
   material({
     id: "falsad-sparpanel-raka-kanter",
     group: "utvandigt",
-    section: "Ytterpanel",
-    name: names("Falsad spårpanel med raka kanter", "Felcowany panel rowkowany z prostymi krawędziami"),
+    section: "Fasadpanel",
+    name: names("Fasad spårpanel med raka kanter (Stående)", "Felcowany panel rowkowany z prostymi krawędziami"),
     description: names(
       "En finsågad framsida. Tre hyvlade sidor. Kanterna är hyvlade och rillade. Två rundade eller fasade hörn med rillning. Stående montering rekommenderas.",
       "Zewnętrzny panel felcowany z rowkiem i prostą krawędzią.",
@@ -205,21 +239,21 @@ export const materialGuide = [
   material({
     id: "falsad-sparpanel-fasade-kanter",
     group: "utvandigt",
-    section: "Ytterpanel",
-    name: names("Falsad spårpanel med fasade kanter", "Felcowany panel rowkowany z fazowanymi krawędziami"),
+    section: "Fasadpanel",
+    name: names("Falsad spårpanel med fasad kant (Liggande)", "Felcowany panel rowkowany z fazowaną krawędzią"),
     description: names(
-      "En finsågad framsida. Tre hyvlade sidor. Faserna och spåret är rillade. Två rundade eller fasade hörn med rillning. Stående montering rekommenderas.",
+      "En finsågad framsida. Tre hyvlade sidor. Fasen, undersidan och spåret är rillade. Två rundade eller fasade hörn med rillning. Liggande montering rekommenderas.",
       "Zewnętrzny panel felcowany z rowkiem i fazowaną krawędzią.",
     ),
     dimensions: ["22x120", "22x145"],
-    coverage: [{ dimension: "22x120", c: 102 }, { dimension: "22x145", c: 127 }],
+    coverage: [{ dimension: "22x120", c: 105 }, { dimension: "22x145", c: 130 }],
     profile: "rebatedBeveledGroove",
-    mounting: "vertical",
+    mounting: "horizontal",
   }),
   material({
     id: "dubbelfasspont",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Fasadpanel",
     name: names("Dubbelfasspont", "Podwójny panel fazowany pióro-wpust"),
     description: names(
       "En finsågad framsida. Tre hyvlade sidor. Faserna är rillade. Stående montering rekommenderas.",
@@ -233,7 +267,7 @@ export const materialGuide = [
   material({
     id: "falsad-dubbelfas",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Fasadpanel",
     name: names("Falsad dubbelfas", "Felcowany podwójny panel fazowany"),
     description: names(
       "En finsågad framsida. Tre hyvlade sidor. Faserna är rillade. Falsen är hyvlad. Stående montering rekommenderas.",
@@ -247,7 +281,7 @@ export const materialGuide = [
   material({
     id: "fjallpanel",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Fasadpanel",
     name: names("Fjällpanel", "Panel zakładkowy poziomy"),
     description: names(
       "En finsågad framsida. En hyvlad baksida. Kanterna är rillade. Liggande montering rekommenderas.",
@@ -259,23 +293,9 @@ export const materialGuide = [
     mounting: "horizontal",
   }),
   material({
-    id: "stockpanel",
-    group: "utvandigt",
-    section: "Ytterpanel",
-    name: names("Stockpanel", "Panel imitujący bal"),
-    description: names(
-      "Fyra hyvlade sidor. Liggande montering rekommenderas.",
-      "Panel zewnętrzny imitujący bal, do montażu poziomego.",
-    ),
-    dimensions: ["22x120", "28x145"],
-    coverage: [{ dimension: "22x120", c: 103 }, { dimension: "28x145", c: 128 }],
-    profile: "logPanel",
-    mounting: "horizontal",
-  }),
-  material({
     id: "staende-limtraytterpanel",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Fasadpanel",
     name: names("Stående limträytterpanel", "Pionowy panel zewnętrzny z drewna klejonego"),
     description: names(
       "En finsågad framsida. Tre hyvlade sidor. Faserna och falsen är rillade. Stående montering rekommenderas.",
@@ -290,7 +310,7 @@ export const materialGuide = [
   material({
     id: "liggande-limtraytterpanel",
     group: "utvandigt",
-    section: "Ytterpanel",
+    section: "Fasadpanel",
     name: names("Liggande limträytterpanel", "Poziomy panel zewnętrzny z drewna klejonego"),
     description: names(
       "En finsågad framsida. Sågas vertikalt fram ur en limträbalk. Tre hyvlade sidor. Faserna och falsen är rillade. Liggande montering rekommenderas.",
@@ -305,6 +325,7 @@ export const materialGuide = [
   material({
     id: "trall",
     group: "utvandigt",
+    section: "Trall",
     name: names("Trall", "Deska tarasowa"),
     dimensions: ["28x95", "28x120", "28x145", "34x145"],
     lengths: deckLengths,
@@ -313,20 +334,15 @@ export const materialGuide = [
   material({
     id: "rillad-trall",
     group: "utvandigt",
+    section: "Trall",
     name: names("Rillad trall", "Deska ryflowana"),
     dimensions: ["28x120", "28x145"],
     profile: "ribbedDeck",
   }),
   material({
-    id: "staketlakt",
-    group: "utvandigt",
-    name: names("Staketläkt", "Sztacheta"),
-    dimensions: ["28x45", "28x70", "34x45"],
-    profile: "fencePicket",
-  }),
-  material({
     id: "staketregel",
     group: "utvandigt",
+    section: "Regel",
     name: names("Staketregel", "Rygiel ogrodzeniowy"),
     dimensions: ["47x75"],
     profile: "rect",
@@ -334,20 +350,15 @@ export const materialGuide = [
   material({
     id: "sparpanel-raka-kanter",
     group: "invandigt",
+    section: "Panel",
     name: names("Spårpanel med raka kanter", "Panel rowkowany prosty"),
     dimensions: ["12x70", "12x95", "12x120", "15x70", "15x95", "15x120", "22x95", "22x120", "22x145"],
     profile: "straightGroovePanel",
   }),
   material({
-    id: "sparpanel-fasade-kanter",
-    group: "invandigt",
-    name: names("Spårpanel med fasade kanter", "Panel fazowany rowkowany"),
-    dimensions: ["9x70", "12x70", "12x95", "12x120", "15x70", "15x95", "15x120", "22x95", "22x120", "22x145"],
-    profile: "beveledGroovePanel",
-  }),
-  material({
     id: "perlspont",
     group: "invandigt",
+    section: "Panel",
     name: names("Pärlspont", "Boazeria z perełką"),
     dimensions: ["12x95", "15x95"],
     profile: "beadPanel",
@@ -355,6 +366,7 @@ export const materialGuide = [
   material({
     id: "allmogepanel",
     group: "invandigt",
+    section: "Panel",
     name: names("Allmogepanel", "Panel klasyczny"),
     dimensions: ["12x120", "12x145"],
     profile: "classicPanel",
@@ -362,6 +374,7 @@ export const materialGuide = [
   material({
     id: "liksidig-foderlist",
     group: "invandigt",
+    section: "Foder",
     name: names("Liksidig foderlist", "Listwa opaskowa prosta"),
     dimensions: ["9.5x43", "9.5x56", "12x43", "12x56", "12x69", "15x56"],
     profile: "plainCasing",
@@ -369,6 +382,7 @@ export const materialGuide = [
   material({
     id: "klackfoder",
     group: "invandigt",
+    section: "Foder",
     name: names("Klackfoder", "Listwa opaskowa schodkowa"),
     dimensions: ["21x43", "21x56"],
     profile: "steppedCasing",
@@ -376,13 +390,15 @@ export const materialGuide = [
   material({
     id: "sockellist",
     group: "invandigt",
-    name: names("Sockellist", "Listwa przypodłogowa"),
+    section: "Golvlist",
+    name: names("Golvsockel", "Listwa przypodłogowa"),
     dimensions: ["9.5x43", "9.5x56", "12x43", "12x56", "12x69"],
     profile: "baseboard",
   }),
   material({
     id: "allmogefoderlist",
     group: "invandigt",
+    section: "Foder",
     name: names("Allmogefoderlist", "Listwa klasyczna"),
     dimensions: ["15x69", "21x95"],
     profile: "classicCasing",
@@ -390,90 +406,53 @@ export const materialGuide = [
   material({
     id: "allmogesockellist",
     group: "invandigt",
+    section: "Golvlist",
     name: names("Allmogesockellist", "Listwa przypodłogowa klasyczna"),
     dimensions: ["15x95", "21x120"],
     profile: "classicBaseboard",
   }),
-  material({ id: "skugglist-21", group: "invandigt", name: names("Skugglist 21"), dimensions: ["21x33"], profile: "shadow21" }),
-  material({ id: "skugglist-33", group: "invandigt", name: names("Skugglist 33"), dimensions: ["33x43"], profile: "shadow33" }),
-  material({ id: "skugglist-43", group: "invandigt", name: names("Skugglist 43"), dimensions: ["43x21"], profile: "shadow43" }),
-  material({ id: "halkalslist", group: "invandigt", name: names("Hålkälslist"), dimensions: ["12x27", "15x43", "21x69"], profile: "cove" }),
-  material({ id: "hornlist", group: "invandigt", name: names("Hörnlist"), dimensions: ["21x21", "27x27", "33x33", "43x43"], profile: "corner" }),
-  material({ id: "smyglist", group: "invandigt", name: names("Smyglist"), dimensions: ["8x15", "8x21", "8x27", "8x33", "8x43"], profile: "splayed" }),
-  material({ id: "trekantlist", group: "invandigt", name: names("Trekantlist"), dimensions: ["15x15", "21x21"], profile: "triangle" }),
-  material({ id: "kvartslist", group: "invandigt", name: names("Kvartslist"), dimensions: ["9x9", "12x12", "15x15", "21x21"], profile: "quarter" }),
-  material({ id: "allmogetaklist", group: "invandigt", name: names("Allmogetaklist"), dimensions: ["15x69"], profile: "classicCrown" }),
-  material({ id: "foder-slata", group: "invandigt", section: "Foder", name: names("Foder släta"), profile: "straight" }),
-  material({ id: "foder-profilerade", group: "invandigt", section: "Foder", name: names("Foder profilerade"), profile: "decorative" }),
-  material({ id: "mdf-lister-foder", group: "invandigt", section: "Foder", name: names("MDF-lister"), profile: "decorative" }),
-  material({ id: "salningslist", group: "invandigt", section: "Fönstersmyg", name: names("Salningslist"), profile: "straight" }),
-  material({ id: "falsad-fonstersmyg-furu", group: "invandigt", section: "Fönstersmyg", name: names("Falsad fönstersmyg furu"), profile: "rebated" }),
-  material({ id: "sparad-fonstersmyg-mdf", group: "invandigt", section: "Fönstersmyg", name: names("Spårad fönstersmyg MDF"), profile: "grooved" }),
-  material({ id: "falsad-fonstersmyg-mdf", group: "invandigt", section: "Fönstersmyg", name: names("Falsad fönstersmyg MDF"), profile: "rebated" }),
-  material({ id: "dorromfattning-mdf", group: "invandigt", section: "Fönstersmyg", name: names("Dörromfattning MDF"), profile: "straight" }),
-  material({ id: "u-list", group: "invandigt", section: "Fönstersmyg", name: names("U-list"), profile: "u-channel" }),
-  material({ id: "simsalabimlist", group: "invandigt", section: "Fönstersmyg", name: names("Simsalabimlist"), profile: "corner" }),
-  material({ id: "sockel-slata", group: "invandigt", section: "Sockel", name: names("Sockel släta"), profile: "baseboard" }),
-  material({ id: "sockel-profilerade", group: "invandigt", section: "Sockel", name: names("Sockel profilerade"), profile: "decorative-baseboard" }),
-  material({ id: "mdf-lister-sockel", group: "invandigt", section: "Sockel", name: names("MDF-lister"), profile: "decorative-baseboard" }),
-  material({ id: "taklist", group: "invandigt", section: "Taklist", name: names("Taklist"), profile: "crown" }),
-  material({ id: "taklist-profilerade", group: "invandigt", section: "Taklist", name: names("Taklist profilerade"), profile: "decorative-crown" }),
-  material({ id: "mdf-lister-taklist", group: "invandigt", section: "Taklist", name: names("MDF-lister"), profile: "decorative-crown" }),
-  material({ id: "klossar", group: "invandigt", section: "Övriga lister", name: names("Klossar"), profile: "special" }),
-  material({ id: "brostlist", group: "invandigt", section: "Övriga lister", name: names("Bröstlist"), profile: "decorative" }),
-  material({ id: "flexilist-mdf", group: "invandigt", section: "Övriga lister", name: names("Flexilist MDF"), profile: "corner" }),
-  material({ id: "foglist", group: "invandigt", section: "Övriga lister", name: names("Foglist"), profile: "straight" }),
-  material({ id: "kakellist", group: "invandigt", section: "Övriga lister", name: names("Kakellist"), profile: "rebated" }),
-  material({ id: "bastuartiklar", group: "invandigt", section: "Övriga lister", name: names("Bastuartiklar"), profile: "special" }),
-  material({ id: "rundstav", group: "invandigt", section: "Övriga lister", name: names("Rundstav"), profile: "round" }),
-  material({ id: "kvartstav", group: "invandigt", section: "Övriga lister", name: names("Kvartstav"), profile: "quarter-round" }),
-  material({ id: "dekorlist", group: "invandigt", section: "Övriga lister", name: names("Dekorlist"), profile: "decorative" }),
-  material({ id: "glaslist", group: "invandigt", section: "Övriga lister", name: names("Glaslist"), profile: "rebated" }),
+  material({ id: "skugglist-21", group: "invandigt", section: "Skugglist", name: names("Skugglist 21", "Listwa cieniowa 21"), dimensions: ["21x33"], profile: "shadow21" }),
+  material({ id: "skugglist-33", group: "invandigt", section: "Skugglist", name: names("Skugglist 33", "Listwa cieniowa 33"), dimensions: ["33x43"], profile: "shadow33" }),
+  material({ id: "halkalslist", group: "invandigt", section: "Dekorlist", name: names("Hålkälslist", "Listwa wklęsła"), dimensions: ["12x27", "15x43", "21x69"], profile: "cove" }),
+  material({ id: "hornlist", group: "invandigt", section: "Hörnlist", name: names("Hörnlist", "Listwa narożna"), dimensions: ["21x21", "27x27", "33x33", "43x43"], profile: "corner" }),
+  material({ id: "smyglist", group: "invandigt", section: "Smyglist", name: names("Smyglist", "Listwa wnękowa"), dimensions: ["8x15", "8x21", "8x27", "8x33", "8x43"], profile: "splayed" }),
+  material({ id: "trekantlist", group: "invandigt", section: "Dekorlist", name: names("Trekantlist", "Listwa trójkątna"), dimensions: ["15x15", "21x21"], profile: "triangle" }),
+  material({ id: "kvartslist", group: "invandigt", section: "Dekorlist", name: names("Kvartslist", "Ćwierćwałek"), dimensions: ["9x9", "12x12", "15x15", "21x21"], profile: "quarter" }),
+  material({ id: "allmogetaklist", group: "invandigt", section: "Taklist", name: names("Allmogetaklist", "Klasyczna listwa sufitowa"), dimensions: ["15x69"], profile: "classicCrown" }),
+  material({ id: "foder-slata", group: "invandigt", section: "Foder", name: names("Foder släta", "Gładka listwa opaskowa"), profile: "straight", source: "storeScan" }),
+  material({ id: "foder-profilerade", group: "invandigt", section: "Foder", name: names("Foder profilerade", "Profilowana listwa opaskowa"), profile: "decorative", source: "storeScan" }),
+  material({ id: "mdf-lister-foder", group: "invandigt", section: "Foder", name: names("MDF-lister", "Listwy MDF opaskowe"), profile: "decorative", source: "storeScan" }),
+  material({ id: "salningslist", group: "invandigt", section: "Fönstersmyg", name: names("Salningslist", "Listwa ościeżnicowa"), profile: "straight", source: "storeScan" }),
+  material({ id: "falsad-fonstersmyg-furu", group: "invandigt", section: "Fönstersmyg", name: names("Falsad fönstersmyg furu", "Felcowana listwa wnęki okiennej sosna"), profile: "rebated", source: "storeScan" }),
+  material({ id: "sparad-fonstersmyg-mdf", group: "invandigt", section: "Fönstersmyg", name: names("Spårad fönstersmyg MDF", "Rowkowana listwa wnęki okiennej MDF"), profile: "grooved", source: "storeScan" }),
+  material({ id: "falsad-fonstersmyg-mdf", group: "invandigt", section: "Fönstersmyg", name: names("Falsad fönstersmyg MDF", "Felcowana listwa wnęki okiennej MDF"), profile: "rebated", source: "storeScan" }),
+  material({ id: "dorromfattning-mdf", group: "invandigt", section: "Fönstersmyg", name: names("Dörromfattning MDF", "Obramowanie drzwiowe MDF"), profile: "straight", source: "storeScan" }),
+  material({ id: "u-list", group: "invandigt", section: "Fönstersmyg", name: names("U-list", "Listwa U"), profile: "u-channel", source: "storeScan" }),
+  material({ id: "simsalabimlist", group: "invandigt", section: "Fönstersmyg", name: names("Simsalabimlist", "Listwa Simsalabim"), profile: "corner", source: "storeScan" }),
+  material({ id: "sockel-slata", group: "invandigt", section: "Sockel", name: names("Sockel släta", "Gładka listwa cokołowa"), profile: "baseboard", source: "storeScan" }),
+  material({ id: "sockel-profilerade", group: "invandigt", section: "Sockel", name: names("Sockel profilerade", "Profilowana listwa cokołowa"), profile: "decorative-baseboard", source: "storeScan" }),
+  material({ id: "mdf-lister-sockel", group: "invandigt", section: "Sockel", name: names("MDF-lister", "Listwy MDF cokołowe"), profile: "decorative-baseboard", source: "storeScan" }),
+  material({ id: "taklist", group: "invandigt", section: "Taklist", name: names("Taklist", "Listwa sufitowa"), profile: "crown", source: "storeScan" }),
+  material({ id: "taklist-profilerade", group: "invandigt", section: "Taklist", name: names("Taklist profilerade", "Profilowana listwa sufitowa"), profile: "decorative-crown", source: "storeScan" }),
+  material({ id: "mdf-lister-taklist", group: "invandigt", section: "Taklist", name: names("MDF-lister", "Listwy MDF sufitowe"), profile: "decorative-crown", source: "storeScan" }),
+  material({ id: "klossar", group: "invandigt", section: "Dekorlist", name: names("Klossar", "Klocki dekoracyjne"), profile: "special", source: "storeScan" }),
+  material({ id: "brostlist", group: "invandigt", section: "Dekorlist", name: names("Bröstlist", "Listwa ścienna dekoracyjna"), profile: "decorative", source: "storeScan" }),
+  material({ id: "flexilist-mdf", group: "invandigt", section: "Hörnlist", name: names("Flexilist MDF", "Elastyczna listwa narożna MDF"), profile: "corner", source: "storeScan" }),
+  material({ id: "foglist", group: "invandigt", section: "Dekorlist", name: names("Foglist", "Listwa fugowa"), profile: "straight", source: "storeScan" }),
+  material({ id: "kakellist", group: "invandigt", section: "Dekorlist", name: names("Kakellist", "Listwa do płytek"), profile: "rebated", source: "storeScan" }),
+  material({ id: "bastuartiklar", group: "invandigt", section: "Dekorlist", name: names("Bastuartiklar", "Elementy do sauny"), profile: "special", source: "storeScan" }),
+  material({ id: "rundstav", group: "invandigt", section: "Dekorlist", name: names("Rundstav", "Wałek drewniany"), profile: "round", source: "storeScan" }),
+  material({ id: "kvartstav", group: "invandigt", section: "Dekorlist", name: names("Kvartstav", "Ćwierćwałek"), profile: "quarter-round", source: "storeScan" }),
+  material({ id: "dekorlist", group: "invandigt", section: "Dekorlist", name: names("Dekorlist", "Listwa dekoracyjna"), profile: "decorative", source: "storeScan" }),
+  material({ id: "glaslist", group: "invandigt", section: "Dekorlist", name: names("Glaslist", "Listwa przyszybowa"), profile: "rebated", source: "storeScan" }),
 
   material({
-    id: "regel",
-    group: "arbetsomrade",
-    name: names("Regel"),
-    dimensions: ["45x70", "45x95", "45x120", "45x145", "45x170", "45x195", "45x220"],
-    profile: "rect",
-  }),
-  material({
     id: "planhyvlat",
-    group: "arbetsomrade",
-    name: names("Planhyvlat"),
+    group: "utvandigt",
+    section: "Virke",
+    name: names("Planhyvlat", "Drewno strugane"),
     dimensions: ["21x45", "21x70", "21x95", "21x120", "21x145", "28x45", "28x70", "28x95", "28x120", "28x145"],
     profile: "planed",
-  }),
-  material({
-    id: "osb",
-    group: "arbetsomrade",
-    name: names("OSB"),
-    thicknesses: [12],
-    sheetSizes: ["900x2500"],
-    profile: "osbSheet",
-  }),
-  material({
-    id: "plywood",
-    group: "arbetsomrade",
-    name: names("Plywood"),
-    thicknesses: [6, 9, 12, 15, 18, 21],
-    sheetSizes: ["1200x2400"],
-    profile: "plywoodSheet",
-  }),
-  material({
-    id: "gips",
-    group: "arbetsomrade",
-    name: names("Gips"),
-    thicknesses: [6, 13, 15],
-    sheetSizes: ["900x2400", "1200x2400", "1200x2500", "1200x2700"],
-    profile: "gypsumSheet",
-  }),
-  material({
-    id: "betong",
-    group: "arbetsomrade",
-    name: names("Betong"),
-    packages: ["20kg", "25kg"],
-    profile: "bag",
   }),
 ];
 

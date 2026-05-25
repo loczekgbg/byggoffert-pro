@@ -7,9 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "prebuild": "npm run validate:encoding",
+    "prebuild": "npm run validate:encoding && npm run validate:material-guide-media",
     "preview": "vite preview",
-    "validate:encoding": "node scripts/validate-encoding.mjs"
+    "validate:encoding": "node scripts/validate-encoding.mjs",
+    "validate:material-guide-media": "node scripts/validate-material-guide-media.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",

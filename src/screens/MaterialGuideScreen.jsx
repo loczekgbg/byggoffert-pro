@@ -7,6 +7,10 @@ const shoppingListStorageKey = "marcin-bygg-tools-shopping-list";
 const projectToolsStorageKey = "marcin-bygg-tools-project-items";
 const offerToolsStorageKey = "marcin-bygg-tools-offer-items";
 const missing = "missingData";
+const subcategoryOrder = {
+  invandigt: ["Foder", "Golvlist", "Taklist", "Fönstersmyg", "Smyglist", "Skugglist", "Sockel", "Hörnlist", "Dekorlist", "Panel", "Skivmaterial"],
+  utvandigt: ["Panel", "Lockläkt", "Fasadpanel", "Trall", "Regel", "Läkt", "Virke", "Foder utvändigt", "Hörnlist utvändigt"],
+};
 
 const labels = {
   sv: {
@@ -20,7 +24,12 @@ const labels = {
     packages: "Förpackning",
     coverage: "A x B -> C",
     description: "Beskrivning",
-    notSpecified: "Ej angivet",
+    notSpecified: "Data saknas",
+    dimensionsMissing: "Mått saknas",
+    nameMissing: "Namn saknas",
+    drawingMissing: "Ritning saknas",
+    modelMissing: "3D-modell saknas",
+    combinedMedia: "Ritning / Modell",
     drawing2d: "Ritning 2D",
     preview3d: "3D",
     addProject: "Lägg till i projekt",
@@ -29,6 +38,7 @@ const labels = {
     back: "Tillbaka",
     profile: "Profil",
     category: "Kategori",
+    subcategory: "Underkategori",
     materialGuide: "Materialguide",
   },
   pl: {
@@ -42,7 +52,12 @@ const labels = {
     packages: "Opakowanie",
     coverage: "A x B -> C",
     description: "Opis",
-    notSpecified: "Ej angivet",
+    notSpecified: "Brak danych",
+    dimensionsMissing: "Brak wymiarów",
+    nameMissing: "Brak nazwy",
+    drawingMissing: "Brak rysunku",
+    modelMissing: "Brak modelu 3D",
+    combinedMedia: "Rysunek / Model",
     drawing2d: "Rysunek 2D",
     preview3d: "3D",
     addProject: "Dodaj do projektu",
@@ -51,6 +66,7 @@ const labels = {
     back: "Wstecz",
     profile: "Profil",
     category: "Kategoria",
+    subcategory: "Podkategoria",
     materialGuide: "Baza materiałów",
   },
   en: {
@@ -64,7 +80,12 @@ const labels = {
     packages: "Package",
     coverage: "A x B -> C",
     description: "Description",
-    notSpecified: "Ej angivet",
+    notSpecified: "Data missing",
+    dimensionsMissing: "Dimensions missing",
+    nameMissing: "Name missing",
+    drawingMissing: "Drawing missing",
+    modelMissing: "3D model missing",
+    combinedMedia: "Drawing / Model",
     drawing2d: "2D drawing",
     preview3d: "3D",
     addProject: "Add to project",
@@ -73,6 +94,7 @@ const labels = {
     back: "Back",
     profile: "Profile",
     category: "Category",
+    subcategory: "Subcategory",
     materialGuide: "Material guide",
   },
 };
@@ -99,7 +121,7 @@ function writeStoredItem(key, item) {
 
 function localizedName(value, language) {
   const name = value?.[language] || value?.sv || missing;
-  return name === missing ? text("notSpecified", language) : name;
+  return name === missing ? text("nameMissing", language) : name;
 }
 
 function localizedDescription(material, language) {
@@ -112,6 +134,10 @@ function formatList(value, language, unit = "") {
   return value.map((item) => `${item}${unit}`).join(", ");
 }
 
+function formatDimensions(value, language) {
+  return hasData(value) ? formatList(value, language) : text("dimensionsMissing", language);
+}
+
 function hasData(value) {
   return Array.isArray(value) && value.length > 0;
 }
@@ -120,7 +146,8 @@ function materialRows(material, language) {
   const group = findMaterialGroup(material.group);
   return [
     [text("category", language), localizedName(group?.name, language)],
-    [text("dimensions", language), formatList(material.dimensions, language)],
+    [text("subcategory", language), material.subcategory || material.section || text("notSpecified", language)],
+    [text("dimensions", language), formatDimensions(material.dimensions, language)],
     [text("lengths", language), formatList(material.lengths, language, " mm")],
     [text("coveringWidth", language), hasData(material.coverage) ? text("notSpecified", language) : formatList(material.coveringWidth, language, " mm")],
     [text("coverage", language), formatCoverage(material.coverage, language)],
@@ -142,7 +169,7 @@ export default function MaterialGuideScreen({ goBack }) {
   const [selectedId, setSelectedId] = useState(materialGuide[0]?.id || "");
   const selectedMaterial = findMaterial(selectedId) || materialGuide[0];
 
-  const groupedMaterials = useMemo(() => {
+  const filteredMaterials = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return materialGuide.filter((material) => {
       const haystack = [
@@ -151,6 +178,8 @@ export default function MaterialGuideScreen({ goBack }) {
         material.name.en,
         material.category,
         material.group,
+        material.subcategory,
+        material.section,
         ...material.dimensions,
         ...material.lengths,
         ...material.coveringWidth,
@@ -162,6 +191,25 @@ export default function MaterialGuideScreen({ goBack }) {
       return material.group === groupId && (!needle || haystack.some((value) => String(value).toLowerCase().includes(needle)));
     });
   }, [groupId, query]);
+
+  const groupedMaterials = useMemo(() => {
+    const order = subcategoryOrder[groupId] || [];
+    const groups = filteredMaterials.reduce((acc, material) => {
+      const subcategory = material.subcategory || material.section || text("notSpecified", language);
+      if (!acc.has(subcategory)) acc.set(subcategory, []);
+      acc.get(subcategory).push(material);
+      return acc;
+    }, new Map());
+
+    return [...groups.entries()].sort(([a], [b]) => {
+      const aIndex = order.indexOf(a);
+      const bIndex = order.indexOf(b);
+      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
+  }, [filteredMaterials, groupId, language]);
 
   const selectGroup = (nextGroupId) => {
     setGroupId(nextGroupId);
@@ -203,7 +251,7 @@ export default function MaterialGuideScreen({ goBack }) {
         name: localizedName(selectedMaterial.name, language),
         quantity: 1,
         unit: "rad",
-        note: formatList(selectedMaterial.dimensions, language),
+        note: formatDimensions(selectedMaterial.dimensions, language),
         source: "Materialguide",
       }],
       values: selectedMaterial,
@@ -255,31 +303,33 @@ export default function MaterialGuideScreen({ goBack }) {
             />
           </label>
 
-          <div className="mt-4 grid gap-3">
-            {groupedMaterials.map((material) => (
-              <button
-                key={material.id}
-                type="button"
-                onClick={() => setSelectedId(material.id)}
-                className={`rounded-2xl border p-4 text-left transition active:scale-[0.99] ${
-                  selectedMaterial.id === material.id ? "border-amber-400 bg-amber-400 text-black" : "border-zinc-800 bg-zinc-950 text-white"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <Box size={20} className="mt-1 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-lg font-black">{localizedName(material.name, language)}</p>
-                    <p className={`mt-1 text-sm ${selectedMaterial.id === material.id ? "text-black/65" : "text-zinc-400"}`}>
-                      {formatList(material.dimensions, language)}
-                    </p>
-                    {material.section && (
-                      <p className={`mt-2 text-xs font-black uppercase ${selectedMaterial.id === material.id ? "text-black/55" : "text-amber-300"}`}>
-                        {material.section}
-                      </p>
-                    )}
-                  </div>
+          <div className="mt-4 grid gap-5">
+            {groupedMaterials.map(([subcategory, materials]) => (
+              <div key={subcategory}>
+                <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-amber-300">{subcategory}</p>
+                <div className="grid gap-3">
+                  {materials.map((material) => (
+                    <button
+                      key={material.id}
+                      type="button"
+                      onClick={() => setSelectedId(material.id)}
+                      className={`rounded-2xl border p-4 text-left transition active:scale-[0.99] ${
+                        selectedMaterial.id === material.id ? "border-amber-400 bg-amber-400 text-black" : "border-zinc-800 bg-zinc-950 text-white"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Box size={20} className="mt-1 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-lg font-black">{localizedName(material.name, language)}</p>
+                          <p className={`mt-1 text-sm ${selectedMaterial.id === material.id ? "text-black/65" : "text-zinc-400"}`}>
+                            {formatDimensions(material.dimensions, language)}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </section>
@@ -306,7 +356,7 @@ function MaterialDetail({ material, language, onAddToProject, onAddToOffer, onAd
       <div className="grid gap-5 xl:grid-cols-[1fr_0.95fr]">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.14em] text-amber-400">
-            {[localizedName(group?.name, language), material.section].filter(Boolean).join(" / ")}
+            {[localizedName(group?.name, language), material.subcategory || material.section].filter(Boolean).join(" / ")}
           </p>
           <h2 className="mt-2 text-4xl font-black leading-tight">{localizedName(material.name, language)}</h2>
           {description && (
@@ -323,14 +373,7 @@ function MaterialDetail({ material, language, onAddToProject, onAddToOffer, onAd
           </div>
         </div>
 
-        <div className="grid gap-4">
-          <PreviewPanel title={text("drawing2d", language)}>
-            <LathundenPreview material={material} language={language} />
-          </PreviewPanel>
-          <PreviewPanel title={text("preview3d", language)}>
-            <LathundenPreview material={material} language={language} />
-          </PreviewPanel>
-        </div>
+        <MaterialMedia material={material} language={language} />
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -351,6 +394,31 @@ function MaterialDetail({ material, language, onAddToProject, onAddToOffer, onAd
   );
 }
 
+function MaterialMedia({ material, language }) {
+  const label = localizedName(material.name, language);
+
+  if (material.combinedImage) {
+    return (
+      <div className="grid gap-4">
+        <PreviewPanel title={text("combinedMedia", language)}>
+          <MaterialGuideImage image={material.combinedImage} label={label} missingLabel={text("drawingMissing", language)} />
+        </PreviewPanel>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      <PreviewPanel title={text("drawing2d", language)}>
+        <MaterialGuideImage image={material.drawing2d} label={label} missingLabel={text("drawingMissing", language)} />
+      </PreviewPanel>
+      <PreviewPanel title={text("preview3d", language)}>
+        <MaterialGuideImage image={material.render3d} label={label} missingLabel={text("modelMissing", language)} />
+      </PreviewPanel>
+    </div>
+  );
+}
+
 function PreviewPanel({ title, children }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-white">
@@ -363,11 +431,11 @@ function PreviewPanel({ title, children }) {
   );
 }
 
-function LathundenPreview({ material, language }) {
-  if (!material.lathundenImage) {
+function MaterialGuideImage({ image, label, missingLabel }) {
+  if (!image) {
     return (
       <div className="flex min-h-64 items-center justify-center bg-white p-6 text-center text-sm font-bold text-zinc-500">
-        {text("notSpecified", language)}
+        {missingLabel}
       </div>
     );
   }
@@ -375,8 +443,8 @@ function LathundenPreview({ material, language }) {
   return (
     <div className="bg-white p-2">
       <img
-        src={material.lathundenImage}
-        alt={localizedName(material.name, language)}
+        src={image}
+        alt={label}
         className="mx-auto max-h-[34rem] w-full rounded-xl object-contain"
         loading="lazy"
       />
