@@ -1,5 +1,38 @@
 const deckLengths = [2400, 3000, 3600, 4200, 4800, 5400, 6000];
 const missing = "missingData";
+const lathundenImages = {
+  ytterpanelbrada: "/lathunden/3699D106-49B9-472B-9B67-C069C00FCA51.jpeg",
+  ytterpanellakt: "/lathunden/1E80D376-769E-4B38-9977-E48278E53F10.png",
+  locklakt: "/lathunden/06469D24-25EA-4D1D-A2DB-239D52E021F4.png",
+  hattlakt: "/lathunden/88F3D465-8259-4367-9CBE-EDF01C0603D8.png",
+  "spontad-ytterpanel": "/lathunden/73F9F28B-8A28-4728-A01C-68E48A843E48.jpeg",
+  "falsad-sparpanel-raka-kanter": "/lathunden/EDCD7BB6-8732-4249-8269-378CB4E3816A.jpeg",
+  dubbelfasspont: "/lathunden/E31B6DCD-6086-4217-B280-6F9DA505E44B.jpeg",
+  "falsad-dubbelfas": "/lathunden/0A0D70F8-3074-46F8-A8DA-DBCE443FD3A8.jpeg",
+  fjallpanel: "/lathunden/55B7FEDE-14DC-4D20-A4D5-64E58E4CD9A1.jpeg",
+  "staende-limtraytterpanel": "/lathunden/0F66AA81-AFF8-4C10-A041-B3809DA71958.jpeg",
+  "liggande-limtraytterpanel": "/lathunden/1B6B9DF4-0F9E-46EA-9081-05CA189EA566.jpeg",
+  trall: "/lathunden/2946B216-3316-45D9-8599-A058B4A72FE9.png",
+  "rillad-trall": "/lathunden/A724A59E-6D24-47A2-B6B4-638F44A5D905.png",
+  staketregel: "/lathunden/21BFD72A-ED7D-408B-BEDA-E2011E057052.png",
+  "sparpanel-raka-kanter": "/lathunden/8B57C93C-C795-4425-8B93-26F560CCECCB.jpeg",
+  perlspont: "/lathunden/1014D727-D477-4073-BA79-1E3956F9634F.jpeg",
+  allmogepanel: "/lathunden/A1FD61E6-C2D1-47C9-9D07-4EF2AF189B7F.jpeg",
+  "liksidig-foderlist": "/lathunden/854B3267-7915-42F9-8361-0B710B4BA4FE.png",
+  klackfoder: "/lathunden/3C328F91-5A16-4269-B96E-AA7192AF9F88.png",
+  sockellist: "/lathunden/667992D8-2AF2-4CCD-850A-8815DECAF41D.png",
+  allmogefoderlist: "/lathunden/592F6C58-2A08-4DA0-B594-B34A1D65E49F.png",
+  allmogesockellist: "/lathunden/B07C11C6-5B0D-4A1E-9BD5-7C8D874152D7.png",
+  "skugglist-21": "/lathunden/A2B5042D-9DF7-4897-87C2-7BB59AEAD77F.png",
+  "skugglist-33": "/lathunden/64095D2A-6403-4970-864E-C8B50F2B5AE3.png",
+  halkalslist: "/lathunden/DCA3882E-A1B7-4080-8EA0-32B979D70A89.png",
+  hornlist: "/lathunden/7BE703B7-143F-4509-8909-EE25F70CC1AD.png",
+  smyglist: "/lathunden/6CCA6ADE-98F5-4DBB-9309-13652C7E4759.png",
+  trekantlist: "/lathunden/89412EEB-9087-4393-AC5F-00D21AB1EB52.png",
+  kvartslist: "/lathunden/F5C24188-B284-4771-82DB-107A80D43323.png",
+  allmogetaklist: "/lathunden/900E49E5-16AA-4382-B146-137BAED3B945.png",
+  planhyvlat: "/lathunden/2F46074B-E78F-4FA2-BFD5-4D0539B566BC.png",
+};
 
 function names(sv, pl = missing, en = missing) {
   return { sv, pl, en };
@@ -38,6 +71,7 @@ function material({
     packages,
     profile,
     mounting,
+    lathundenImage: lathundenImages[id] || "",
     status,
   };
 }

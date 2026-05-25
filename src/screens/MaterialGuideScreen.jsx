@@ -325,10 +325,10 @@ function MaterialDetail({ material, language, onAddToProject, onAddToOffer, onAd
 
         <div className="grid gap-4">
           <PreviewPanel title={text("drawing2d", language)}>
-            <MaterialPreview2D material={material} language={language} />
+            <LathundenPreview material={material} language={language} />
           </PreviewPanel>
           <PreviewPanel title={text("preview3d", language)}>
-            <MaterialPreview3D material={material} language={language} />
+            <LathundenPreview material={material} language={language} />
           </PreviewPanel>
         </div>
       </div>
@@ -363,174 +363,23 @@ function PreviewPanel({ title, children }) {
   );
 }
 
-function firstSize(material) {
-  if (hasData(material.dimensions)) return material.dimensions[0];
-  if (hasData(material.sheetSizes)) return material.sheetSizes[0];
-  if (hasData(material.thicknesses)) return `${material.thicknesses[0]}x${material.thicknesses[0]}`;
-  if (hasData(material.packages)) return material.packages[0];
-  return "A x B";
-}
-
-function dimensionParts(material) {
-  const value = firstSize(material);
-  if (!value.includes("x")) return ["A", "B", value];
-  const [a, b] = value.split("x");
-  return [a, b, `${a} x ${b}`];
-}
-
-function profilePath(profile) {
-  const paths = {
-    rect: "M55 108 L205 108 L205 72 L55 72 Z",
-    planed: "M56 106 L204 106 L204 74 Q130 66 56 74 Z",
-    deck: "M54 108 L206 108 L206 74 L54 74 Z",
-    ribbedDeck: "M54 108 L206 108 L206 75 L54 75 Z M72 76 L76 88 M92 76 L96 88 M112 76 L116 88 M132 76 L136 88 M152 76 L156 88 M172 76 L176 88 M192 76 L196 88",
-    fencePicket: "M64 112 L196 112 L196 79 Q130 58 64 79 Z",
-    wideLapPanel: "M44 110 L214 110 L214 84 L188 84 L178 72 L44 72 Z",
-    outerPanelBoard: "M48 110 L212 110 L212 78 Q204 72 196 72 L64 72 Q56 72 48 78 Z",
-    outerBatten: "M70 112 L192 112 L192 82 L174 72 L88 72 L70 82 Z",
-    coverBatten: "M72 112 L190 112 L190 84 L174 72 L88 72 L72 84 Z",
-    allmogeCoverBatten: "M68 112 L194 112 L194 88 Q178 80 168 72 Q138 86 110 72 Q96 80 68 88 Z",
-    hatBatten: "M70 112 L192 112 L192 92 L168 92 Q150 66 130 66 Q110 66 92 92 L70 92 Z",
-    tongueGrooveOuter: "M42 110 L196 110 L196 98 L218 98 L218 84 L196 84 L196 72 L62 72 L62 84 L42 84 Z",
-    rebatedStraightGroove: "M42 110 L196 110 L196 98 L218 98 L218 84 L196 84 L196 72 L42 72 Z M128 72 L128 110",
-    rebatedBeveledGroove: "M42 110 L196 110 L196 98 L218 98 L218 84 L196 84 L188 72 L50 72 Z M128 72 L138 110",
-    doubleBevelTongue: "M42 110 L196 110 L196 98 L218 98 L218 84 L196 84 L186 72 L52 72 L42 84 Z",
-    rebatedDoubleBevel: "M42 110 L196 110 L196 98 L218 98 L218 84 L196 84 L186 72 L52 72 L42 84 Z M196 98 L206 110",
-    fjallPanel: "M42 110 L208 110 L218 82 L92 82 L76 72 L42 72 Z",
-    logPanel: "M44 110 L214 110 L214 91 Q130 52 44 91 Z",
-    verticalGluePanel: "M42 110 L196 110 L196 98 L218 98 L218 84 L196 84 L184 72 L54 72 L42 84 Z M110 72 L118 110",
-    horizontalGluePanel: "M42 110 L214 110 L214 88 L196 88 L184 72 L56 72 L42 88 Z M96 72 L108 110",
-    straightGroovePanel: "M44 110 L214 110 L214 72 L44 72 Z M96 72 L96 110 M162 72 L162 110",
-    beveledGroovePanel: "M44 110 L214 110 L204 72 L54 72 Z M96 72 L104 110 M162 72 L154 110",
-    beadPanel: "M44 110 L214 110 L214 72 L44 72 Z M126 72 A8 8 0 0 0 126 88 A8 8 0 0 0 126 72",
-    classicPanel: "M44 110 L214 110 L214 80 L196 80 L188 72 L70 72 L62 80 L44 80 Z",
-    plainCasing: "M52 110 L206 110 L206 75 Q129 68 52 75 Z",
-    steppedCasing: "M52 110 L206 110 L206 70 L170 70 L170 90 L52 90 Z",
-    baseboard: "M54 112 L206 112 L206 72 L188 72 L178 86 L54 86 Z",
-    classicCasing: "M48 112 L210 112 L210 91 L190 88 Q178 70 158 82 Q130 94 104 80 Q82 68 64 88 L48 91 Z",
-    classicBaseboard: "M48 112 L210 112 L210 86 Q190 70 170 86 Q146 104 124 86 Q100 70 78 86 L48 86 Z",
-    shadow21: "M62 112 L202 112 L202 88 L158 88 L158 72 L62 72 Z",
-    shadow33: "M58 112 L204 112 L204 78 L178 78 L178 96 L58 96 Z",
-    shadow43: "M58 112 L204 112 L204 92 L126 92 L126 72 L58 72 Z",
-    cove: "M74 112 L198 112 L198 74 C156 82 116 86 74 74 Z",
-    corner: "M72 112 L204 112 L204 86 L98 86 L98 72 L72 72 Z",
-    splayed: "M62 112 L204 112 L190 72 L76 72 Z",
-    triangle: "M72 112 L204 112 L204 72 Z",
-    quarter: "M72 112 A82 82 0 0 1 154 30 L154 112 Z",
-    classicCrown: "M50 112 L210 112 L196 94 Q178 74 154 88 Q132 100 110 86 Q84 68 64 94 Z",
-    osbSheet: "M74 122 L190 122 L190 52 L74 52 Z",
-    plywoodSheet: "M70 122 L194 122 L194 54 L70 54 Z M70 68 L194 68 M70 82 L194 82 M70 96 L194 96",
-    gypsumSheet: "M76 124 L188 124 L188 50 L76 50 Z",
-    bag: "M76 58 L188 58 L204 128 Q140 150 60 128 Z",
-  };
-  return paths[profile] || paths.rect;
-}
-
-function woodLines(count = 9) {
-  return Array.from({ length: count }, (_, index) => (
-    <path
-      key={index}
-      d={`M${60 + index * 16} 112 C${78 + index * 12} 92 ${82 + index * 14} 84 ${102 + index * 13} 72`}
-      fill="none"
-      stroke="#9a6a32"
-      strokeOpacity="0.28"
-      strokeWidth="1"
-    />
-  ));
-}
-
-function MaterialPreview2D({ material, language }) {
-  const [a, b, dimension] = dimensionParts(material);
-  const isSheet = material.profile.includes("Sheet");
-  const isBag = material.profile === "bag";
-  const coverage = material.coverage?.[0]?.c;
+function LathundenPreview({ material, language }) {
+  if (!material.lathundenImage) {
+    return (
+      <div className="flex min-h-64 items-center justify-center bg-white p-6 text-center text-sm font-bold text-zinc-500">
+        {text("notSpecified", language)}
+      </div>
+    );
+  }
 
   return (
-    <svg className="block h-auto w-full" viewBox="0 0 360 230" role="img" aria-label={text("drawing2d", language)}>
-      <defs>
-        <linearGradient id={`wood-${material.id}`} x1="0" x2="1">
-          <stop offset="0" stopColor="#f8dfab" />
-          <stop offset="1" stopColor="#c48a45" />
-        </linearGradient>
-        <marker id={`arrow-${material.id}`} markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-          <path d="M0 0 L7 3.5 L0 7 Z" fill="#27272a" />
-        </marker>
-      </defs>
-      <rect width="360" height="230" fill="#fff" />
-      <g transform="translate(44 16)">
-        <path d={profilePath(material.profile)} fill={isSheet ? "#eceff3" : isBag ? "#d8d2c8" : `url(#wood-${material.id})`} stroke="#303030" strokeWidth="1.4" />
-        {!isSheet && !isBag && woodLines()}
-        {material.profile === "ribbedDeck" && [74, 94, 114, 134, 154, 174, 194].map((x) => <line key={x} x1={x} y1="76" x2={x + 5} y2="88" stroke="#303030" strokeWidth="1" />)}
-        {material.profile === "osbSheet" && Array.from({ length: 34 }).map((_, index) => <line key={index} x1={80 + (index * 17) % 100} y1={58 + (index * 23) % 58} x2={86 + (index * 19) % 94} y2={62 + (index * 29) % 54} stroke="#9f7a3e" strokeWidth="1" strokeOpacity="0.55" />)}
-
-        <line x1="52" y1="150" x2="208" y2="150" stroke="#27272a" strokeWidth="1" markerStart={`url(#arrow-${material.id})`} markerEnd={`url(#arrow-${material.id})`} />
-        <line x1="52" y1="142" x2="52" y2="158" stroke="#27272a" strokeWidth="1" />
-        <line x1="208" y1="142" x2="208" y2="158" stroke="#27272a" strokeWidth="1" />
-        <line x1="30" y1="70" x2="30" y2="112" stroke="#27272a" strokeWidth="1" markerStart={`url(#arrow-${material.id})`} markerEnd={`url(#arrow-${material.id})`} />
-        <line x1="22" y1="70" x2="38" y2="70" stroke="#27272a" strokeWidth="1" />
-        <line x1="22" y1="112" x2="38" y2="112" stroke="#27272a" strokeWidth="1" />
-        <text x="130" y="177" fill="#27272a" fontSize="18" fontWeight="800" textAnchor="middle">B</text>
-        <text x="18" y="94" fill="#27272a" fontSize="18" fontWeight="800" textAnchor="middle" transform="rotate(-90 18 94)">A</text>
-        {coverage && (
-          <>
-            <line x1="66" y1="134" x2="196" y2="134" stroke="#71717a" strokeWidth="1" strokeDasharray="4 4" markerStart={`url(#arrow-${material.id})`} markerEnd={`url(#arrow-${material.id})`} />
-            <text x="130" y="129" fill="#52525b" fontSize="14" fontWeight="900" textAnchor="middle">C {coverage}</text>
-          </>
-        )}
-        <text x="130" y="208" fill="#111827" fontSize="22" fontWeight="900" textAnchor="middle">{dimension}</text>
-        <text x="294" y="36" fill="#71717a" fontSize="11" fontWeight="800" textAnchor="end">{a} x {b}</text>
-      </g>
-    </svg>
-  );
-}
-
-function MaterialPreview3D({ material, language }) {
-  const isSheet = material.profile.includes("Sheet");
-  const isBag = material.profile === "bag";
-  const mounting = material.mounting || "horizontal";
-  const isVertical = mounting === "vertical";
-
-  return (
-    <svg className="block h-auto w-full" viewBox="0 0 360 230" role="img" aria-label={text("preview3d", language)}>
-      <defs>
-        <linearGradient id={`wood3d-${material.id}`} x1="0" x2="1">
-          <stop offset="0" stopColor="#ffe7b8" />
-          <stop offset="1" stopColor="#a96022" />
-        </linearGradient>
-      </defs>
-      <rect width="360" height="230" fill="#fff" />
-      <g transform="translate(38 24)">
-        {isBag ? (
-          <g>
-            <path d="M74 38 H202 L226 134 Q148 166 48 134 Z" fill="#d8d2c8" stroke="#3f3f46" strokeWidth="1.2" />
-            <path d="M74 38 Q142 58 202 38" fill="none" stroke="#8b8276" strokeWidth="1" />
-            <text x="138" y="105" fill="#333" fontSize="22" fontWeight="900" textAnchor="middle">{localizedName(material.name, language)}</text>
-          </g>
-        ) : isSheet ? (
-          <g>
-            <polygon points="74,36 226,64 226,164 74,136" fill={material.profile === "gypsumSheet" ? "#f4f4f5" : "#dfc28a"} stroke="#3f3f46" />
-            <polygon points="226,64 252,48 252,148 226,164" fill={material.profile === "gypsumSheet" ? "#d4d4d8" : "#b88b47"} stroke="#3f3f46" />
-            {material.profile === "osbSheet" && Array.from({ length: 36 }).map((_, index) => <line key={index} x1={84 + (index * 13) % 126} y1={50 + (index * 19) % 78} x2={92 + (index * 17) % 126} y2={56 + (index * 23) % 78} stroke="#76552b" strokeWidth="1" strokeOpacity="0.5" />)}
-            {material.profile === "plywoodSheet" && [62, 82, 102, 122].map((y) => <line key={y} x1="76" y1={y} x2="225" y2={y + 28} stroke="#79552b" strokeOpacity="0.45" />)}
-          </g>
-        ) : (
-          <g>
-            <g opacity="0.75">
-              {isVertical ? [62, 100, 138, 176].map((x) => (
-                <rect key={x} x={x} y="32" width="24" height="142" fill="#f8f7f2" stroke="#d6d3d1" />
-              )) : [52, 84, 116, 148].map((y) => (
-                <rect key={y} x="54" y={y} width="174" height="22" fill="#f8f7f2" stroke="#d6d3d1" />
-              ))}
-            </g>
-            <polygon points="48,92 198,48 258,72 108,118" fill={`url(#wood3d-${material.id})`} stroke="#3f3f46" />
-            <polygon points="108,118 258,72 258,126 108,176" fill="#8a4a18" stroke="#3f3f46" />
-            <polygon points="48,92 108,118 108,176 48,146" fill="#f3cf8b" stroke="#3f3f46" />
-            <path d={profilePath(material.profile)} transform="translate(10 38) scale(.48)" fill="none" stroke="#fff2cc" strokeWidth="3" />
-            {["ribbedDeck", "straightGroovePanel", "beveledGroovePanel", "rebatedStraightGroove", "rebatedBeveledGroove", "hattlakt"].includes(material.profile) && [82, 112, 142, 172].map((x) => <line key={x} x1={x} y1={82} x2={x + 60} y2={106} stroke="#3f3f46" strokeWidth="1.2" />)}
-            {woodLines(7)}
-          </g>
-        )}
-      </g>
-    </svg>
+    <div className="bg-white p-2">
+      <img
+        src={material.lathundenImage}
+        alt={localizedName(material.name, language)}
+        className="mx-auto max-h-[34rem] w-full rounded-xl object-contain"
+        loading="lazy"
+      />
+    </div>
   );
 }
