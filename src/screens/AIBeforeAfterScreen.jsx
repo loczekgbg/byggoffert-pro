@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Camera,
@@ -13,6 +13,7 @@ import {
   Upload,
 } from "lucide-react";
 import BeforeAfterSlider from "../components/ai/BeforeAfterSlider";
+import { AIService } from "../services/AIService";
 import { aiBeforeAfterService } from "../services/aiBeforeAfterService";
 import { useI18n } from "../i18n";
 
@@ -144,13 +145,17 @@ export default function AIBeforeAfterScreen({ goBack }) {
   const [changeLevel, setChangeLevel] = useState(changeLevels[1]);
   const [isDragging, setIsDragging] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [generationError, setGenerationError] = useState("");
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState("");
+  const [showAiConfig, setShowAiConfig] = useState(false);
   const [history, setHistory] = useState(() => readStoredItems(aiHistoryStorageKey));
 
   const selectedProjectType = projectType === "aiBeforeAfter.custom" ? customProjectType || t("aiBeforeAfter.custom") : t(projectType);
   const selectedStyle = styleType === "aiBeforeAfter.custom" ? customStyleType || t("aiBeforeAfter.custom") : t(styleType);
   const selectedChangeLevel = t(changeLevel);
+  const isAiConfigured = AIService.isConfigured();
 
   const resultRows = useMemo(() => [
     ["aiBeforeAfter.projectType", selectedProjectType],
@@ -194,25 +199,50 @@ export default function AIBeforeAfterScreen({ goBack }) {
   const generateResult = async () => {
     if (!beforeImage || isGenerating) return;
 
+    if (!isAiConfigured) {
+      setResult(null);
+      setGenerationProgress(0);
+      setGenerationError("");
+      setShowAiConfig(true);
+      setMessage(t("aiBeforeAfter.aiNotConfigured"));
+      return;
+    }
+
     setIsGenerating(true);
+    setGenerationProgress(6);
+    setGenerationError("");
     setMessage("");
 
-    const nextResult = await aiBeforeAfterService.analyzeAndGenerate({
-      beforeImage,
-      afterImage: afterReferenceImage,
-      projectType: selectedProjectType,
-      style: selectedStyle,
-      customerWishes: customerWishes.trim(),
-      woodColor,
-      wallColor,
-      brightness,
-      woodAmount,
-      finishType,
-      changeLevel: selectedChangeLevel,
-    });
+    const progressTimer = window.setInterval(() => {
+      setGenerationProgress((current) => Math.min(current + 7, 88));
+    }, 700);
 
-    setResult(nextResult);
-    setIsGenerating(false);
+    try {
+      const nextResult = await aiBeforeAfterService.analyzeAndGenerate({
+        beforeImage,
+        afterImage: afterReferenceImage,
+        projectType: selectedProjectType,
+        style: selectedStyle,
+        customerWishes: customerWishes.trim(),
+        woodColor,
+        wallColor,
+        brightness,
+        woodAmount,
+        finishType,
+        changeLevel: selectedChangeLevel,
+      }, {
+        onProgress: setGenerationProgress,
+      });
+
+      setResult(nextResult);
+      setGenerationProgress(100);
+    } catch (error) {
+      setGenerationError(error instanceof Error ? error.message : t("aiBeforeAfter.apiError"));
+      setMessage(t("aiBeforeAfter.apiError"));
+    } finally {
+      window.clearInterval(progressTimer);
+      setIsGenerating(false);
+    }
   };
 
   const historyItem = () => ({
@@ -224,7 +254,10 @@ export default function AIBeforeAfterScreen({ goBack }) {
     projectType: selectedProjectType,
     style: selectedStyle,
     customerWishes: customerWishes.trim(),
+    provider: result?.provider || "",
+    model: result?.model || "",
     aiPrompt: {
+      text: result?.prompt?.text || "",
       projectType: selectedProjectType,
       style: selectedStyle,
       customerWishes: customerWishes.trim(),
@@ -463,9 +496,58 @@ export default function AIBeforeAfterScreen({ goBack }) {
                 beforeLabel={t("aiBeforeAfter.before")}
                 afterLabel={t("aiBeforeAfter.after")}
               />
+            ) : !isAiConfigured ? (
+              <div className="flex aspect-[4/3] flex-col items-center justify-center rounded-3xl border border-orange-400/20 bg-black/50 p-6 text-center">
+                <Sparkles className="text-orange-400" size={34} />
+                <h3 className="mt-4 text-2xl font-black text-white">AI Ready</h3>
+                <p className="mt-2 max-w-sm text-sm font-bold text-zinc-400">{t("aiBeforeAfter.configureAiHint")}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAiConfig((current) => !current);
+                    setMessage(t("aiBeforeAfter.aiNotConfigured"));
+                  }}
+                  className="mt-5 min-h-12 rounded-2xl bg-orange-500 px-5 text-sm font-black text-black"
+                >
+                  Configure AI
+                </button>
+                {showAiConfig && (
+                  <div className="mt-4 w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-4 text-left text-xs font-bold text-zinc-400">
+                    <p className="text-orange-300">{t("aiBeforeAfter.configureAi")}</p>
+                    <p className="mt-2">{t("aiBeforeAfter.configureAiDetails")}</p>
+                    <code className="mt-3 block whitespace-pre-wrap rounded-xl bg-black p-3 text-[11px] text-zinc-300">
+                      VITE_AI_BEFORE_AFTER_ENDPOINT=https://your-server.example/ai-before-after{"\n"}
+                      VITE_OPENAI_API_KEY=...
+                    </code>
+                  </div>
+                )}
+              </div>
             ) : (
-              <div className="flex aspect-[4/3] items-center justify-center rounded-3xl border border-white/10 bg-black/50 p-6 text-center text-sm font-bold text-zinc-500">
-                {isGenerating ? t("aiBeforeAfter.analyzing") : t("aiBeforeAfter.waitingForImage")}
+              <div className="flex aspect-[4/3] flex-col items-center justify-center rounded-3xl border border-white/10 bg-black/50 p-6 text-center text-sm font-bold text-zinc-500">
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mb-4 animate-spin text-orange-400" size={28} />
+                    <span>{t("aiBeforeAfter.analyzing")}</span>
+                    <span className="mt-4 h-2 w-full max-w-sm overflow-hidden rounded-full bg-white/10">
+                      <span className="block h-full rounded-full bg-orange-400 transition-all" style={{ width: `${generationProgress}%` }} />
+                    </span>
+                    <span className="mt-2 text-xs text-orange-200">{generationProgress}%</span>
+                  </>
+                ) : generationError ? (
+                  <>
+                    <span className="text-zinc-300">{t("aiBeforeAfter.apiError")}</span>
+                    <span className="mt-2 max-w-sm text-xs text-zinc-500">{generationError}</span>
+                    <button
+                      type="button"
+                      onClick={generateResult}
+                      className="mt-4 min-h-11 rounded-2xl bg-orange-500 px-5 text-sm font-black text-black"
+                    >
+                      {t("aiBeforeAfter.retry")}
+                    </button>
+                  </>
+                ) : (
+                  t("aiBeforeAfter.waitingForImage")
+                )}
               </div>
             )}
 
@@ -570,16 +652,30 @@ function TextInput({ label, value, onChange }) {
 }
 
 function TextAreaInput({ label, value, onChange, placeholder }) {
+  const textareaRef = useRef(null);
+  const maxLength = 500;
+
+  useEffect(() => {
+    if (!textareaRef.current) return;
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+  }, [value]);
+
   return (
     <label className="block text-sm font-bold text-zinc-400">
       {label}
       <textarea
+        ref={textareaRef}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange(event.target.value.slice(0, maxLength))}
         placeholder={placeholder}
-        rows={5}
-        className="mt-2 min-h-36 w-full resize-y rounded-2xl border border-white/10 bg-black px-4 py-3 text-base font-bold text-white outline-none placeholder:text-zinc-600"
+        maxLength={maxLength}
+        rows={3}
+        className="mt-2 min-h-32 w-full resize-none overflow-hidden rounded-2xl border border-white/10 bg-black px-4 py-3 text-base font-bold text-white outline-none ring-orange-400/0 transition placeholder:text-zinc-600 focus:border-orange-400/60 focus:ring-4 focus:ring-orange-400/10"
       />
+      <span className="mt-2 flex justify-end text-xs font-black text-zinc-500">
+        {value.length}/{maxLength}
+      </span>
     </label>
   );
 }

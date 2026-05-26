@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ArrowLeft, Box, ClipboardList, FileDown, FolderPlus, Search, ShoppingCart } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Box, ClipboardList, FileDown, FolderPlus, Search, ShoppingCart, X } from "lucide-react";
 import { findMaterial, findMaterialGroup, materialGroups, materialGuide } from "../data/materialGuide";
 import { useI18n } from "../i18n";
 
@@ -36,6 +36,7 @@ const labels = {
     addOffer: "Lägg till i offert",
     addShopping: "Lägg till i inköpslista",
     back: "Tillbaka",
+    close: "Stäng",
     profile: "Profil",
     category: "Kategori",
     subcategory: "Underkategori",
@@ -64,6 +65,7 @@ const labels = {
     addOffer: "Dodaj do oferty",
     addShopping: "Dodaj do listy zakupów",
     back: "Wstecz",
+    close: "Zamknij",
     profile: "Profil",
     category: "Kategoria",
     subcategory: "Podkategoria",
@@ -92,6 +94,7 @@ const labels = {
     addOffer: "Add to quote",
     addShopping: "Add to shopping list",
     back: "Back",
+    close: "Close",
     profile: "Profile",
     category: "Category",
     subcategory: "Subcategory",
@@ -167,7 +170,15 @@ export default function MaterialGuideScreen({ goBack }) {
   const [query, setQuery] = useState("");
   const [groupId, setGroupId] = useState(materialGroups[0]?.id || "");
   const [selectedId, setSelectedId] = useState(materialGuide[0]?.id || "");
+  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
   const selectedMaterial = findMaterial(selectedId) || materialGuide[0];
+
+  useEffect(() => {
+    document.body.style.overflow = isMobileDetailOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileDetailOpen]);
 
   const filteredMaterials = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -213,8 +224,14 @@ export default function MaterialGuideScreen({ goBack }) {
 
   const selectGroup = (nextGroupId) => {
     setGroupId(nextGroupId);
+    setIsMobileDetailOpen(false);
     const first = materialGuide.find((material) => material.group === nextGroupId);
     if (first) setSelectedId(first.id);
+  };
+
+  const selectMaterial = (materialId) => {
+    setSelectedId(materialId);
+    setIsMobileDetailOpen(true);
   };
 
   const addToShoppingList = () => {
@@ -312,7 +329,7 @@ export default function MaterialGuideScreen({ goBack }) {
                     <button
                       key={material.id}
                       type="button"
-                      onClick={() => setSelectedId(material.id)}
+                      onClick={() => selectMaterial(material.id)}
                       className={`rounded-2xl border p-4 text-left transition active:scale-[0.99] ${
                         selectedMaterial.id === material.id ? "border-amber-400 bg-amber-400 text-black" : "border-zinc-800 bg-zinc-950 text-white"
                       }`}
@@ -334,31 +351,70 @@ export default function MaterialGuideScreen({ goBack }) {
           </div>
         </section>
 
-        <MaterialDetail
-          material={selectedMaterial}
-          language={language}
-          onAddToProject={addToProject}
-          onAddToOffer={addToOffer}
-          onAddToShoppingList={addToShoppingList}
-        />
+        <div className="hidden lg:block">
+          <MaterialDetail
+            material={selectedMaterial}
+            language={language}
+            onAddToProject={addToProject}
+            onAddToOffer={addToOffer}
+            onAddToShoppingList={addToShoppingList}
+          />
+        </div>
       </div>
+
+      {isMobileDetailOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label={text("close", language)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsMobileDetailOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[2rem] border border-amber-400/25 bg-zinc-950 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl shadow-black">
+            <div className="mb-3 flex justify-center">
+              <div className="h-1.5 w-12 rounded-full bg-zinc-700" />
+            </div>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="min-w-0 truncate text-sm font-black uppercase tracking-[0.14em] text-amber-300">
+                {text("materialGuide", language)}
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsMobileDetailOpen(false)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black text-white"
+                aria-label={text("close", language)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <MaterialDetail
+              material={selectedMaterial}
+              language={language}
+              onAddToProject={addToProject}
+              onAddToOffer={addToOffer}
+              onAddToShoppingList={addToShoppingList}
+              compact
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function MaterialDetail({ material, language, onAddToProject, onAddToOffer, onAddToShoppingList }) {
+function MaterialDetail({ material, language, onAddToProject, onAddToOffer, onAddToShoppingList, compact = false }) {
   const group = findMaterialGroup(material.group);
   const rows = materialRows(material, language);
   const description = localizedDescription(material, language);
 
   return (
-    <section className="rounded-3xl border border-amber-400/25 bg-zinc-900 p-5 shadow-2xl shadow-amber-500/10">
-      <div className="grid gap-5 xl:grid-cols-[1fr_0.95fr]">
+    <section className={`rounded-3xl border border-amber-400/25 bg-zinc-900 shadow-2xl shadow-amber-500/10 ${compact ? "p-4" : "p-5"}`}>
+      <div className={`grid gap-5 ${compact ? "" : "xl:grid-cols-[1fr_0.95fr]"}`}>
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.14em] text-amber-400">
             {[localizedName(group?.name, language), material.subcategory || material.section].filter(Boolean).join(" / ")}
           </p>
-          <h2 className="mt-2 text-4xl font-black leading-tight">{localizedName(material.name, language)}</h2>
+          <h2 className={`mt-2 font-black leading-tight ${compact ? "text-3xl" : "text-4xl"}`}>{localizedName(material.name, language)}</h2>
           {description && (
             <p className="mt-4 text-base leading-relaxed text-zinc-300">{description}</p>
           )}
