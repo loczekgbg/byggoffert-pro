@@ -1,7 +1,5 @@
-const openAiImageEditUrl = "https://api.openai.com/v1/images/edits";
-const defaultModel = import.meta.env.VITE_AI_BEFORE_AFTER_MODEL || "gpt-image-1.5";
-const proxyEndpoint = import.meta.env.VITE_AI_BEFORE_AFTER_ENDPOINT || "";
-const openAiApiKey = import.meta.env.VITE_OPENAI_API_KEY || "";
+const backendEndpoint = import.meta.env.VITE_AI_BEFORE_AFTER_ENDPOINT || "/api/ai/before-after";
+const statusEndpoint = import.meta.env.VITE_AI_STATUS_ENDPOINT || "/api/ai/status";
 
 function buildBeforeAfterPrompt(payload) {
   const customerWishes = payload.customerWishes?.trim() || "Photorealistic renovation matching the selected style and user settings.";
@@ -51,21 +49,10 @@ function normalizeImageResult(data) {
 function buildFormData(payload, prompt) {
   const formData = new FormData();
 
-  formData.append("model", defaultModel);
   formData.append("prompt", prompt);
-  formData.append("size", "1024x1024");
-  formData.append("quality", "high");
-  formData.append("n", "1");
 
-  return dataUrlToFile(payload.beforeImage, "before").then(async (beforeFile) => {
-    if (payload.afterImage) {
-      const afterReferenceFile = await dataUrlToFile(payload.afterImage, "after-reference");
-      formData.append("image[]", beforeFile);
-      formData.append("image[]", afterReferenceFile);
-    } else {
-      formData.append("image", beforeFile);
-    }
-
+  return dataUrlToFile(payload.beforeImage, "before").then((beforeFile) => {
+    formData.append("image", beforeFile);
     formData.append("metadata", JSON.stringify({
       projectType: payload.projectType,
       style: payload.style,
@@ -84,19 +71,19 @@ function buildFormData(payload, prompt) {
   });
 }
 
-async function generateWithProxy(payload, prompt, onProgress) {
+async function generateWithBackend(payload, prompt, onProgress) {
   onProgress?.(28);
   const body = await buildFormData(payload, prompt);
   onProgress?.(42);
 
-  const response = await fetch(proxyEndpoint, {
+  const response = await fetch(backendEndpoint, {
     method: "POST",
     body,
   });
 
   if (!response.ok) {
-    const details = await response.text();
-    throw new Error(details || `AI proxy failed with status ${response.status}.`);
+    const details = await readErrorMessage(response);
+    throw new Error(details || `AI backend failed with status ${response.status}.`);
   }
 
   onProgress?.(82);
@@ -104,60 +91,94 @@ async function generateWithProxy(payload, prompt, onProgress) {
 
   return {
     afterImage: normalizeImageResult(data),
-    provider: "proxy",
+    provider: data?.provider || "openai",
+    model: data?.model,
     raw: data,
   };
 }
 
-async function generateWithOpenAI(payload, prompt, onProgress) {
-  onProgress?.(28);
-  const body = await buildFormData(payload, prompt);
-  onProgress?.(42);
+async function readErrorMessage(response) {
+  const rawText = await response.text();
 
-  const response = await fetch(openAiImageEditUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openAiApiKey}`,
-    },
-    body,
-  });
+  try {
+    const data = rawText ? JSON.parse(rawText) : {};
 
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(details || `OpenAI image edit failed with status ${response.status}.`);
+    return data?.message || data?.error?.message || "";
+  } catch {
+    return rawText;
   }
-
-  onProgress?.(82);
-  const data = await response.json();
-
-  return {
-    afterImage: normalizeImageResult(data),
-    provider: "openai",
-    raw: data,
-  };
 }
 
 export const AIService = {
   isConfigured() {
-    return Boolean(proxyEndpoint || openAiApiKey);
+    return Boolean(backendEndpoint);
   },
 
   buildBeforeAfterPrompt,
+
+  async getStatus() {
+    try {
+      const response = await fetch(`${statusEndpoint}?check=1`, { method: "GET" });
+      const rawText = await response.text();
+      let data = {};
+
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        data = { message: rawText };
+      }
+
+      if (!response.ok) {
+        const endpointResponds = response.status !== 404;
+
+        return {
+          status: data?.status || "api_error",
+          configured: Boolean(data?.configured),
+          endpointResponds,
+          endpointExists: endpointResponds,
+          message: response.status === 404
+            ? "Backend AI nie jest uruchomiony"
+            : data?.message || `AI backend failed with status ${response.status}.`,
+          model: data?.model || "",
+          provider: data?.provider || "openai",
+        };
+      }
+
+      return {
+        status: data?.status || "configured",
+        configured: Boolean(data?.configured ?? true),
+        endpointResponds: true,
+        endpointExists: Boolean(data?.endpointExists ?? true),
+        message: data?.message || "",
+        model: data?.model || "",
+        provider: data?.provider || "openai",
+      };
+    } catch (error) {
+      return {
+        status: "backend_missing",
+        configured: false,
+        endpointResponds: false,
+        endpointExists: false,
+        message: "Backend AI nie jest uruchomiony",
+        model: "",
+        provider: "openai",
+        details: error instanceof Error ? error.message : "",
+      };
+    }
+  },
 
   async generateBeforeAfter(payload, options = {}) {
     const prompt = buildBeforeAfterPrompt(payload);
 
     options.onProgress?.(12);
 
-    const result = proxyEndpoint
-      ? await generateWithProxy(payload, prompt, options.onProgress)
-      : await generateWithOpenAI(payload, prompt, options.onProgress);
+    const result = await generateWithBackend(payload, prompt, options.onProgress);
 
     options.onProgress?.(100);
 
     return {
       ...result,
-      model: defaultModel,
+      model: result.model,
       prompt,
     };
   },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Camera,
@@ -151,11 +151,42 @@ export default function AIBeforeAfterScreen({ goBack }) {
   const [message, setMessage] = useState("");
   const [showAiConfig, setShowAiConfig] = useState(false);
   const [history, setHistory] = useState(() => readStoredItems(aiHistoryStorageKey));
+  const [aiConnection, setAiConnection] = useState({
+    status: "checking",
+    endpointResponds: false,
+    message: "",
+    model: "",
+  });
 
   const selectedProjectType = projectType === "aiBeforeAfter.custom" ? customProjectType || t("aiBeforeAfter.custom") : t(projectType);
   const selectedStyle = styleType === "aiBeforeAfter.custom" ? customStyleType || t("aiBeforeAfter.custom") : t(styleType);
   const selectedChangeLevel = t(changeLevel);
-  const isAiConfigured = AIService.isConfigured();
+  const isAiConfigured = aiConnection.status === "configured";
+  const aiStatusMessage = aiConnection.status === "missing_config"
+    ? t("aiBeforeAfter.backendKeyMissing")
+    : t(`aiBeforeAfter.aiStatus.${aiConnection.status}`);
+
+  const refreshAiStatus = useCallback(async () => {
+    setAiConnection((current) => ({ ...current, status: "checking" }));
+    const nextStatus = await AIService.getStatus();
+
+    setAiConnection(nextStatus);
+    return nextStatus;
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    AIService.getStatus().then((nextStatus) => {
+      if (active) {
+        setAiConnection(nextStatus);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const resultRows = useMemo(() => [
     ["aiBeforeAfter.projectType", selectedProjectType],
@@ -196,68 +227,19 @@ export default function AIBeforeAfterScreen({ goBack }) {
     handleFile(event.dataTransfer.files?.[0]);
   };
 
-  const generateResult = async () => {
-    if (!beforeImage || isGenerating) return;
-
-    if (!isAiConfigured) {
-      setResult(null);
-      setGenerationProgress(0);
-      setGenerationError("");
-      setShowAiConfig(true);
-      setMessage(t("aiBeforeAfter.aiNotConfigured"));
-      return;
-    }
-
-    setIsGenerating(true);
-    setGenerationProgress(6);
-    setGenerationError("");
-    setMessage("");
-
-    const progressTimer = window.setInterval(() => {
-      setGenerationProgress((current) => Math.min(current + 7, 88));
-    }, 700);
-
-    try {
-      const nextResult = await aiBeforeAfterService.analyzeAndGenerate({
-        beforeImage,
-        afterImage: afterReferenceImage,
-        projectType: selectedProjectType,
-        style: selectedStyle,
-        customerWishes: customerWishes.trim(),
-        woodColor,
-        wallColor,
-        brightness,
-        woodAmount,
-        finishType,
-        changeLevel: selectedChangeLevel,
-      }, {
-        onProgress: setGenerationProgress,
-      });
-
-      setResult(nextResult);
-      setGenerationProgress(100);
-    } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : t("aiBeforeAfter.apiError"));
-      setMessage(t("aiBeforeAfter.apiError"));
-    } finally {
-      window.clearInterval(progressTimer);
-      setIsGenerating(false);
-    }
-  };
-
-  const historyItem = () => ({
-    id: result?.id || createLocalId(),
-    createdAt: result?.createdAt || new Date().toISOString(),
+  const historyItem = (resultOverride = result) => ({
+    id: resultOverride?.id || createLocalId(),
+    createdAt: resultOverride?.createdAt || new Date().toISOString(),
     beforeImage,
     afterReferenceImage,
-    afterImage: result?.afterImage || "",
+    afterImage: resultOverride?.afterImage || "",
     projectType: selectedProjectType,
     style: selectedStyle,
     customerWishes: customerWishes.trim(),
-    provider: result?.provider || "",
-    model: result?.model || "",
+    provider: resultOverride?.provider || "",
+    model: resultOverride?.model || "",
     aiPrompt: {
-      text: result?.prompt?.text || "",
+      text: resultOverride?.prompt?.text || "",
       projectType: selectedProjectType,
       style: selectedStyle,
       customerWishes: customerWishes.trim(),
@@ -279,6 +261,90 @@ export default function AIBeforeAfterScreen({ goBack }) {
       changeLevel: selectedChangeLevel,
     },
   });
+
+  const saveGeneratedOutputs = (nextResult) => {
+    const nextItem = historyItem(nextResult);
+    const nextHistory = [nextItem, ...history.filter((item) => item.id !== nextItem.id)].slice(0, 12);
+    const storedResult = {
+      ...nextItem,
+      toolId: "ai-before-after",
+      title: "AI Before / After",
+      results: resultRows,
+    };
+
+    setHistory(nextHistory);
+    localStorage.setItem(aiHistoryStorageKey, JSON.stringify(nextHistory));
+    writeStoredItem(projectToolsStorageKey, storedResult);
+    writeStoredItem(offerToolsStorageKey, { ...storedResult, shoppingItems: [] });
+
+    const pdf = createSimplePdf(resultRows.map(([label, value]) => `${t(label)}: ${value}`));
+    downloadBlob(pdf, `ai-before-after-${nextItem.id}.pdf`);
+  };
+
+  const generateResult = async () => {
+    if (!beforeImage || isGenerating) return;
+
+    if (!isAiConfigured) {
+      const status = await refreshAiStatus();
+
+      if (status.status === "configured") {
+        setAiConnection(status);
+      } else {
+        setResult(null);
+        setGenerationProgress(0);
+        setGenerationError(status.message || "");
+        setShowAiConfig(true);
+        setMessage(t("aiBeforeAfter.aiNotConfigured"));
+        return;
+      }
+    }
+
+    if (!AIService.isConfigured()) {
+      setResult(null);
+      setGenerationProgress(0);
+      setGenerationError("");
+      setShowAiConfig(true);
+      setMessage(t("aiBeforeAfter.aiNotConfigured"));
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationProgress(6);
+    setGenerationError("");
+    setMessage("");
+
+    const progressTimer = window.setInterval(() => {
+      setGenerationProgress((current) => Math.min(current + 7, 88));
+    }, 700);
+
+    try {
+      const nextResult = await aiBeforeAfterService.analyzeAndGenerate({
+        beforeImage,
+        projectType: selectedProjectType,
+        style: selectedStyle,
+        customerWishes: customerWishes.trim(),
+        woodColor,
+        wallColor,
+        brightness,
+        woodAmount,
+        finishType,
+        changeLevel: selectedChangeLevel,
+      }, {
+        onProgress: setGenerationProgress,
+      });
+
+      setResult(nextResult);
+      saveGeneratedOutputs(nextResult);
+      setGenerationProgress(100);
+      setMessage(t("aiBeforeAfter.generatedAndSaved"));
+    } catch (error) {
+      setGenerationError(error instanceof Error ? error.message : t("aiBeforeAfter.apiError"));
+      setMessage(t("aiBeforeAfter.apiError"));
+    } finally {
+      window.clearInterval(progressTimer);
+      setIsGenerating(false);
+    }
+  };
 
   const saveHistory = () => {
     if (!result) return;
@@ -496,28 +562,44 @@ export default function AIBeforeAfterScreen({ goBack }) {
                 beforeLabel={t("aiBeforeAfter.before")}
                 afterLabel={t("aiBeforeAfter.after")}
               />
-            ) : !isAiConfigured ? (
+            ) : !isAiConfigured && !isGenerating ? (
               <div className="flex aspect-[4/3] flex-col items-center justify-center rounded-3xl border border-orange-400/20 bg-black/50 p-6 text-center">
                 <Sparkles className="text-orange-400" size={34} />
-                <h3 className="mt-4 text-2xl font-black text-white">AI Ready</h3>
-                <p className="mt-2 max-w-sm text-sm font-bold text-zinc-400">{t("aiBeforeAfter.configureAiHint")}</p>
+                <h3 className="mt-4 text-2xl font-black text-white">{t("aiBeforeAfter.aiStatusTitle")}</h3>
+                <p className="mt-2 max-w-sm text-sm font-bold text-zinc-400">{aiStatusMessage}</p>
+                <div className="mt-4 grid w-full max-w-sm gap-2 rounded-2xl border border-white/10 bg-zinc-950 p-4 text-left text-xs font-bold text-zinc-400">
+                  <span className="flex items-center justify-between gap-3">
+                    <span>{t("aiBeforeAfter.endpointResponds")}</span>
+                    <span className={aiConnection.endpointResponds ? "text-emerald-300" : "text-orange-300"}>
+                      {aiConnection.endpointResponds ? t("aiBeforeAfter.yes") : t("aiBeforeAfter.no")}
+                    </span>
+                  </span>
+                  <span className="flex items-center justify-between gap-3">
+                    <span>{t("aiBeforeAfter.model")}</span>
+                    <span className="text-zinc-200">{aiConnection.model || t("Ej angivet")}</span>
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowAiConfig((current) => !current);
-                    setMessage(t("aiBeforeAfter.aiNotConfigured"));
-                  }}
+                  onClick={refreshAiStatus}
+                  className="mt-5 min-h-12 rounded-2xl border border-white/10 bg-white/[0.04] px-5 text-sm font-black text-white"
+                >
+                  {t("aiBeforeAfter.testConnection")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAiConfig((current) => !current)}
                   className="mt-5 min-h-12 rounded-2xl bg-orange-500 px-5 text-sm font-black text-black"
                 >
-                  Configure AI
+                  {t("aiBeforeAfter.configureAi")}
                 </button>
                 {showAiConfig && (
                   <div className="mt-4 w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-4 text-left text-xs font-bold text-zinc-400">
                     <p className="text-orange-300">{t("aiBeforeAfter.configureAi")}</p>
                     <p className="mt-2">{t("aiBeforeAfter.configureAiDetails")}</p>
                     <code className="mt-3 block whitespace-pre-wrap rounded-xl bg-black p-3 text-[11px] text-zinc-300">
-                      VITE_AI_BEFORE_AFTER_ENDPOINT=https://your-server.example/ai-before-after{"\n"}
-                      VITE_OPENAI_API_KEY=...
+                      OPENAI_API_KEY=...{"\n"}
+                      OPENAI_IMAGE_MODEL=gpt-image-1
                     </code>
                   </div>
                 )}
