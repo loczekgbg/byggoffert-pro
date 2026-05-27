@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Box, Calculator, ChevronRight, FileDown, Ruler, ShoppingCart, Trash2 } from "lucide-react";
 import marcinByggLogo from "../assets/marcin-bygg-logo.png";
-import { fastenerService, packageCalculatorService, replacementService, usageCalculatorService } from "../data/fasteners";
+import { defaultWasteFor, fastenerService, packageCalculatorService, replacementService, usageCalculatorService } from "../data/fasteners";
 import { translateText, useI18n } from "../i18n";
 
 const legacyTools = [
@@ -215,7 +215,7 @@ const defaultValues = {
     customFloorBoardLength: 1800,
     screwRows: 3,
     screwSpacing: 150,
-    waste: 10,
+    waste: "",
   },
   decking: {
     areaMode: "manual",
@@ -882,7 +882,7 @@ function calculateScrews(values) {
     ...values,
     area: material.unit === "st/m2" ? surfaceArea(values) : values.area,
   });
-  const packageResult = packageCalculatorService.calculate(usageResult.final.max);
+  const packageResult = packageCalculatorService.calculate(usageResult.final.max, material.packageSize);
   const fasteners = replacementService.resolveFasteners(material, values.fastenerType);
 
   return {
@@ -1211,6 +1211,7 @@ function calculateTool(toolId, values, unit = "m") {
       ["infastning.neededQuantity", `${formatQuantityRange(result.usageResult.needed)} st`],
       ["wastePercent", `${formatNumber(result.waste)} %`],
       ["infastning.finalWithWaste", `${formatQuantityRange(result.usageResult.final)} st`],
+      ["infastning.packageSize", `${formatNumber(result.packageResult.packageSize, 0)} st`],
       ["infastning.packages", formatPackages(result.packageResult.packages)],
       ["infastning.packageCount", `${formatNumber(result.packageResult.packageCount, 0)} st`],
       ["infastning.purchasedQuantity", `${formatNumber(result.packageResult.purchased, 0)} st`],
@@ -1880,17 +1881,23 @@ function ToolDetail({ tool, values, unit, onUnitChange, onChange, onAddToShoppin
           </p>
 
           <div className="mt-4 grid gap-3">
-            {results.map(([label, value]) => (
+            {results.map(([label, value]) => {
+              const displayValue = label === "fastenerType" && typeof value === "string"
+                ? value.split(" / ").map((item) => translateText(item, language)).join(" / ")
+                : translateText(value, language);
+
+              return (
               <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                 <p className="text-xs font-bold uppercase text-zinc-500">
                   {translateText(label, language)}
                 </p>
 
                 <p className="mt-1 text-2xl font-black text-white">
-                  {translateText(value, language)}
+                  {displayValue}
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <button
@@ -2760,6 +2767,10 @@ function ToolFields({ toolId, values, unit, onChange }) {
     const materials = fastenerService.materialsFor(values.environment, values.category);
     const selectedMaterial = fastenerService.find(values.materialId);
     const calculationType = selectedMaterial.calculationType;
+    const resolvedFasteners = replacementService.resolveFasteners(selectedMaterial, values.fastenerType);
+    const effectiveWaste = values.waste === "" || values.waste === undefined || values.waste === null
+      ? defaultWasteFor(selectedMaterial, values.fastenerType)
+      : values.waste;
 
     return (
       <div className="grid gap-4">
@@ -2775,6 +2786,7 @@ function ToolFields({ toolId, values, unit, onChange }) {
                 environment,
                 category: nextCategory,
                 materialId: nextMaterial.id,
+                waste: "",
               });
             }}
             options={environments.map((item) => item.id)}
@@ -2788,6 +2800,7 @@ function ToolFields({ toolId, values, unit, onChange }) {
               onChange({
                 category,
                 materialId: nextMaterial.id,
+                waste: "",
               });
             }}
             options={categories}
@@ -2795,18 +2808,38 @@ function ToolFields({ toolId, values, unit, onChange }) {
           <ToolSelect
             label="material"
             value={selectedMaterial.id}
-            onChange={(materialId) => onChange({ materialId })}
+            onChange={(materialId) => onChange({ materialId, waste: "" })}
             options={materials.map((item) => item.id)}
             optionLabels={materials.map((item) => item.material)}
           />
           <ToolSelect
             label="fastenerType"
             value={values.fastenerType}
-            onChange={(fastenerType) => onChange({ fastenerType })}
+            onChange={(fastenerType) => onChange({ fastenerType, waste: "" })}
             options={["original", "spik", "skruv"]}
             optionLabels={["infastning.original", "nail", "screw"]}
           />
         </ToolGrid>
+
+        <div className="sticky top-3 z-20 rounded-2xl border border-orange-400/30 bg-zinc-950/95 p-4 text-sm text-zinc-300 shadow-2xl shadow-black/40 backdrop-blur lg:static lg:shadow-none">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-400">
+                {translateText("infastning.viewTitle", language)}
+              </p>
+              <p className="mt-1 font-black text-white">{translateText(selectedMaterial.material, language)}</p>
+            </div>
+            <span className="rounded-full border border-orange-400/30 px-3 py-1 text-xs font-black text-orange-200">
+              {formatNumber(effectiveWaste)} %
+            </span>
+          </div>
+          <p className="mt-3 font-black text-white">
+            {resolvedFasteners.map((item) => translateText(item, language)).join(" / ")}
+          </p>
+          <p className="mt-2 text-zinc-400">
+            {translateText("usage", language)}: {formatQuantityRange(selectedMaterial.usage, ` ${translateText(selectedMaterial.unit, language)}`)}
+          </p>
+        </div>
 
         {calculationType === "perM2" && (
           <SurfaceAreaFields values={values} unit={unit} onChange={onChange} modes={["manual", "floor", "wall"]} />
@@ -2825,11 +2858,11 @@ function ToolFields({ toolId, values, unit, onChange }) {
         )}
 
         <ToolGrid>
-          <ToolNumber label="wastePercent" value={values.waste} onChange={(waste) => onChange({ waste })} />
+          <ToolNumber label="wastePercent" value={effectiveWaste} onChange={(waste) => onChange({ waste })} />
         </ToolGrid>
 
         <div className="rounded-2xl border border-orange-400/20 bg-black/50 p-4 text-sm text-zinc-300">
-          <p className="font-black text-white">{replacementService.resolveFasteners(selectedMaterial, values.fastenerType).join(" / ")}</p>
+          <p className="font-black text-white">{resolvedFasteners.map((item) => translateText(item, language)).join(" / ")}</p>
           <p className="mt-2">{translateText("surfaceTreatment", language)}: {selectedMaterial.surfaceTreatment}</p>
           <p className="mt-1">{translateText("ccMax", language)}: {selectedMaterial.ccMax || translateText("Ej angivet", language)}</p>
           <p className="mt-1 text-orange-300">{translateText("usage", language)}: {formatQuantityRange(selectedMaterial.usage, ` ${selectedMaterial.unit}`)}</p>

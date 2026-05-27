@@ -1,8 +1,8 @@
 export const packageSizes = [50, 100, 250, 500, 1000];
 
 const records = [
-  ["infastning.interior", "infastning.floor", "22 mm Golvspånskiva", "22 mm", "Elförzinkad", ["Kamspik 2,8 x 60"], "Skivor ska spikas med högst 300 i fält och högst 150 vid fog längs alla regelunderstödda kanter.", 25, "st/m2", "", "perM2"],
-  ["infastning.interior", "infastning.floor", "13 mm Golvgipsskiva", "13 mm", "Elförzinkad", ["Huggen gipsspik 2,4 x 35"], "150 längs gipsskivans kanter och i gipsskivans mitt 200", [20, 22], "st/m2", "Spikradavstånd högst 600", "perM2"],
+  ["infastning.interior", "infastning.floor", "22 mm Golvspånskiva", "22 mm", "Elförzinkad", ["Golvskruv"], "Skivor ska skruvas med högst 300 i fält och högst 150 vid fog längs alla regelunderstödda kanter.", 25, "st/m2", "", "perM2"],
+  ["infastning.interior", "infastning.floor", "13 mm Golvgipsskiva", "13 mm", "Elförzinkad", ["Gipsskruv"], "150 längs gipsskivans kanter och i gipsskivans mitt 200", [20, 22], "st/m2", "Skruvradavstånd högst 600", "perM2"],
   ["infastning.interior", "infastning.floor", "14 mm Golvbräda", "14 mm", "Varmförzinkad", ["Dyckert 2,0 x 50"], "400", 25, "st/m2", "Skråspikas i 45° vinkel på brädans fjädersida.", "perM2"],
   ["infastning.interior", "infastning.floor", "20–22 mm Golvbräda", "20–22 mm", "Varmförzinkad", ["Dyckert 2,3 x 60"], "600", 15, "st/m2", "Skråspikas i 45° vinkel på brädans fjädersida.", "perM2"],
   ["infastning.interior", "infastning.floor", "25 mm Golvbräda", "25 mm", "Varmförzinkad", ["Dyckert 2,3 x 60"], "600", 15, "st/m2", "Skråspikas i 45° vinkel på brädans fjädersida.", "perM2"],
@@ -10,21 +10,21 @@ const records = [
   ["infastning.interior", "infastning.wallCeiling", "12–15 mm Invändig panelbräda", "12–15 mm", "Varmförzinkad", ["Dyckert 1,7 x 40"], "600", 17, "st/m2", "Elförzinkad spik smutsar ned panel vid uppsättning.", "perM2"],
   ["infastning.interior", "infastning.wallCeiling", "21 mm Invändig panelbräda", "21 mm", "Varmförzinkad", ["Dyckert 2,0 x 50"], "600", 17, "st/m2", "Elförzinkad spik smutsar ned panel vid uppsättning.", "perM2"],
   ["infastning.interior", "infastning.wallCeiling", "12 mm List", "12 mm", "Elförzinkad, mässing, gulförzinkad, våtlackerad", ["Dyckert 1,4 x 30"], "400", 3, "st/lm", "", "perLinearMeter"],
-  ["infastning.interior", "infastning.wallCeiling", "13 mm Normal gipsskiva, 1 lager", "13 mm", "Elförzinkad", ["Huggen gipsspik 2,4 x 35"], "150 längs gipsskivans kanter och i gipsskivans mitt 200.", [20, 22], "st/m2", "Spikradavstånd högst 450 för 900 skivbredd och högst 600 för skivbredd 1200.", "perM2"],
-  ["infastning.interior", "infastning.wallCeiling", "13 mm Normal gipsskiva, 2 lager", "13 mm", "Elförzinkad", ["Huggen gipsspik 2,4 x 50"], "150 längs gipsskivans kanter och i gipsskivans mitt 200.", [20, 22], "st/m2", "Spikradavstånd högst 450 för 900 skivbredd och högst 600 för skivbredd 1200.", "perM2"],
-  ["infastning.interior", "infastning.wallCeiling", "11 mm OSB-skiva", "11 mm", "Elförzinkad", ["Kamspik 2,3 x 35"], "150 längs skivans kanter och i skivans mitt 300.", [20, 22], "st/m2", "Spikradavstånd högst 600.", "perM2"],
-  ["infastning.interior", "infastning.wallCeiling", "12 mm Spånskiva/plywoodskiva", "12 mm", "Elförzinkad", ["Dyckert huggen 2,0 x 35"], "100 längs skivans kanter och i skivans mitt 150–200.", [30, 32], "st/m2", "Spikradavstånd högst 600.", "perM2"],
-  ["infastning.interior", "infastning.wallCeiling", "19 mm Spånskiva/plywoodskiva", "19 mm", "Elförzinkad", ["Dyckert huggen 2,0 x 50"], "100 längs skivans kanter och i skivans mitt 150–200.", [30, 32], "st/m2", "Spikradavstånd högst 600.", "perM2"],
+  ["infastning.interior", "infastning.wallCeiling", "13 mm Normal gipsskiva, 1 lager", "13 mm", "Elförzinkad", ["Gipsskruv"], "150 längs gipsskivans kanter och i gipsskivans mitt 200.", [20, 22], "st/m2", "Skruvradavstånd högst 450 för 900 skivbredd och högst 600 för skivbredd 1200.", "perM2"],
+  ["infastning.interior", "infastning.wallCeiling", "13 mm Normal gipsskiva, 2 lager", "13 mm", "Elförzinkad", ["Gipsskruv"], "150 längs gipsskivans kanter och i gipsskivans mitt 200.", [20, 22], "st/m2", "Skruvradavstånd högst 450 för 900 skivbredd och högst 600 för skivbredd 1200.", "perM2"],
+  ["infastning.interior", "infastning.wallCeiling", "11 mm OSB-skiva", "11 mm", "Elförzinkad", ["Träskruv", "Konstruktionsskruv"], "150 längs skivans kanter och i skivans mitt 300.", [20, 22], "st/m2", "Skruvradavstånd högst 600.", "perM2"],
+  ["infastning.interior", "infastning.wallCeiling", "12 mm Spånskiva/plywoodskiva", "12 mm", "Elförzinkad", ["Träskruv"], "100 längs skivans kanter och i skivans mitt 150–200.", [30, 32], "st/m2", "Skruvradavstånd högst 600.", "perM2"],
+  ["infastning.interior", "infastning.wallCeiling", "19 mm Spånskiva/plywoodskiva", "19 mm", "Elförzinkad", ["Träskruv"], "100 längs skivans kanter och i skivans mitt 150–200.", [30, 32], "st/m2", "Skruvradavstånd högst 600.", "perM2"],
   ["infastning.interior", "infastning.wallCeiling", "19 mm Hård/medelhård träfiberskiva", "19 mm", "Elförzinkad", ["Dyckert huggen 2,0 x 40"], "75–100 längs skivans kanter och i skivans mitt 175–200.", [38, 40], "st/m2", "Spikradavstånd högst 600.", "perM2"],
   ["infastning.interior", "infastning.wallCeiling", "22 mm Glespanel", "22 mm", "Varmförzinkad", ["Trådspik 2,8 x 75"], "400", [7, 11], "st/m2", "2 spik i varje stödpunkt.", "perM2"],
   ["infastning.interior", "infastning.wallCeiling", "28 mm Glespanel", "28 mm", "Varmförzinkad", ["Trådspik 2,8 x 75"], "400", [7, 11], "st/m2", "2 spik i varje stödpunkt.", "perM2"],
-  ["infastning.exterior", "infastning.deckFence", "22 mm Trall", "22 mm", "Rostfri syrafast A4", ["Kamspik 2,3 x 45"], "400", [47, 24], "st/m2", "", "perM2"],
-  ["infastning.exterior", "infastning.deckFence", "28 mm Trall", "28 mm", "Rostfri syrafast A4", ["Kamspik 2,5 x 60"], "600", [35, 17], "st/m2", "", "perM2"],
-  ["infastning.exterior", "infastning.deckFence", "34 mm Trall", "34 mm", "Rostfri syrafast A4", ["Kamspik 3,1 x 75"], "600–800", [35, 17], "st/m2", "", "perM2"],
+  ["infastning.exterior", "infastning.deckFence", "22 mm Trall", "22 mm", "Rostfri syrafast A4", ["Trallskruv A4"], "400", [47, 24], "st/m2", "", "perM2"],
+  ["infastning.exterior", "infastning.deckFence", "28 mm Trall", "28 mm", "Rostfri syrafast A4", ["Trallskruv A4"], "600", [35, 17], "st/m2", "", "perM2"],
+  ["infastning.exterior", "infastning.deckFence", "34 mm Trall", "34 mm", "Rostfri syrafast A4", ["Trallskruv A4"], "600–800", [35, 17], "st/m2", "", "perM2"],
   ["infastning.exterior", "infastning.deckFence", "22 mm Staketbräda", "22 mm", "Varmförzinkad, rostfri syrafast A4", ["Trådspik 2,8 x 75", "Panelspik 2,8 x 55"], "", [20, 58], "st/lm", "2 spik i varje korsningspunkt. Antal spik räknat på 2 tvärreglar.", "perLinearMeter"],
   ["infastning.exterior", "infastning.deckFence", "34 mm Överliggare", "34 mm", "Rostfri syrafast A4", ["Trådspik 3,4 x 100", "Kamspik 3,1 x 75"], "400", 4, "st/lm", "", "perLinearMeter"],
   ["infastning.exterior", "infastning.wall", "45 mm Regelverk", "45 mm", "Varmförzinkad", ["Trådspik 3,4 x 100"], "", 6, "st/lm", "Infästes enligt ritning.", "perLinearMeter"],
-  ["infastning.exterior", "infastning.wall", "9 mm Utvändig gipsskiva", "9 mm", "Varmförzinkad", ["Pappspik 2,5 x 25"], "150 längs gipsskivans kanter och i gipsskivans mitt 200.", [20, 22], "st/m2", "Spikradavstånd högst 450 för 900 skivbredd och högst 600 för skivbredd 1200.", "perM2"],
+  ["infastning.exterior", "infastning.wall", "9 mm Utvändig gipsskiva", "9 mm", "Varmförzinkad", ["Utvändig gipsskruv"], "150 längs gipsskivans kanter och i gipsskivans mitt 200.", [20, 22], "st/m2", "Skruvradavstånd högst 450 för 900 skivbredd och högst 600 för skivbredd 1200.", "perM2"],
   ["infastning.exterior", "infastning.wall", "28 mm Spikregel för utvändig panelbräda", "28 mm", "Varmförzinkad", ["Trådspik 2,8 x 75"], "600", 9, "st/m2", "2 spik i varje korsningspunkt.", "perM2"],
   ["infastning.exterior", "infastning.wall", "34 mm Spikregel för utvändig panelbräda", "34 mm", "Varmförzinkad", ["Trådspik 3,4 x 100"], "600", 9, "st/m2", "2 spik i varje korsningspunkt.", "perM2"],
   ["infastning.exterior", "infastning.wall", "22 mm Utvändig panelbräda", "22 mm", "Varmförzinkad, rostfri syrafast A4", ["Panelspik 2,8 x 48", "Panelspik 2,8 x 55"], "", 35, "st/m2", "För spikregel ≥ 28 / För spikregel ≥ 34", "perM2"],
@@ -51,20 +51,94 @@ export const fastenerEnvironments = [
   { id: "infastning.exterior", categories: ["infastning.deckFence", "infastning.wall", "infastning.roof"] },
 ];
 
-export const fasteners = records.map((record, index) => ({
-  id: `fastener-${index + 1}`,
-  environment: record[0],
-  category: record[1],
-  material: record[2],
-  thickness: record[3],
-  surfaceTreatment: record[4],
-  fasteners: record[5],
-  ccMax: record[6],
-  usage: Array.isArray(record[7]) ? { min: record[7][0], max: record[7][1] } : { value: record[7] },
-  unit: record[8],
-  notes: record[9],
-  calculationType: record[10],
-}));
+function parseFastenerSize(value) {
+  const match = String(value).match(/(\d+(?:[,.]\d+)?)\s*x\s*(\d+(?:[,.]\d+)?)/i);
+
+  if (!match) {
+    return { diameterMm: null, lengthMm: null, dimension: "" };
+  }
+
+  return {
+    diameterMm: Number(match[1].replace(",", ".")),
+    lengthMm: Number(match[2].replace(",", ".")),
+    dimension: `${match[1]} x ${match[2]}`,
+  };
+}
+
+function fastenerKind(values) {
+  const text = values.join(" ").toLowerCase();
+
+  if (text.includes("trallskruv")) return "trallskruv";
+  if (text.includes("gipsskruv")) return "gipsskruv";
+  if (text.includes("skruv")) return "skruv";
+  if (text.includes("panelspik")) return "panelspik";
+  if (text.includes("spik") || text.includes("dyckert")) return "spik";
+
+  return "fastener";
+}
+
+function defaultSpillPercent(values) {
+  const kind = fastenerKind(values);
+
+  if (kind === "trallskruv") return 10;
+  if (kind === "gipsskruv" || kind === "skruv") return 5;
+  if (kind === "panelspik" || kind === "spik") return 8;
+
+  return 5;
+}
+
+function usageFor(recordUsage) {
+  if (Array.isArray(recordUsage)) {
+    const min = Math.min(Number(recordUsage[0]) || 0, Number(recordUsage[1]) || 0);
+    const max = Math.max(Number(recordUsage[0]) || 0, Number(recordUsage[1]) || 0);
+
+    return { min, max };
+  }
+
+  return { value: recordUsage };
+}
+
+export const fasteners = records.map((record, index) => {
+  const usage = usageFor(record[7]);
+  const size = parseFastenerSize(record[5][0]);
+  const spillPercent = defaultSpillPercent(record[5]);
+
+  return {
+    id: `fastener-${index + 1}`,
+    environment: record[0],
+    category: record[1],
+    subcategory: fastenerKind(record[5]),
+    name: {
+      sv: record[2],
+      pl: record[2],
+      en: record[2],
+    },
+    description: {
+      sv: record[9] || "",
+      pl: "",
+      en: "",
+    },
+    material: record[2],
+    thickness: record[3],
+    dimension: size.dimension,
+    lengthMm: size.lengthMm,
+    diameterMm: size.diameterMm,
+    surfaceTreatment: record[4],
+    fasteners: record[5],
+    ccMax: record[6],
+    usage,
+    unit: record[8],
+    notes: record[9],
+    calculationType: record[10],
+    indoorOutdoor: record[0] === "infastning.interior" ? "indoor" : "outdoor",
+    packageSize: packageSizes[2],
+    min_per_m2: record[8] === "st/m2" ? usage.min ?? usage.value : null,
+    max_per_m2: record[8] === "st/m2" ? usage.max ?? usage.value : null,
+    spill_percent: spillPercent,
+    compatible_with: [record[2]],
+    projectCompatible: true,
+  };
+});
 
 function containsScrew(value) {
   return /skruv/i.test(value);
@@ -91,6 +165,10 @@ export const replacementService = {
 
     if (sameType.length > 0) return sameType;
 
+    if (requestedType === "spik" && /gipsskiva|osb|plywood|spånskiva/i.test(record.material)) {
+      return record.fasteners;
+    }
+
     return record.fasteners.map((item) => {
       if (requestedType === "skruv") {
         return item
@@ -106,11 +184,16 @@ export const replacementService = {
       return item
         .replace(/Panelskruv/gi, "Panelspik")
         .replace(/Pappskruv/gi, "Pappspik")
-        .replace(/Gipsskruv/gi, "Huggen gipsspik")
         .replace(/Skruv/gi, "Spik");
     });
   },
 };
+
+export function defaultWasteFor(record, requestedType = "original") {
+  const resolvedFasteners = replacementService.resolveFasteners(record, requestedType);
+
+  return defaultSpillPercent(resolvedFasteners.length > 0 ? resolvedFasteners : record?.fasteners || []);
+}
 
 function usageBounds(usage) {
   if (usage?.min !== undefined && usage?.max !== undefined) {
@@ -133,7 +216,10 @@ export const usageCalculatorService = {
       if (record.unit === "st/korsningspunkt") return Number(values.crossingPoints) || 0;
       return Number(values.area) || 0;
     })();
-    const waste = Math.max(0, Number(values.waste) || 0);
+    const hasCustomWaste = values.waste !== undefined && values.waste !== null && values.waste !== "";
+    const waste = hasCustomWaste
+      ? Math.max(0, Number(values.waste) || 0)
+      : defaultWasteFor(record, values.fastenerType);
     const multiplier = 1 + waste / 100;
     const min = Math.ceil(baseMeasure * usage.min);
     const max = Math.ceil(baseMeasure * usage.max);
@@ -150,8 +236,23 @@ export const usageCalculatorService = {
   },
 };
 
-function choosePackages(quantity) {
+function choosePackages(quantity, preferredSize) {
   let remaining = Math.max(0, Math.ceil(quantity));
+
+  if (packageSizes.includes(Number(preferredSize))) {
+    const size = Number(preferredSize);
+    const count = Math.ceil(remaining / size);
+    const purchased = count * size;
+
+    return {
+      packages: count > 0 ? [{ size, count }] : [],
+      packageCount: count,
+      purchased,
+      surplus: purchased - remaining,
+      packageSize: size,
+    };
+  }
+
   const packages = [];
 
   [...packageSizes].reverse().forEach((size) => {
@@ -174,11 +275,12 @@ function choosePackages(quantity) {
     packageCount: packages.reduce((sum, item) => sum + item.count, 0),
     purchased,
     surplus: purchased - Math.ceil(quantity),
+    packageSize: packages[0]?.size || 0,
   };
 }
 
 export const packageCalculatorService = {
-  calculate(quantity) {
-    return choosePackages(quantity);
+  calculate(quantity, preferredSize) {
+    return choosePackages(quantity, preferredSize);
   },
 };
