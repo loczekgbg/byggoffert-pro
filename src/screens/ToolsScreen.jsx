@@ -1445,9 +1445,9 @@ function calculateTool(toolId, values, unit = "m") {
   ];
 }
 
-export default function ToolsScreen({ goBack, defaultUnit = "m" }) {
+export default function ToolsScreen({ goBack, defaultUnit = "m", initialTool = null }) {
   const { language, t } = useI18n();
-  const [selectedTool, setSelectedTool] = useState(null);
+  const [selectedTool, setSelectedTool] = useState(initialTool);
   const [unit, setUnit] = useState(defaultUnit);
   const [values, setValues] = useState(defaultValues);
   const [shoppingItems, setShoppingItems] = useState(() => {

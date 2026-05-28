@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Calculator,
@@ -10,6 +10,7 @@ import {
   Menu,
   Ruler,
   ArrowLeft,
+  Clock3,
   Edit3,
   FileDown,
   Trash2,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 
 import Card from "./components/Card";
+import AppShell from "./components/AppShell";
 import Option from "./components/Option";
 import PriceCard from "./components/PriceCard";
 import CategoriesScreen from "./screens/CategoriesScreen";
@@ -46,6 +48,7 @@ const defaultAppSettings = {
   standardWastePercent: 10,
   standardVatPercent: 25,
   language: "sv",
+  theme: "system",
   unit: "m",
 };
 
@@ -128,6 +131,33 @@ function AppContent() {
   const [savedOffers, setSavedOffers] = useState(() => loadSavedOffers());
   const clients = buildClients(savedOffers);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = appSettings.theme || "system";
+  }, [appSettings.theme]);
+
+  const openScreen = (nextScreen) => {
+    setScreen(nextScreen);
+  };
+
+  const updateTheme = (theme) => {
+    updateAppSettings({
+      ...appSettings,
+      theme,
+    });
+  };
+
+  const shell = (content) => (
+    <AppShell
+      activeScreen={screen}
+      appSettings={appSettings}
+      savedOffers={savedOffers}
+      onOpenScreen={openScreen}
+      onThemeChange={updateTheme}
+    >
+      {content}
+    </AppShell>
+  );
+
   const saveOffer = (offer) => {
     const offerExists = savedOffers.some((savedOffer) => savedOffer.id === offer.id);
     const nextOffers = offerExists
@@ -174,7 +204,7 @@ function AppContent() {
   };
 
   if (screen === "categories") {
-    return (
+    return shell(
       <CategoriesScreen
         goBack={() => {
           setQuoteCustomerDraft(null);
@@ -190,12 +220,12 @@ function AppContent() {
           setSelectedCategory("Multi-category offert");
           setScreen("multiCalculator");
         }}
-      />
+      />,
     );
   }
 
   if (screen === "multiCalculator") {
-    return (
+    return shell(
       <MultiCategoryOfferScreen
         initialOffer={editingOffer?.isMultiCategory ? editingOffer : null}
         initialCustomer={quoteCustomerDraft}
@@ -205,12 +235,12 @@ function AppContent() {
         }}
         onSaveOffer={saveOffer}
         appSettings={appSettings}
-      />
+      />,
     );
   }
 
   if (screen === "calculator") {
-    return (
+    return shell(
       <CategoryCalculator
         key={editingOffer?.id || `${selectedCategory}-${getClientKey(quoteCustomerDraft || {})}`}
         category={selectedCategory}
@@ -222,12 +252,12 @@ function AppContent() {
         }}
         onSaveOffer={saveOffer}
         appSettings={appSettings}
-      />
+      />,
     );
   }
 
   if (screen === "history") {
-    return (
+    return shell(
       <HistoryScreen
         goBack={() => setScreen("home")}
         offers={savedOffers}
@@ -244,12 +274,12 @@ function AppContent() {
           setScreen("calculator");
         }}
         appSettings={appSettings}
-      />
+      />,
     );
   }
 
   if (screen === "clients") {
-    return (
+    return shell(
       <ClientsScreen
         clients={clients}
         goBack={() => setScreen("home")}
@@ -263,14 +293,14 @@ function AppContent() {
           setEditingOffer(null);
           setScreen("categories");
         }}
-      />
+      />,
     );
   }
 
   if (screen === "clientDetail") {
     const selectedClient = clients.find((client) => client.key === selectedClientKey);
 
-    return (
+    return shell(
       <ClientDetailScreen
         client={selectedClient}
         goBack={() => setScreen("clients")}
@@ -291,39 +321,54 @@ function AppContent() {
           setEditingOffer(null);
           setScreen("categories");
         }}
-      />
+      />,
     );
   }
 
   if (screen === "tools") {
-    return (
+    return shell(
       <ToolsScreen goBack={() => setScreen("home")} defaultUnit={appSettings.unit} />
     );
   }
 
+  if (screen === "shopping-list") {
+    return shell(
+      <ToolsScreen goBack={() => setScreen("home")} defaultUnit={appSettings.unit} initialTool="shopping-list" />,
+    );
+  }
+
   if (screen === "materials") {
-    return (
+    return shell(
       <MaterialGuideScreen goBack={() => setScreen("home")} />
     );
   }
 
   if (screen === "aiBeforeAfter") {
-    return (
+    return shell(
       <AIBeforeAfterScreen goBack={() => setScreen("home")} />
     );
   }
 
   if (screen === "settings") {
-    return (
+    return shell(
       <SettingsScreen
         goBack={() => setScreen("home")}
         settings={appSettings}
         onChange={updateAppSettings}
-      />
+      />,
     );
   }
 
-  return (
+  if (["ai-scan", "ai-offer", "ai-area", "time-report", "reports", "profile"].includes(screen)) {
+    return shell(
+      <ModulePlaceholderScreen
+        screen={screen}
+        goBack={() => setScreen("home")}
+      />,
+    );
+  }
+
+  return shell(
     <div className="premium-screen pb-[calc(5.5rem+env(safe-area-inset-bottom))] text-white">
 
       {/* HERO */}
@@ -508,7 +553,7 @@ function AppContent() {
         onClients={() => setScreen("clients")}
       />
 
-    </div>
+    </div>,
   );
 }
 
@@ -541,6 +586,55 @@ function MobileBottomNav({ active, onHome, onNew, onHistory, onTools, onClients 
         );
       })}
     </nav>
+  );
+}
+
+function ModulePlaceholderScreen({ screen, goBack }) {
+  const { t } = useI18n();
+  const meta = {
+    "ai-scan": ["sidebar.aiScan", Camera, "sidebar.placeholderAiScan"],
+    "ai-offer": ["sidebar.aiOffer", Sparkles, "sidebar.placeholderAiOffer"],
+    "ai-area": ["sidebar.aiAreaEstimate", Ruler, "sidebar.placeholderAiArea"],
+    "time-report": ["sidebar.timeReport", Clock3, "sidebar.placeholderTimeReport"],
+    reports: ["sidebar.reports", FileDown, "sidebar.placeholderReports"],
+    profile: ["sidebar.profile", User, "sidebar.placeholderProfile"],
+  }[screen] || ["sidebar.dashboard", Home, "sidebar.placeholderDefault"];
+  const [title, Icon, text] = meta;
+
+  return (
+    <div className="min-h-[100dvh] overflow-x-hidden bg-black p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white">
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={goBack}
+          className="relative z-10 touch-manipulation rounded-2xl border border-zinc-800 bg-zinc-900 p-3"
+        >
+          <ArrowLeft size={22} />
+        </button>
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.16em] text-orange-400">{t("sidebar.module")}</p>
+          <h1 className="text-3xl font-black">{t(title)}</h1>
+        </div>
+      </div>
+
+      <section className="mt-8 rounded-3xl border border-orange-400/25 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-6 shadow-2xl shadow-orange-500/10">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-orange-400/30 bg-orange-500/10 text-orange-300">
+          <Icon size={28} />
+        </div>
+        <h2 className="mt-5 text-2xl font-black">{t(title)}</h2>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">{t(text)}</p>
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {["sidebar.skeletonPlan", "sidebar.skeletonData", "sidebar.skeletonExport"].map((item) => (
+            <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="h-2 w-16 rounded-full bg-orange-400/60" />
+              <p className="mt-4 text-sm font-black text-white">{t(item)}</p>
+              <div className="mt-3 h-2 rounded-full bg-white/10" />
+              <div className="mt-2 h-2 w-2/3 rounded-full bg-white/10" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -726,6 +820,14 @@ function SettingsScreen({ goBack, settings, onChange }) {
                 <option value="m">m</option>
               </select>
             </label>
+            <label className="block text-sm text-zinc-400">
+              {t("sidebar.theme")}
+              <select value={settings.theme || "system"} onChange={(event) => updateSetting("theme", event.target.value)} className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none">
+                <option value="dark">{t("sidebar.theme.dark")}</option>
+                <option value="light">{t("sidebar.theme.light")}</option>
+                <option value="system">{t("sidebar.theme.system")}</option>
+              </select>
+            </label>
           </div>
           <p className="mt-4 text-sm text-zinc-400">
             {t("PDF genereras alltid på svenska.")}
@@ -738,7 +840,7 @@ function SettingsScreen({ goBack, settings, onChange }) {
 
 function SettingsPanel({ title, children }) {
   return (
-    <section className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-2xl shadow-black/20">
+    <section className="settings-panel">
       <h2 className="text-xl font-black text-white">
         {title}
       </h2>
@@ -751,7 +853,7 @@ function SettingsPanel({ title, children }) {
 
 function SettingsGrid({ children }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="settings-grid">
       {children}
     </div>
   );
@@ -759,13 +861,13 @@ function SettingsGrid({ children }) {
 
 function SettingsInput({ label, value, onChange, type = "text" }) {
   return (
-    <label className="block text-sm text-zinc-400">
+    <label className="settings-field">
       {label}
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 min-h-14 w-full rounded-2xl border border-zinc-800 bg-black px-4 text-base font-bold text-white outline-none"
+        className="settings-input"
       />
     </label>
   );
