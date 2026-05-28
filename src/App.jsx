@@ -7,7 +7,6 @@ import {
   Hammer,
   Home,
   Settings,
-  Menu,
   Ruler,
   ArrowLeft,
   Clock3,
@@ -379,16 +378,12 @@ function AppContent() {
           className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
         />
 
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_18%,rgba(245,162,11,0.14),transparent_22rem),linear-gradient(90deg,rgba(0,0,0,0.98),rgba(0,0,0,0.72)_48%,rgba(0,0,0,0.94))]" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black via-black/80 to-transparent" />
+        <div className="premium-hero-overlay" />
+        <div className="premium-hero-bottom-fade" />
 
         <div className="premium-shell premium-hero-grid">
 
           <div className="premium-topbar">
-
-            <button type="button" className="premium-icon-button" aria-label={t("Meny")}>
-              <Menu size={24} />
-            </button>
 
             <div className="ml-auto flex items-center gap-2">
               <button
@@ -405,7 +400,7 @@ function AppContent() {
 
           <div className="premium-hero-copy flex flex-col justify-end pb-4">
 
-            <div className="flex items-start justify-between gap-4">
+            <div className="premium-hero-brand-row">
               <div className="min-w-0">
                 <p className="premium-brand-title">MARCIN BYGG</p>
                 <p className="premium-script mt-1">{t("Med kvalitet i varje detalj")}</p>
@@ -415,11 +410,18 @@ function AppContent() {
                 </p>
               </div>
 
-              <img
-                src={marcinByggLogo}
-                alt="Marcin Bygg"
-                className="premium-logo-mark shrink-0"
-              />
+              <div className="premium-hero-sign" aria-label="Marcin Bygg">
+                <img
+                  src={marcinByggLogo}
+                  alt=""
+                  className="premium-hero-sign-logo"
+                />
+                <div className="premium-hero-sign-wordmark">
+                  <span>MARCIN</span>
+                  <strong>BYGG</strong>
+                </div>
+                <p>SNICKERI & BYGGTJÄNSTER</p>
+              </div>
             </div>
 
             <div className="mt-7 grid gap-3">
@@ -501,23 +503,6 @@ function AppContent() {
             title={t("Inställningar")}
             text={t("Appinställningar")}
           />
-
-        </div>
-
-      </div>
-
-      {/* CONTACT */}
-      <div className="premium-shell mt-5">
-
-        <div className="premium-brush-cta">
-
-          <p className="relative text-[0.65rem] font-black uppercase tracking-[0.12em] text-black/70">
-            {t("KONTAKTA MIG IDAG")}
-          </p>
-
-          <h2 className="relative mt-1 text-4xl font-black leading-none sm:text-5xl">
-            076 320 5125
-          </h2>
 
         </div>
 

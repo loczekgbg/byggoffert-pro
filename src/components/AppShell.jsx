@@ -196,7 +196,9 @@ export default function AppShell({
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="sidebar-mobile-trigger fixed left-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-zinc-950/90 text-orange-300 shadow-2xl shadow-black/30 backdrop-blur lg:hidden"
+        className={`sidebar-mobile-trigger fixed left-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-zinc-950/90 text-orange-300 shadow-2xl shadow-black/30 backdrop-blur transition-opacity lg:hidden ${
+          mobileOpen ? "pointer-events-none opacity-0" : "opacity-100"
+        }`}
         aria-label={t("sidebar.openMenu")}
       >
         <Menu size={22} />

@@ -7,6 +7,32 @@ export const fallbackLanguage = "en";
 
 const translationModules = import.meta.glob("./translations/*.json");
 const translations = {};
+const coreTranslations = {
+  pl: {
+    "sidebar.notificationReport": "Nowy raport czasu",
+    "sidebar.notificationReportText": "Raport jest gotowy do sprawdzenia.",
+    "sidebar.notificationAi": "AI zakończyło analizę",
+    "sidebar.notificationAiText": "Wynik AI jest gotowy do użycia.",
+    "sidebar.notificationOffer": "Nowa oferta oczekuje",
+    "sidebar.noClient": "Brak klienta",
+  },
+  sv: {
+    "sidebar.notificationReport": "Ny tidsrapport",
+    "sidebar.notificationReportText": "Rapporten är redo att granskas.",
+    "sidebar.notificationAi": "AI-analysen är klar",
+    "sidebar.notificationAiText": "AI-resultatet är redo att användas.",
+    "sidebar.notificationOffer": "Ny offert väntar",
+    "sidebar.noClient": "Ingen kund",
+  },
+  en: {
+    "sidebar.notificationReport": "New time report",
+    "sidebar.notificationReportText": "The report is ready to review.",
+    "sidebar.notificationAi": "AI analysis finished",
+    "sidebar.notificationAiText": "The AI result is ready to use.",
+    "sidebar.notificationOffer": "New quote waiting",
+    "sidebar.noClient": "No client",
+  },
+};
 const legacyTextCorrections = new Map([
   ["\x3ftg\x3fng", "\u00C5tg\u00E5ng"],
   ["Skruv & Spik\x3ftg\x3fng", "Skruv & Spik\u00E5tg\u00E5ng"],
@@ -74,7 +100,12 @@ const I18nContext = createContext({
 });
 
 function dictionaryFor(language) {
-  return translations[language] || translations[fallbackLanguage] || {};
+  return {
+    ...(translations[fallbackLanguage] || {}),
+    ...(translations[language] || {}),
+    ...(coreTranslations[fallbackLanguage] || {}),
+    ...(coreTranslations[language] || {}),
+  };
 }
 
 function normalizeLegacyText(value) {
