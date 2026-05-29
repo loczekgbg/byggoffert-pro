@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Calculator,
@@ -28,6 +28,7 @@ import ToolsScreen from "./screens/ToolsScreen";
 import MaterialGuideScreen from "./screens/MaterialGuideScreen";
 import AIBeforeAfterScreen from "./screens/AIBeforeAfterScreen";
 import marcinByggLogo from "./assets/marcin-bygg-logo.png";
+import marcinByggLogo3d from "./assets/marcin-bygg-logo-3d.png";
 import { I18nProvider, translateText, useI18n } from "./i18n";
 import { formatPrice } from "./utils/formatPrice";
 
@@ -121,7 +122,8 @@ export default function App() {
 function AppContent() {
   const { setLanguage, t } = useI18n();
 
-  const [screen, setScreen] = useState("home");
+  const [screen, setScreenState] = useState("home");
+  const screenHistoryRef = useRef([]);
   const [appSettings, setAppSettings] = useState(() => loadAppSettings());
   const [selectedCategory, setSelectedCategory] = useState("");
   const [editingOffer, setEditingOffer] = useState(null);
@@ -133,6 +135,30 @@ function AppContent() {
   useEffect(() => {
     document.documentElement.dataset.theme = appSettings.theme || "system";
   }, [appSettings.theme]);
+
+  const setScreen = (nextScreen, options = {}) => {
+    setScreenState((currentScreen) => {
+      if (currentScreen === nextScreen) return currentScreen;
+
+      if (!options.replace) {
+        screenHistoryRef.current = [...screenHistoryRef.current, currentScreen].slice(-30);
+      }
+
+      return nextScreen;
+    });
+  };
+
+  const goBack = () => {
+    setScreenState((currentScreen) => {
+      const previousScreen = screenHistoryRef.current.pop();
+
+      if (!previousScreen || previousScreen === currentScreen) {
+        return "home";
+      }
+
+      return previousScreen;
+    });
+  };
 
   const openScreen = (nextScreen) => {
     setScreen(nextScreen);
@@ -151,6 +177,7 @@ function AppContent() {
       appSettings={appSettings}
       savedOffers={savedOffers}
       onOpenScreen={openScreen}
+      onNavigateBack={goBack}
       onThemeChange={updateTheme}
     >
       {content}
@@ -412,15 +439,10 @@ function AppContent() {
 
               <div className="premium-hero-sign" aria-label="Marcin Bygg">
                 <img
-                  src={marcinByggLogo}
-                  alt=""
-                  className="premium-hero-sign-logo"
+                  src={marcinByggLogo3d}
+                  alt="Marcin Bygg"
+                  className="premium-hero-sign-render"
                 />
-                <div className="premium-hero-sign-wordmark">
-                  <span>MARCIN</span>
-                  <strong>BYGG</strong>
-                </div>
-                <p>SNICKERI & BYGGTJÄNSTER</p>
               </div>
             </div>
 

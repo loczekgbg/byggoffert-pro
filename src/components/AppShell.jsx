@@ -87,6 +87,7 @@ export default function AppShell({
   activeScreen,
   appSettings,
   children,
+  onNavigateBack,
   onOpenScreen,
   onThemeChange,
   savedOffers = [],
@@ -103,6 +104,7 @@ export default function AppShell({
     }
   });
   const touchStartX = useRef(null);
+  const shellTouchStart = useRef(null);
   const notifications = useMemo(() => createNotificationItems(t, savedOffers), [savedOffers, t]);
   const theme = appSettings?.theme || "system";
   const recentProjects = useMemo(() => {
@@ -142,6 +144,45 @@ export default function AppShell({
   const openScreen = (screen) => {
     onOpenScreen(screen);
     setMobileOpen(false);
+  };
+
+  const isInteractiveTarget = (target) => {
+    return Boolean(target?.closest?.("button, a, input, textarea, select, [role='button'], [data-no-swipe]"));
+  };
+
+  const handleShellTouchStart = (event) => {
+    if (window.innerWidth >= 1024 || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+
+    shellTouchStart.current = {
+      edge: touch.clientX <= 24,
+      interactive: isInteractiveTarget(event.target),
+      x: touch.clientX,
+      y: touch.clientY,
+    };
+  };
+
+  const handleShellTouchMove = (event) => {
+    if (!shellTouchStart.current || window.innerWidth >= 1024 || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    const diffX = touch.clientX - shellTouchStart.current.x;
+    const diffY = touch.clientY - shellTouchStart.current.y;
+    const horizontalSwipe = Math.abs(diffX) > Math.abs(diffY) * 1.35;
+
+    if (!horizontalSwipe) return;
+
+    if (shellTouchStart.current.edge && diffX > 68 && !mobileOpen) {
+      setMobileOpen(true);
+      shellTouchStart.current = null;
+      return;
+    }
+
+    if (!shellTouchStart.current.edge && !shellTouchStart.current.interactive && !mobileOpen && diffX > 92) {
+      onNavigateBack?.();
+      shellTouchStart.current = null;
+    }
   };
 
   const togglePinned = (projectId) => {
@@ -192,7 +233,14 @@ export default function AppShell({
   const sidebarClassName = `sidebar-shell ${collapsed ? "is-collapsed" : ""} ${mobileOpen ? "is-mobile-open" : ""}`;
 
   return (
-    <div className={shellClassName}>
+    <div
+      className={shellClassName}
+      onTouchStart={handleShellTouchStart}
+      onTouchMove={handleShellTouchMove}
+      onTouchEnd={() => {
+        shellTouchStart.current = null;
+      }}
+    >
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
