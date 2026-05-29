@@ -429,10 +429,9 @@ function AppContent() {
 
             <div className="premium-hero-brand-row">
               <div className="min-w-0">
-                <p className="premium-brand-title">MARCIN BYGG</p>
-                <p className="premium-script mt-1">{t("Med kvalitet i varje detalj")}</p>
-                <div className="mt-4 h-1 w-36 rounded-full bg-orange-500" />
-                <p className="mt-5 max-w-[17rem] text-sm font-black uppercase leading-snug text-zinc-100 sm:max-w-sm sm:text-base">
+                <h1 className="premium-script">{t("Med kvalitet i varje detalj")}</h1>
+                <div className="mt-5 h-1 w-36 rounded-full bg-orange-500" />
+                <p className="mt-6 max-w-[18rem] text-sm font-black uppercase leading-snug text-zinc-100 sm:max-w-md sm:text-base">
                   {t("Professionell snickarservice för hem och företag.")}
                 </p>
               </div>
@@ -446,7 +445,7 @@ function AppContent() {
               </div>
             </div>
 
-            <div className="mt-7 grid gap-3">
+            <div className="mt-9 grid gap-3">
               {[
                 [Home, "Nybyggnation", "Från grund till färdigt resultat"],
                 [Hammer, "Renovering", "Vi förvandlar idéer till verklighet"],
